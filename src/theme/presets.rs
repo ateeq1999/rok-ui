@@ -54,9 +54,20 @@ pub(super) fn build_theme(preset: ThemePreset, mode: ThemeMode) -> Theme {
         colors,
         radius,
         font_family: ".SystemUIFont".into(),
-        monospace_font_family: "monospace".into(),
+        monospace_font_family: default_monospace_font().into(),
         font_size: px(14.),
         preset,
+    }
+}
+
+/// "monospace" is a fontconfig alias; DirectWrite and CoreText need a real family name.
+fn default_monospace_font() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "Consolas"
+    } else if cfg!(target_os = "macos") {
+        "Menlo"
+    } else {
+        "monospace"
     }
 }
 
