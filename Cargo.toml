@@ -1,0 +1,36 @@
+[workspace]
+members = [".", "macros"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.85"
+
+[package]
+name = "rok-ui"
+description = "shadcn/ui-style component system for GPUI desktop apps, with a React-like developer experience."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+keywords = ["gpui", "ui", "desktop", "components", "shadcn"]
+categories = ["gui"]
+exclude = ["docs/screenshots"]
+
+[dependencies]
+gpui = "0.2.2"
+rok-ui-macros = { version = "0.1.0", path = "macros" }
+unicode-segmentation = "1.12"
+
+[[example]]
+name = "gallery"
+
+[[example]]
+name = "counter"
+
+[dev-dependencies]
+gpui = { version = "0.2.2", features = ["test-support"] }
+env_logger = "0.11"

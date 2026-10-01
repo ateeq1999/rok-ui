@@ -1,0 +1,45 @@
+//! Skeleton: a pulsing placeholder while content loads.
+
+use std::time::Duration;
+
+use gpui::{
+    div, prelude::*, pulsating_between, Animation, AnimationExt, App, ElementId, StyleRefinement,
+    Window,
+};
+
+use crate::{styles::ApplyStyleOverrides, theme::ActiveTheme};
+
+/// Size it like the content it stands in for: `Skeleton::new("title").h(px(16.)).w(px(200.))`.
+#[derive(IntoElement)]
+pub struct Skeleton {
+    id: ElementId,
+    style_overrides: StyleRefinement,
+}
+
+crate::implement_style_overrides!(Skeleton);
+
+impl Skeleton {
+    pub fn new(id: impl Into<ElementId>) -> Self {
+        Self {
+            id: id.into(),
+            style_overrides: StyleRefinement::default(),
+        }
+    }
+}
+
+impl RenderOnce for Skeleton {
+    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let theme = cx.theme();
+        div()
+            .rounded(theme.radius_medium())
+            .bg(theme.colors.muted)
+            .apply_style_overrides(&self.style_overrides)
+            .with_animation(
+                self.id,
+                Animation::new(Duration::from_millis(2000))
+                    .repeat()
+                    .with_easing(pulsating_between(0.5, 1.0)),
+                |skeleton, opacity| skeleton.opacity(opacity),
+            )
+    }
+}
