@@ -1,0 +1,5 @@
+error: `opacty` cannot be animated; did you mean `opacity`? Animatable: opacity, x, y, width, height, radius, background, bg, color, border_color
+ --> tests/ui/not_animatable.rs:5:17
+  |
+5 |         from: { opacty: 0 },
+  |                 ^^^^^^

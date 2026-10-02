@@ -2,6 +2,9 @@
 //! keep tracking outside the element, bounds measurement, keyboard activation
 //! and the modal layer behind dialogs, sheets and drawers.
 
+// Shared by optional components; parts go unused in partial feature builds.
+#![cfg_attr(not(feature = "full"), allow(dead_code, unused_imports))]
+
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{
@@ -11,7 +14,10 @@ use gpui::{
 
 use super::layer::layer_at;
 use super::overlay::child_id;
-use crate::theme::ActiveTheme;
+use crate::{
+    motion::{use_presence, Presence, Transition},
+    theme::ActiveTheme,
+};
 
 /// A handler that takes no event, shared between several listeners.
 pub(crate) type Callback = Rc<dyn Fn(&mut Window, &mut App)>;
@@ -87,9 +93,41 @@ pub(crate) enum ModalPlacement {
 
 /// Draw `panel` over a scrim covering the window, with focus moved inside.
 /// Escape calls `on_escape`; a press on the scrim calls `on_backdrop` (if any).
+/// Enter / exit progress for a modal: keeps it mounted while it animates out.
+/// Call it on every render, open or not, so the transition has a start value.
+pub(crate) fn modal_presence(
+    id: &ElementId,
+    open: bool,
+    window: &mut Window,
+    cx: &mut App,
+) -> Presence {
+    use_presence(
+        child_id(id, "presence"),
+        window,
+        cx,
+        open,
+        Transition::ease_out(180),
+    )
+}
+
+/// Offset of a modal panel at `progress`: dialogs rise a little, sheets and
+/// drawers slide in from their edge.
+pub(crate) fn modal_offset(placement: ModalPlacement, progress: f32) -> (Pixels, Pixels) {
+    let remaining = 1. - progress;
+    match placement {
+        ModalPlacement::Center => (px(0.), px(8. * remaining)),
+        ModalPlacement::Top => (px(0.), px(-320. * remaining)),
+        ModalPlacement::Bottom => (px(0.), px(320. * remaining)),
+        ModalPlacement::Left => (px(-384. * remaining), px(0.)),
+        ModalPlacement::Right => (px(384. * remaining), px(0.)),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn render_modal(
     id: ElementId,
     placement: ModalPlacement,
+    progress: f32,
     panel: Div,
     on_escape: Option<Callback>,
     on_backdrop: Option<Callback>,
@@ -112,7 +150,11 @@ pub(crate) fn render_modal(
 
     let theme = cx.theme();
     let viewport_size = window.viewport_size();
+    let (offset_x, offset_y) = modal_offset(placement, progress);
     let panel = panel
+        .relative()
+        .left(offset_x)
+        .top(offset_y)
         .track_focus(&focus_handle)
         .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
         .on_key_down(move |event, window, cx| {
@@ -130,7 +172,7 @@ pub(crate) fn render_modal(
         .w(viewport_size.width)
         .h(viewport_size.height)
         .flex()
-        .bg(theme.colors.overlay)
+        .bg(theme.colors.overlay.opacity(progress))
         .font_family(theme.font_family.clone())
         .text_size(theme.font_size)
         .text_color(theme.colors.foreground)
@@ -146,7 +188,7 @@ pub(crate) fn render_modal(
                 on_backdrop(window, cx)
             })
         })
-        .child(panel);
+        .child(panel.opacity(progress));
 
     layer_at(point(px(0.), px(0.)), Corner::TopLeft, px(0.), scrim, 1, cx)
 }

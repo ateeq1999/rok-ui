@@ -2,8 +2,10 @@
 //!
 //! Run with `cargo run --example gallery`.
 //! Options: `--dark`, `--preset neutral`, `--open-dialog`,
-//! `--page overview|forms|overlays|layout|data|chat`.
+//! `--page overview|forms|overlays|layout|data|chat|motion`.
 
+#[path = "gallery/motion.rs"]
+mod motion_page;
 #[path = "gallery/pages.rs"]
 mod pages;
 
@@ -18,16 +20,18 @@ enum GalleryPage {
     Layout,
     Data,
     Chat,
+    Motion,
 }
 
 impl GalleryPage {
-    const ALL: [GalleryPage; 6] = [
+    const ALL: [GalleryPage; 7] = [
         GalleryPage::Overview,
         GalleryPage::Forms,
         GalleryPage::Overlays,
         GalleryPage::Layout,
         GalleryPage::Data,
         GalleryPage::Chat,
+        GalleryPage::Motion,
     ];
 
     fn title(self) -> &'static str {
@@ -38,6 +42,7 @@ impl GalleryPage {
             GalleryPage::Layout => "Layout & navigation",
             GalleryPage::Data => "Data",
             GalleryPage::Chat => "Chat",
+            GalleryPage::Motion => "Motion",
         }
     }
 
@@ -49,6 +54,7 @@ impl GalleryPage {
             GalleryPage::Layout => IconName::PanelLeft,
             GalleryPage::Data => IconName::FileText,
             GalleryPage::Chat => IconName::Send,
+            GalleryPage::Motion => IconName::Sparkles,
         }
     }
 
@@ -60,6 +66,7 @@ impl GalleryPage {
             "layout" => GalleryPage::Layout,
             "data" => GalleryPage::Data,
             "chat" => GalleryPage::Chat,
+            "motion" => GalleryPage::Motion,
             _ => return None,
         })
     }
@@ -608,6 +615,7 @@ impl Render for Gallery {
             GalleryPage::Layout => pages::LayoutPage::new().into_any_element(),
             GalleryPage::Data => pages::DataPage::new().into_any_element(),
             GalleryPage::Chat => pages::ChatPage::new().into_any_element(),
+            GalleryPage::Motion => motion_page::MotionPage::new().into_any_element(),
         };
         AppRoot::new()
             .child(self.header(cx))

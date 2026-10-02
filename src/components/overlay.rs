@@ -6,6 +6,9 @@
 //!   keeps it inside the window.
 //! - [`popover_surface`]: the bordered, shadowed panel every floating surface uses.
 
+// Shared by optional components; parts go unused in partial feature builds.
+#![cfg_attr(not(feature = "full"), allow(dead_code, unused_imports))]
+
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{
@@ -13,6 +16,7 @@ use gpui::{
 };
 
 use super::layer::layer_at_marker;
+use crate::motion::{presets, Motion, MotionExt, MotionSide};
 
 use crate::{
     hooks::{EventHandler, State},
@@ -137,7 +141,11 @@ pub(crate) fn floating(side: Side, align: Align, content: impl IntoElement, cx: 
             Side::Left => spacer.pr(gap),
             Side::Right => spacer.pl(gap),
         })
-        .child(content);
+        .child(
+            div()
+                .child(content)
+                .motion("rok-ui-floating-enter", enter_motion(side)),
+        );
     let layer = layer_at_marker(anchor, content, cx);
 
     // A zero-size marker at the anchor point; `anchored` opens from its origin.
@@ -236,4 +244,15 @@ pub(crate) fn dismissable(
             }
         })
         .on_mouse_down_out(move |_, window, cx| outside_state.set_open(false, window, cx))
+}
+
+/// Floating surfaces fade in while sliding 4px away from their trigger.
+pub(crate) fn enter_motion(side: Side) -> Motion {
+    let from = match side {
+        Side::Bottom => MotionSide::Top,
+        Side::Top => MotionSide::Bottom,
+        Side::Left => MotionSide::Right,
+        Side::Right => MotionSide::Left,
+    };
+    presets::slide_in(from, 1.).duration_ms(150)
 }

@@ -170,6 +170,7 @@ impl InputState {
         self.multiline
     }
 
+    #[cfg_attr(not(feature = "full"), allow(dead_code))]
     pub(crate) fn focus_handle_ref(&self) -> &FocusHandle {
         &self.focus_handle
     }
@@ -709,6 +710,7 @@ impl Input {
     }
 
     /// For fields embedded in a larger control that draws its own ring.
+    #[cfg_attr(not(feature = "full"), allow(dead_code))]
     pub(crate) fn without_focus_ring(mut self) -> Self {
         self.focus_ring = false;
         self

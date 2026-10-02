@@ -105,6 +105,7 @@ pub(crate) struct CommandGroup {
 }
 
 impl CommandGroup {
+    #[cfg_attr(not(feature = "full"), allow(dead_code))]
     pub(crate) fn without_heading(items: Vec<CommandItem>) -> Self {
         Self {
             heading: None,
@@ -455,9 +456,12 @@ impl CommandDialog {
 
 impl RenderOnce for CommandDialog {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        if !self.open {
+        let presence =
+            crate::components::interaction::modal_presence(&self.id, self.open, window, cx);
+        if !presence.is_mounted() {
             return div().into_any_element();
         }
+        let progress = presence.progress();
         let close: Callback = {
             let on_close = self.on_close.clone();
             Rc::new(move |window, cx| {
@@ -522,13 +526,18 @@ impl RenderOnce for CommandDialog {
             .items_center()
             .pt(viewport_size.height * 0.2)
             .px(px(16.))
-            .bg(overlay)
+            .bg(overlay.opacity(progress))
             .font_family(font_family)
             .text_size(font_size)
             .on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
                 backdrop_close(window, cx)
             })
-            .child(panel);
+            .child(
+                panel
+                    .relative()
+                    .top(px(8. * (1. - progress)))
+                    .opacity(progress),
+            );
         layer_at(point(px(0.), px(0.)), Corner::TopLeft, px(0.), scrim, 1, cx)
     }
 }

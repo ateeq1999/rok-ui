@@ -245,7 +245,7 @@ pub enum SxRadius {
 }
 
 impl SxRadius {
-    fn resolve(self, theme: &Theme) -> AbsoluteLength {
+    pub(crate) fn resolve(self, theme: &Theme) -> AbsoluteLength {
         match self {
             SxRadius::None => px(0.).into(),
             SxRadius::Sm => theme.radius_small().into(),

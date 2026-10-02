@@ -29,10 +29,12 @@ use super::overlay::{
 use crate::{
     hooks::{use_keyed_state, EventHandler},
     icon::{Icon, IconName},
+    motion::{presets, MotionExt},
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
 
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 #[derive(Clone)]
 enum MenuItemKind {
     Action,
@@ -110,6 +112,7 @@ impl MenuItem {
         self
     }
 
+    #[cfg_attr(not(feature = "full"), allow(dead_code))]
     pub(crate) fn select_option(mut self, selected: bool) -> Self {
         self.kind = MenuItemKind::SelectOption(selected);
         self
@@ -596,6 +599,7 @@ impl RenderOnce for ContextMenu {
         );
         let panel = dismissable(panel, &open_state, window, cx);
         let position = position.get(cx);
+        let panel = panel.motion("rok-ui-context-enter", presets::fade_in().duration_ms(120));
         area.child(layer_at(position, Corner::TopLeft, px(8.), panel, 1, cx))
     }
 }

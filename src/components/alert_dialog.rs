@@ -6,7 +6,7 @@ use gpui::{div, prelude::*, px, AnyElement, App, ElementId, FontWeight, SharedSt
 
 use super::{
     button::Button,
-    interaction::{render_modal, Callback, ModalPlacement},
+    interaction::{modal_presence, render_modal, Callback, ModalPlacement},
 };
 use crate::{hooks::EventHandler, theme::ActiveTheme};
 
@@ -113,7 +113,8 @@ fn to_callback(handler: Option<EventHandler<()>>) -> Callback {
 
 impl RenderOnce for AlertDialog {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        if !self.open {
+        let presence = modal_presence(&self.id, self.open, window, cx);
+        if !presence.is_mounted() {
             return div().into_any_element();
         }
         let theme = cx.theme();
@@ -178,6 +179,7 @@ impl RenderOnce for AlertDialog {
         render_modal(
             self.id,
             ModalPlacement::Center,
+            presence.progress(),
             panel,
             Some(cancel),
             None,

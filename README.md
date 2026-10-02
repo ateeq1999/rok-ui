@@ -34,6 +34,24 @@ gpui = "0.2.2"   # rok-ui re-exports it as rok_ui::gpui; keep the versions in st
 
 rok-ui 0.1 targets **gpui 0.2.2** from crates.io and Rust 1.85 or newer.
 
+### Picking components
+
+Every component is a Cargo feature. The default, `full`, enables all of them. To compile only
+what you use, turn off the defaults and list the components you want:
+
+```toml
+rok-ui = { version = "0.1", default-features = false, features = ["button", "dialog", "select"] }
+```
+
+- **Dependencies:** a feature pulls in the components it is built from (`combobox` enables
+  `command` and `input`).
+- **Naming:** features use kebab-case module names (`alert-dialog`, `data-table`). shadcn/ui
+  names work as aliases: `dropdown-menu`, `context-menu`, `navigation-menu`, `drawer`,
+  `textarea`, `kbd`, `native-select` and `toggle-group`.
+- **Groups:** `forms`, `overlays`, `layout`, `data` and `chat` each enable a whole group.
+- **Always included:** `AppRoot`, `Direction`, the theme, icons, hooks, styling (`styles!`,
+  `view!`) and motion, whatever features you pick.
+
 On Linux, GPUI needs the X11/Wayland development packages. On Debian/Ubuntu:
 
 ```sh
@@ -72,7 +90,7 @@ The examples:
 ```sh
 cargo run --example counter                       # a function component with a hook
 cargo run --example gallery                       # every component, page by page, with theme switching
-cargo run --example gallery -- --page chat        # start on a page: overview, forms, overlays, layout, data, chat
+cargo run --example gallery -- --page motion      # start on a page: overview, forms, overlays, layout, data, chat, motion
 cargo run --example gallery -- --dark --preset neutral
 ```
 
@@ -239,6 +257,56 @@ The syntax:
 - **GPUI elements:** lowercase `div`, `img` and `svg` are GPUI's element functions.
 - **Children:** `{ … }` holds children: elements, `"text"`, `{expr}`, `if`, `if let`, `match`
   and `for`.
+
+## Motion
+
+Keyframe animations, transitions and enter/exit presence.
+
+### Keyframes
+
+`keyframes!` is like CSS `@keyframes`, and `.motion(..)` is like CSS `animation`:
+
+```rust
+keyframes! {
+    pub FADE_UP = {
+        from: { opacity: 0, y: 2 },
+        50%: { background: accent },
+        to: { opacity: 1, y: 0 },
+    }
+}
+
+div().motion("card-enter", Motion::new(&FADE_UP).duration_ms(250).easing(Easing::EaseOut))
+Badge::new("Live").motion("live", motion::pulse())
+Button::new("save").motion(("shake", attempts), motion::shake())   // replays when the id changes
+```
+
+- **Animatable properties:** `opacity`, `x` and `y` (offsets from the laid-out position, since
+  GPUI has no transforms for divs), `width`, `height`, `radius`, `background`, `color` and
+  `border_color`. Values work as in `styles!`, theme tokens included.
+- **Timing:** `duration`, `delay`, `iterations(n)` or `infinite()`, and `reverse()` or
+  `alternate()`.
+- **Easing:** `Linear`, `EaseIn`, `EaseOut`, `EaseInOut`, `CubicBezier(..)`,
+  `Spring { damping }` and `Steps(n)`.
+- **Presets:** `fade_in`, `fade_out`, `slide_in(side, distance)`, `pulse`, `bounce`, `shake`
+  and `highlight`, in `motion::`.
+
+### Transitions and presence
+
+```rust
+// Animate a value toward each new target (interruptible, starts from the current value).
+let width = use_transition("sidebar", window, cx, if open { 256. } else { 48. }, Transition::spring());
+div().w(px(width))
+
+// Keep something mounted while it animates out.
+let panel = use_presence("panel", window, cx, open, Transition::ease_out(200));
+div().when(panel.is_mounted(), |div| div.child(panel.apply(content, &FADE_UP)))
+```
+
+- **Types:** `use_transition` works for `f32`, `Pixels`, `Hsla` colors and pairs of these.
+- **Built in:** dialogs, alert dialogs, sheets, drawers and the command palette animate in and
+  out. Popovers, menus, selects and hover cards fade and slide in. Toasts spring up.
+- **Reduced motion:** `rok_ui::motion::set_reduced_motion(true)` turns animation off app-wide.
+  Motions jump to their end and transitions finish at once.
 
 ## Components
 

@@ -8,7 +8,7 @@ use gpui::{
 
 use super::{
     button::Button,
-    interaction::{render_modal, Callback, ModalPlacement},
+    interaction::{modal_presence, render_modal, Callback, ModalPlacement},
 };
 use crate::{hooks::EventHandler, icon::IconName, theme::ActiveTheme};
 
@@ -176,7 +176,8 @@ impl ParentElement for Sheet {
 
 impl RenderOnce for Sheet {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        if !self.open {
+        let presence = modal_presence(&self.id, self.open, window, cx);
+        if !presence.is_mounted() {
             return div().into_any_element();
         }
         let theme = cx.theme();
@@ -227,6 +228,7 @@ impl RenderOnce for Sheet {
         render_modal(
             self.id,
             placement,
+            presence.progress(),
             panel,
             Some(close.clone()),
             Some(close),
@@ -301,7 +303,8 @@ impl ParentElement for Drawer {
 
 impl RenderOnce for Drawer {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        if !self.open {
+        let presence = modal_presence(&self.id, self.open, window, cx);
+        if !presence.is_mounted() {
             return div().into_any_element();
         }
         let theme = cx.theme();
@@ -336,6 +339,7 @@ impl RenderOnce for Drawer {
         render_modal(
             self.id,
             ModalPlacement::Bottom,
+            presence.progress(),
             panel.child(body),
             Some(close.clone()),
             Some(close),

@@ -18,6 +18,7 @@ use super::layer::layer_at;
 use super::{button::Button, spinner::Spinner};
 use crate::{
     icon::{Icon, IconName},
+    motion::{presets, Easing, MotionExt, MotionSide},
     theme::ActiveTheme,
 };
 
@@ -273,6 +274,12 @@ impl RenderOnce for Toaster {
                             .tooltip("Dismiss")
                             .on_click(move |_, _, cx| dismiss_toast(id, cx)),
                     ),
+                )
+                .motion(
+                    ("toast-enter", id.0),
+                    presets::slide_in(MotionSide::Bottom, 4.)
+                        .duration_ms(220)
+                        .easing(Easing::Spring { damping: 0.7 }),
                 )
         });
 

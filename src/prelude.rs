@@ -11,6 +11,10 @@ pub use gpui::{
 pub use crate::components::*;
 pub use crate::hooks::{use_keyed_state, use_state, EventHandler, State};
 pub use crate::icon::{Assets, Icon, IconName};
+pub use crate::motion::{
+    presets as motion, use_presence, use_transition, Easing, Frame, Keyframes, Motion,
+    MotionDirection, MotionExt, MotionSide, Presence, Transition,
+};
 pub use crate::styles::{ApplyStyleOverrides, ComponentSize};
 pub use crate::sx;
 pub use crate::sx::{
@@ -18,4 +22,4 @@ pub use crate::sx::{
     SxRadius, SxShadow, SxStyled, SxText, SxTextAlign,
 };
 pub use crate::theme::{ActiveTheme, Theme, ThemeColors, ThemeMode, ThemePreset};
-pub use rok_ui_macros::{children, component, style, styles, view};
+pub use rok_ui_macros::{children, component, keyframes, style, styles, view};

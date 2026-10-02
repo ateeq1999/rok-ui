@@ -491,3 +491,27 @@ pub fn view(input: TokenStream) -> TokenStream {
         .unwrap_or_else(|error| error.to_compile_error())
         .into()
 }
+
+/// Define keyframe sequences for [`Motion`](../rok_ui/motion/struct.Motion.html).
+///
+/// ```ignore
+/// keyframes! {
+///     pub FADE_UP = {
+///         from: { opacity: 0, y: 2 },
+///         60%: { opacity: 1 },
+///         to: { y: 0, background: card },
+///     }
+/// }
+///
+/// div().motion("enter", Motion::new(&FADE_UP).duration_ms(250).easing(Easing::EaseOut))
+/// ```
+///
+/// Offsets are `from`, `to` or percentages. Animatable properties: `opacity`,
+/// `x` / `y` (offsets from the laid-out position), `width`, `height`, `radius`,
+/// `background`, `color` and `border_color`, with the same values as `styles!`.
+#[proc_macro]
+pub fn keyframes(input: TokenStream) -> TokenStream {
+    styles::expand_keyframes(input.into())
+        .unwrap_or_else(|error| error.to_compile_error())
+        .into()
+}

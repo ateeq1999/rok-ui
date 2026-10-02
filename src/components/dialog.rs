@@ -83,9 +83,12 @@ impl ParentElement for Dialog {
 
 impl RenderOnce for Dialog {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        if !self.open {
+        let presence =
+            crate::components::interaction::modal_presence(&self.id, self.open, window, cx);
+        if !presence.is_mounted() {
             return div().into_any_element();
         }
+        let progress = presence.progress();
 
         // Focus moves into the dialog when it opens so Escape and Tab work inside it.
         // Only once: grabbing it every frame would fight a modal stacked on top.
@@ -191,13 +194,18 @@ impl RenderOnce for Dialog {
             .items_center()
             .justify_center()
             .p(px(16.))
-            .bg(colors.overlay)
+            .bg(colors.overlay.opacity(progress))
             .font_family(theme.font_family.clone())
             .text_size(theme.font_size)
             .on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
                 close_from_backdrop(window, cx)
             })
-            .child(panel);
+            .child(
+                panel
+                    .relative()
+                    .top(px(8. * (1. - progress)))
+                    .opacity(progress),
+            );
         layer_at(point(px(0.), px(0.)), Corner::TopLeft, px(0.), scrim, 1, cx)
     }
 }

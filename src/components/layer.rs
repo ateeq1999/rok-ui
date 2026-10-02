@@ -7,6 +7,9 @@
 //! floating surface rendered inside it becomes a *portal*: the root lays it out
 //! and paints it after its own content, at the position its trigger recorded.
 
+// Shared by optional components; parts go unused in partial feature builds.
+#![cfg_attr(not(feature = "full"), allow(dead_code, unused_imports))]
+
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{

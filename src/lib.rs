@@ -30,6 +30,7 @@ extern crate self as rok_ui;
 pub mod components;
 pub mod hooks;
 pub mod icon;
+pub mod motion;
 pub mod prelude;
 pub mod styles;
 pub mod sx;
@@ -37,12 +38,13 @@ pub mod theme;
 
 pub use gpui;
 pub use icon::{Assets, AssetsWithFallback, Icon, IconName};
-pub use rok_ui_macros::{children, component, style, styles, view};
+pub use rok_ui_macros::{children, component, keyframes, style, styles, view};
 
 /// Install the default theme and the key bindings rok-ui components rely on
 /// (text editing, Tab focus navigation). Call once at startup.
 pub fn init(cx: &mut gpui::App) {
     theme::init(cx);
     components::app_root::bind_focus_navigation_keys(cx);
+    #[cfg(feature = "input")]
     components::input::bind_text_editing_keys(cx);
 }
