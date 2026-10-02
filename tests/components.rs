@@ -615,3 +615,62 @@ fn shadcn_parity_components_render_right_to_left(cx: &mut gpui::TestAppContext) 
     }
     cx.update(|cx| set_text_direction(TextDirection::Ltr, cx));
 }
+
+/// Records the laid-out width of a `ButtonGroup` and of its three buttons on their own.
+struct ButtonGroupWidthView(std::rc::Rc<std::cell::Cell<(f32, f32)>>);
+
+impl Render for ButtonGroupWidthView {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let widths = self.0.clone();
+        let probe = move |slot: usize| {
+            let widths = widths.clone();
+            gpui::canvas(
+                move |bounds, _, _| {
+                    let (group, row) = widths.get();
+                    let width = f32::from(bounds.size.width);
+                    widths.set(if slot == 0 { (width, row) } else { (group, width) });
+                },
+                |_, _, _, _| {},
+            )
+            .absolute()
+            .size_full()
+        };
+        let buttons = |prefix: &'static str| {
+            ["Archive", "Report", "Snooze"]
+                .map(|label| Button::new((prefix, label.len())).outline().label(label))
+        };
+        let [a, b, c] = buttons("group");
+        let [d, e, f] = buttons("plain");
+        div()
+            .w(px(600.))
+            .flex()
+            .flex_wrap()
+            .gap(px(8.))
+            .child(
+                div()
+                    .relative()
+                    .child(probe(0))
+                    .child(ButtonGroup::new().item(a).item(b).item(c)),
+            )
+            .child(
+                div()
+                    .relative()
+                    .child(probe(1))
+                    .child(div().flex().child(d).child(e).child(f)),
+            )
+    }
+}
+
+#[gpui::test]
+fn button_group_is_as_wide_as_its_items(cx: &mut gpui::TestAppContext) {
+    cx.update(rok_ui::init);
+    let widths = std::rc::Rc::new(std::cell::Cell::new((0., 0.)));
+    let view_widths = widths.clone();
+    let (_view, window_context) =
+        cx.add_window_view(move |_, _| ButtonGroupWidthView(view_widths.clone()));
+    window_context.run_until_parked();
+    let (group, row) = widths.get();
+    // Joined items share a border, so the group is at most a few pixels narrower.
+    assert!(row > 200., "buttons measured {row}px");
+    assert!((row - group).abs() <= 3., "group {group}px vs buttons {row}px");
+}

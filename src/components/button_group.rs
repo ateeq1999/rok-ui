@@ -1,8 +1,8 @@
 //! ButtonGroup: related buttons joined into one control.
 
-use gpui::{div, prelude::*, px, AnyElement, App, SharedString, StyleRefinement, Styled, Window};
+use gpui::{div, prelude::*, AnyElement, App, SharedString, StyleRefinement, Styled, Window};
 
-use super::direction::DirectionalStyled;
+use super::direction::{is_rtl, DirectionalStyled};
 use crate::sx::SxStyled;
 use crate::{styles, styles::ApplyStyleOverrides};
 
@@ -81,11 +81,14 @@ impl ButtonGroup {
                 }
                 (ButtonGroupOrientation::Vertical, GroupPosition::Last) => control.rounded_t_none(),
             };
-            // Overlap borders so adjacent outlines read as one line.
+            // Drop the border facing the previous item so neighbours share one line.
+            // (A -1px overlap would do the same, but taffy then undersizes the
+            // group and later siblings overlap it.)
             let control = match (orientation, position) {
                 (_, GroupPosition::Only | GroupPosition::First) => control,
-                (ButtonGroupOrientation::Horizontal, _) => control.ms(px(-1.)),
-                (ButtonGroupOrientation::Vertical, _) => control.mt(px(-1.)),
+                (ButtonGroupOrientation::Horizontal, _) if is_rtl() => control.border_r_0(),
+                (ButtonGroupOrientation::Horizontal, _) => control.border_l_0(),
+                (ButtonGroupOrientation::Vertical, _) => control.border_t_0(),
             };
             control.into_any_element()
         }));
