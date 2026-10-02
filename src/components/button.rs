@@ -3,15 +3,17 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, prelude::*, px, AnyElement, App, ClickEvent, CursorStyle, ElementId, FontWeight, Hsla,
-    Pixels, SharedString, StyleRefinement, Window,
+    div, prelude::*, px, AnyElement, App, ClickEvent, ElementId, Hsla, Pixels, SharedString,
+    StyleRefinement, Window,
 };
 
-use super::{extra_small_shadow, focus_ring_shadow, spinner::Spinner, tooltip::Tooltip};
+use super::{spinner::Spinner, tooltip::Tooltip};
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
+    sx::{Sx, SxStyled},
     theme::{ActiveTheme, Theme},
 };
 
@@ -75,6 +77,7 @@ pub struct Button {
     tooltip_text: Option<SharedString>,
     on_click: Option<EventHandler<ClickEvent>>,
     children: Vec<AnyElement>,
+    sx: Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -94,6 +97,7 @@ impl Button {
             tooltip_text: None,
             on_click: None,
             children: Vec::new(),
+            sx: Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -202,75 +206,75 @@ impl ParentElement for Button {
     }
 }
 
-struct ButtonColors {
-    background: Hsla,
-    text: Hsla,
-    hover_background: Hsla,
-    border: Hsla,
-}
-
-fn button_colors(variant: ButtonVariant, theme: &Theme) -> ButtonColors {
-    let colors = &theme.colors;
-    let transparent = gpui::transparent_black();
-    match variant {
-        ButtonVariant::Primary => ButtonColors {
-            background: colors.primary,
-            text: colors.primary_foreground,
-            hover_background: colors.primary.opacity(0.9),
-            border: colors.primary,
+styles! {
+    BUTTON = {
+        base: {
+            display: flex,
+            flex: none,
+            align: center,
+            justify: center,
+            radius: md,
+            border: 1,
+            text: sm,
+            font: medium,
+            whitespace: nowrap,
         },
-        ButtonVariant::Destructive => ButtonColors {
-            background: colors.destructive,
-            text: colors.destructive_foreground,
-            hover_background: colors.destructive.opacity(0.9),
-            border: colors.destructive,
+        interactive: { cursor: pointer, focus: { border_color: ring, shadow: ring } },
+        inert: { opacity: 0.5, cursor: default },
+        variant(ButtonVariant): {
+            Primary: { background: primary, color: primary_foreground, border_color: primary },
+            Destructive: {
+                background: destructive,
+                color: destructive_foreground,
+                border_color: destructive,
+            },
+            Outline: { background: background, color: foreground, border_color: input, shadow: xs },
+            Secondary: { background: secondary, color: secondary_foreground, border_color: secondary },
+            Ghost: { background: transparent, color: foreground, border_color: transparent },
+            Link: { background: transparent, color: primary, border_color: transparent },
         },
-        ButtonVariant::Outline => ButtonColors {
-            background: colors.background,
-            text: colors.foreground,
-            hover_background: colors.accent,
-            border: colors.input,
+        // Hover styles apply only while the button is interactive.
+        hover(ButtonVariant): {
+            Primary: { hover: { background: primary/90 } },
+            Destructive: { hover: { background: destructive/90 } },
+            Outline: { hover: { background: accent } },
+            Secondary: { hover: { background: secondary/80 } },
+            Ghost: { hover: { background: accent } },
+            Link: { hover: { underline: true } },
         },
-        ButtonVariant::Secondary => ButtonColors {
-            background: colors.secondary,
-            text: colors.secondary_foreground,
-            hover_background: colors.secondary.opacity(0.8),
-            border: colors.secondary,
-        },
-        ButtonVariant::Ghost => ButtonColors {
-            background: transparent,
-            text: colors.foreground,
-            hover_background: colors.accent,
-            border: transparent,
-        },
-        ButtonVariant::Link => ButtonColors {
-            background: transparent,
-            text: colors.primary,
-            hover_background: transparent,
-            border: transparent,
+        size(ButtonSize): {
+            Small: { height: 8, padding_x: 3, gap: 1.5 },
+            Medium: { height: 9, padding_x: 4, gap: 2 },
+            Large: { height: 10, padding_x: 6, gap: 2 },
+            Icon: { size: 9, padding_x: 0, gap: 0 },
         },
     }
 }
 
-/// (height, horizontal padding, gap, icon size)
-fn button_dimensions(size: ButtonSize) -> (Pixels, Pixels, Pixels, Pixels) {
+/// Icons do not inherit text color in GPUI, so they get the variant's text color.
+fn icon_color(variant: ButtonVariant, theme: &Theme) -> Hsla {
+    let colors = &theme.colors;
+    match variant {
+        ButtonVariant::Primary => colors.primary_foreground,
+        ButtonVariant::Destructive => colors.destructive_foreground,
+        ButtonVariant::Outline | ButtonVariant::Ghost => colors.foreground,
+        ButtonVariant::Secondary => colors.secondary_foreground,
+        ButtonVariant::Link => colors.primary,
+    }
+}
+
+fn icon_size(size: ButtonSize) -> Pixels {
     match size {
-        ButtonSize::Small => (px(32.), px(12.), px(6.), px(14.)),
-        ButtonSize::Medium => (px(36.), px(16.), px(8.), px(16.)),
-        ButtonSize::Large => (px(40.), px(24.), px(8.), px(16.)),
-        ButtonSize::Icon => (px(36.), px(0.), px(0.), px(16.)),
+        ButtonSize::Small => px(14.),
+        _ => px(16.),
     }
 }
 
 impl RenderOnce for Button {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = cx.theme();
-        let button_colors = button_colors(self.variant, theme);
-        let (height, horizontal_padding, gap, icon_size) = button_dimensions(self.size);
         let is_interactive = !self.disabled && !self.loading;
-        let is_link = self.variant == ButtonVariant::Link;
-        let ring_color = theme.colors.ring;
-        let text_color = button_colors.text;
+        let text_color = icon_color(self.variant, cx.theme());
+        let icon_size = icon_size(self.size);
 
         let leading_visual = if self.loading {
             Some(
@@ -294,53 +298,23 @@ impl RenderOnce for Button {
             .flatten()
             .map(|icon| Icon::new(icon).size(icon_size).color(text_color));
 
-        let hover_background = button_colors.hover_background;
         let on_click = self.on_click;
         let tooltip_text = self.tooltip_text;
 
         div()
             .id(self.id)
-            .flex()
-            .flex_none()
-            .items_center()
-            .justify_center()
-            .gap(gap)
-            .h(height)
-            .when(self.size == ButtonSize::Icon, |button| button.w(height))
-            .px(horizontal_padding)
-            .rounded(theme.radius_medium())
-            .border_1()
-            .border_color(button_colors.border)
-            .bg(button_colors.background)
-            .text_color(text_color)
-            .text_sm()
-            .font_weight(FontWeight::MEDIUM)
-            .whitespace_nowrap()
-            .when(self.variant == ButtonVariant::Outline, |button| {
-                button.shadow(extra_small_shadow())
-            })
+            .sx((
+                &BUTTON.base,
+                BUTTON.variant(self.variant),
+                BUTTON.size(self.size),
+                is_interactive.then(|| (BUTTON.hover(self.variant), &BUTTON.interactive)),
+                (!is_interactive).then_some(&BUTTON.inert),
+                &self.sx,
+            ))
             .when(is_interactive, |button| {
-                button
-                    .tab_index(0)
-                    .cursor(CursorStyle::PointingHand)
-                    .hover(move |style| {
-                        if is_link {
-                            style.underline()
-                        } else {
-                            style.bg(hover_background)
-                        }
-                    })
-                    .focus(move |style| {
-                        style
-                            .border_color(ring_color)
-                            .shadow(focus_ring_shadow(ring_color))
-                    })
-                    .when_some(on_click, |button, handler| {
-                        button.on_click(move |event, window, cx| handler(event, window, cx))
-                    })
-            })
-            .when(!is_interactive, |button| {
-                button.opacity(0.5).cursor(CursorStyle::Arrow)
+                button.tab_index(0).when_some(on_click, |button, handler| {
+                    button.on_click(move |event, window, cx| handler(event, window, cx))
+                })
             })
             .when_some(tooltip_text, |button, text| {
                 button.tooltip(Tooltip::text(text))
@@ -350,5 +324,12 @@ impl RenderOnce for Button {
             .children(self.children)
             .children(trailing_visual)
             .apply_style_overrides(&self.style_overrides)
+    }
+}
+
+impl SxStyled for Button {
+    fn apply_sx(mut self, sx: Sx) -> Self {
+        self.sx.merge(&sx);
+        self
     }
 }

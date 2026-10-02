@@ -1,0 +1,5 @@
+error: unknown value for `justify`; expected one of: start, center, end, between, around, evenly
+ --> tests/ui/bad_keyword.rs:5:26
+  |
+5 |         base: { justify: middle },
+  |                          ^^^^^^

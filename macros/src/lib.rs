@@ -47,6 +47,8 @@ use syn::{
 /// - One `#[style]` parameter of type `StyleRefinement` makes the component `Styled`,
 ///   so callers can chain `.w_full()`, `.mt_4()`, … like a `className`. Apply it in
 ///   the body with `.apply_style_overrides(&style_overrides)`.
+/// - One `#[sx] sx: Sx` parameter makes the component accept `.sx(..)` styles
+///   (StyleX's `xstyle`). Apply them last in the body: `.sx((&MY_STYLES.base, &sx))`.
 #[proc_macro_attribute]
 pub fn component(attribute_arguments: TokenStream, item: TokenStream) -> TokenStream {
     if !attribute_arguments.is_empty() {
@@ -69,6 +71,7 @@ enum PropertyKind {
     Optional,
     Children,
     StyleOverrides,
+    Sx,
 }
 
 struct ComponentProperty {
@@ -134,6 +137,8 @@ fn expand_component(function: ItemFn) -> syn::Result<TokenStream2> {
                 kind = PropertyKind::Children;
             } else if attribute.path().is_ident("style") {
                 kind = PropertyKind::StyleOverrides;
+            } else if attribute.path().is_ident("sx") {
+                kind = PropertyKind::Sx;
             } else if attribute.path().is_ident("prop") {
                 attribute.parse_nested_meta(|meta| {
                     if meta.path.is_ident("optional") {
@@ -148,7 +153,7 @@ fn expand_component(function: ItemFn) -> syn::Result<TokenStream2> {
             } else {
                 return Err(syn::Error::new(
                     attribute.span(),
-                    "unsupported attribute on a component parameter; use #[prop(optional)], #[children] or #[style]",
+                    "unsupported attribute on a component parameter; use #[prop(optional)], #[children], #[style] or #[sx]",
                 ));
             }
         }
@@ -249,7 +254,7 @@ fn expand_component(function: ItemFn) -> syn::Result<TokenStream2> {
             PropertyKind::Children => {
                 constructor_field_values.push(quote! { #name: ::std::vec::Vec::new() });
             }
-            PropertyKind::StyleOverrides => {
+            PropertyKind::StyleOverrides | PropertyKind::Sx => {
                 constructor_field_values
                     .push(quote! { #name: ::core::default::Default::default() });
             }
@@ -291,6 +296,21 @@ fn expand_component(function: ItemFn) -> syn::Result<TokenStream2> {
                 impl #gpui_path::Styled for #component_name {
                     fn style(&mut self) -> &mut #gpui_path::StyleRefinement {
                         &mut self.#style_name
+                    }
+                }
+            }
+        });
+
+    let sx_implementation = properties
+        .iter()
+        .find(|property| matches!(property.kind, PropertyKind::Sx))
+        .map(|sx_property| {
+            let sx_name = &sx_property.name;
+            quote! {
+                impl ::rok_ui::sx::SxStyled for #component_name {
+                    fn apply_sx(mut self, sx: ::rok_ui::sx::Sx) -> Self {
+                        self.#sx_name.merge(&sx);
+                        self
                     }
                 }
             }
@@ -342,6 +362,7 @@ fn expand_component(function: ItemFn) -> syn::Result<TokenStream2> {
 
         #parent_element_implementation
         #styled_implementation
+        #sx_implementation
     })
 }
 
@@ -370,4 +391,103 @@ fn single_generic_argument<'a>(property_type: &'a Type, wrapper_name: &str) -> O
         GenericArgument::Type(inner_type) if arguments.args.len() == 1 => Some(inner_type),
         _ => None,
     }
+}
+
+mod children;
+mod styles;
+
+/// Define StyleX-style style objects once, at module level.
+///
+/// ```ignore
+/// styles! {
+///     pub CARD = {
+///         base: {
+///             display: flex, direction: column, gap: 6, padding: 6,
+///             radius: xl, border: 1, border_color: border, background: card,
+///             hover: { border_color: ring },
+///         },
+///         compact: { padding: 3, gap: 3 },
+///         variant(ButtonVariant): {
+///             Primary: { background: primary, color: primary_foreground },
+///             Outline: { border: 1, border_color: input },
+///         },
+///     }
+/// }
+///
+/// div().sx((&CARD.base, compact.then_some(&CARD.compact), CARD.variant(variant)))
+/// ```
+///
+/// Each object becomes a static (`CARD`) with one `Sx` field per key and one
+/// lookup method per variant table. Values:
+/// - lengths: numbers are multiples of 4px (`gap: 6` is 24px); also `50%`,
+///   `full`, `auto`, or any expression (`px(10.)`, `{width}`);
+/// - colors: theme tokens (`primary`, `muted_foreground`), with opacity
+///   (`primary/90`), `transparent`, or an expression;
+/// - radius: `none`, `sm`, `md`, `lg`, `xl`, `full`, or a length;
+/// - `hover`, `focus` and `active` blocks style interaction states.
+#[proc_macro]
+pub fn styles(input: TokenStream) -> TokenStream {
+    styles::expand_styles(input.into())
+        .unwrap_or_else(|error| error.to_compile_error())
+        .into()
+}
+
+/// One inline style object, for one-off or dynamic values:
+/// `style! { width: {px(width)}, background: primary/90 }`.
+#[proc_macro]
+pub fn style(input: TokenStream) -> TokenStream {
+    styles::expand_style(input.into())
+        .unwrap_or_else(|error| error.to_compile_error())
+        .into()
+}
+
+/// A `Vec<AnyElement>` from mixed element types, with control flow:
+///
+/// ```ignore
+/// div().children(children![
+///     Title::new("Projects"),
+///     if loading { Spinner::new() } else { Badge::new("Ready") },
+///     for project in &projects => Item::new(project.id).title(project.name.clone()),
+///     match status { Status::Ok => "Up to date", Status::Stale => Button::new("refresh") },
+///     "plain text",
+/// ])
+/// ```
+#[proc_macro]
+pub fn children(input: TokenStream) -> TokenStream {
+    children::expand_children(input.into())
+        .unwrap_or_else(|error| error.to_compile_error())
+        .into()
+}
+
+/// JSX-like markup compiled to builder calls.
+///
+/// ```ignore
+/// view! {
+///     Card(sx = [CARD.base, compact => CARD.compact]) {
+///         CardHeader {
+///             CardTitle("Create project")
+///             CardDescription("Deploy your new project in one click.")
+///         }
+///         if let Some(error) = error {
+///             Alert("Deploy failed", description = error).destructive()
+///         }
+///         for project in &projects {
+///             Item(project.id, title = project.name.clone())
+///         }
+///         div(sx = ROW.end) { "Raw text" {some_element} }
+///     }
+/// }
+/// ```
+///
+/// - `Name(a, b, key = value)` is `Name::new(a, b).key(value)`; lowercase
+///   `div(..)`, `img(src)` and `svg()` are GPUI element functions.
+/// - `sx = [a, cond => b]` merges styles like `sx![..]`; `sx = expr` passes one.
+/// - `.method(..)` after the arguments is passed through unchanged.
+/// - `{ .. }` after an element holds its children: elements, `"text"`,
+///   `{expr}`, `if` / `if let` / `match` / `for`.
+#[proc_macro]
+pub fn view(input: TokenStream) -> TokenStream {
+    children::expand_view(input.into())
+        .unwrap_or_else(|error| error.to_compile_error())
+        .into()
 }

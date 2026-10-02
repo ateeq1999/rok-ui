@@ -32,11 +32,12 @@ pub mod hooks;
 pub mod icon;
 pub mod prelude;
 pub mod styles;
+pub mod sx;
 pub mod theme;
 
 pub use gpui;
 pub use icon::{Assets, AssetsWithFallback, Icon, IconName};
-pub use rok_ui_macros::component;
+pub use rok_ui_macros::{children, component, style, styles, view};
 
 /// Install the default theme and the key bindings rok-ui components rely on
 /// (text editing, Tab focus navigation). Call once at startup.

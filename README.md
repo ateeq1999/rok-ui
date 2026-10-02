@@ -150,6 +150,96 @@ loops, use `use_keyed_state(key, …)` with a stable key per item.
 Long-lived or shared state still belongs in a GPUI view (`Entity<T>` with `cx.notify()`). The
 gallery's settings card shows this pattern, with `cx.listener(..)` as the change handler.
 
+## Styling and markup
+
+rok-ui has a StyleX-style styling system and two ways to write element trees.
+Both compile to ordinary GPUI builder calls, and both mix freely with builder code.
+
+### `styles!`: define styles once
+
+```rust
+styles! {
+    pub CARD = {
+        base: {
+            display: flex, direction: column, gap: 6, padding: 6,
+            radius: xl, border: 1, border_color: border, background: card,
+            hover: { border_color: ring },
+        },
+        compact: { padding: 3, gap: 3 },
+        tone(Tone): {
+            Calm: { background: muted },
+            Loud: { background: primary/90, color: primary_foreground },
+        },
+    }
+}
+```
+
+| StyleX | rok-ui |
+|---|---|
+| `stylex.create({...})` | `styles! { NAME = { key: {...} } }`: a static with one `Sx` per key |
+| `stylex.props(a, cond && b)` | `.sx((&A.base, cond.then_some(&A.extra)))` or `.sx(sx![A.base, cond => A.extra])` |
+| `':hover': {...}` | `hover: {...}` (also `focus`, `active`) |
+| variants | `key(Enum): { Variant: {...} }`, then `A.key(value)`; a missing variant is a compile error |
+| `xstyle` prop | components take `.sx(..)`, applied last so the caller wins |
+| `defineVars` / `createTheme` | theme tokens (`primary`, `muted_foreground`, `md`) and presets |
+
+Values follow Tailwind:
+- **Lengths:** numbers are multiples of 4px (`gap: 6` is 24px). Also `0.5`, `50%`, `full`,
+  `auto`, `px(10.)`, or any expression in braces (`{px(width)}`).
+- **Colors:** theme tokens (`primary`, `border`), with opacity (`primary/90`), `transparent`,
+  or `{expr}`.
+- **Radius:** `none`, `sm`, `md`, `lg`, `xl`, `full`, or a length.
+- **Text and font:** `text: xs..3xl`, `font: medium`/`semibold`/`bold`, `font_family: mono`.
+
+Tokens resolve against the active theme when the style is applied, so the same static style
+follows light/dark and preset switches. Unknown properties, tokens and keywords are compile
+errors pointing at the mistake, with a suggestion when there is a close match.
+
+For one-off or dynamic values, use `style! { width: {px(width)}, background: accent }`.
+Your own `#[component]`s accept overrides with an `#[sx] sx: Sx` parameter: apply it last,
+`div().sx((&MY.base, &sx))`.
+
+### `children![]`: mixed children with control flow
+
+```rust
+div().children(children![
+    Title::new("Projects"),
+    if loading { Spinner::new() } else { Badge::new("Ready") },
+    for project in &projects => Item::new(project.id).title(project.name.clone()),
+    match status { Status::Ok => "Up to date", _ => Button::new("refresh").label("Refresh") },
+])
+```
+
+### `view!`: JSX-like markup
+
+```rust
+view! {
+    Card(sx = [CARD.base, compact => CARD.compact]) {
+        CardHeader {
+            CardTitle("Create project")
+            CardDescription("Deploy your new project in one click.")
+        }
+        if let Some(error) = error {
+            Alert("Deploy failed", description = error).destructive()
+        }
+        for project in &projects {
+            Item(project.id, title = project.name.clone())
+        }
+        div(sx = ROW.end) {
+            Button("cancel", label = "Cancel").outline()
+            Button("deploy", label = "Deploy", on_click = move |_, _, cx| deploy(cx))
+        }
+    }
+}
+```
+
+The syntax:
+- **Components:** `Name(a, b, key = value)` is `Name::new(a, b).key(value)`. Method calls after
+  the arguments pass through unchanged.
+- **GPUI elements:** lowercase `div`, `img` and `svg` are GPUI's element functions.
+- **Children:** `{ … }` holds children: elements, `"text"`, `{expr}`, `if`, `if let`, `match`
+  and `for`.
+
 ## Components
 
 Every component in shadcn/ui's catalog has a rok-ui counterpart.

@@ -106,7 +106,14 @@ fn SectionTitle(text: SharedString, cx: &mut App) -> impl IntoElement {
         .child(text.to_uppercase())
 }
 
-/// A sign-up form that owns its own state through hooks, React style.
+styles! {
+    FORM = {
+        footer: { justify: end },
+    }
+}
+
+/// A sign-up form that owns its own state through hooks, React style, and is
+/// written with `view!` markup instead of builder chains.
 #[component]
 fn CreateAccountCard(window: &mut Window, cx: &mut App) -> impl IntoElement {
     let name_input = use_input_state("create-account-name", window, cx, |state| {
@@ -123,47 +130,37 @@ fn CreateAccountCard(window: &mut Window, cx: &mut App) -> impl IntoElement {
     let terms_accepted = use_state(window, cx, || false);
     let submitting = use_state(window, cx, || false);
     let is_submitting = submitting.get(cx);
+    let accepted = terms_accepted.get(cx);
 
-    Card::new()
-        .child(
-            CardHeader::new()
-                .child(CardTitle::new("Create an account"))
-                .child(CardDescription::new("Enter your details to get started.")),
-        )
-        .child(
-            CardContent::new()
-                .child(form_field("Name", Input::new(&name_input)))
-                .child(form_field(
-                    "Email",
-                    Input::new(&email_input).leading_icon(IconName::Mail),
-                ))
-                .child(form_field("Password", Input::new(&password_input)))
-                .child(
-                    Checkbox::new("terms")
-                        .checked(terms_accepted.get(cx))
-                        .label("I accept the terms and conditions")
-                        .on_change({
-                            let terms_accepted = terms_accepted.clone();
-                            move |checked, _, cx| terms_accepted.set(*checked, cx)
-                        }),
-                ),
-        )
-        .child(
-            CardFooter::new()
-                .justify_end()
-                .child(Button::new("cancel-account").outline().label("Cancel"))
-                .child(
-                    Button::new("create-account")
-                        .label(if is_submitting {
-                            "Creating…"
-                        } else {
-                            "Create account"
-                        })
-                        .loading(is_submitting)
-                        .disabled(!terms_accepted.get(cx))
-                        .on_click(move |_, _, cx| submitting.set(true, cx)),
-                ),
-        )
+    view! {
+        Card {
+            CardHeader {
+                CardTitle("Create an account")
+                CardDescription("Enter your details to get started.")
+            }
+            CardContent {
+                Field { FieldLabel("Name") Input(&name_input) }
+                Field { FieldLabel("Email") Input(&email_input, leading_icon = IconName::Mail) }
+                Field { FieldLabel("Password") Input(&password_input) }
+                Checkbox(
+                    "terms",
+                    checked = accepted,
+                    label = "I accept the terms and conditions",
+                    on_change = move |checked, _, cx| terms_accepted.set(*checked, cx),
+                )
+            }
+            CardFooter(sx = FORM.footer) {
+                Button("cancel-account", label = "Cancel").outline()
+                Button(
+                    "create-account",
+                    label = if is_submitting { "Creating…" } else { "Create account" },
+                    loading = is_submitting,
+                    disabled = !accepted,
+                    on_click = move |_, _, cx| submitting.set(true, cx),
+                )
+            }
+        }
+    }
 }
 
 fn form_field(label: &'static str, control: impl IntoElement) -> impl IntoElement {

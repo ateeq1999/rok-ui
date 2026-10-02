@@ -1,0 +1,5 @@
+error: unknown color token `primery`; did you mean `primary`? Theme colors: background, foreground, card, card_foreground, popover, popover_foreground, primary, primary_foreground, secondary, secondary_foreground, muted, muted_foreground, accent, accent_foreground, destructive, destructive_foreground, destructive_text, border, input, ring, overlay; or `transparent`, or an expression in braces
+ --> tests/ui/unknown_color_token.rs:5:29
+  |
+5 |         base: { background: primery },
+  |                             ^^^^^^^

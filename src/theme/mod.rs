@@ -113,6 +113,7 @@ impl Theme {
 
     /// Install `theme` and redraw every window.
     pub fn set_global(theme: Theme, cx: &mut App) {
+        crate::sx::set_theme_snapshot(&theme);
         cx.set_global(theme);
         cx.refresh_windows();
     }
@@ -185,4 +186,5 @@ pub fn init(cx: &mut App) {
     if !cx.has_global::<Theme>() {
         cx.set_global(Theme::default());
     }
+    crate::sx::set_theme_snapshot(Theme::global(cx));
 }

@@ -1,39 +1,60 @@
 //! Card and its parts, composed exactly like shadcn/ui:
 //!
 //! ```ignore
-//! Card::new()
-//!     .child(CardHeader::new()
-//!         .child(CardTitle::new("Create project"))
-//!         .child(CardDescription::new("Deploy your new project in one click.")))
-//!     .child(CardContent::new().child(/* form */))
-//!     .child(CardFooter::new().child(Button::new("deploy").label("Deploy")))
+//! view! {
+//!     Card {
+//!         CardHeader {
+//!             CardTitle("Create project")
+//!             CardDescription("Deploy your new project in one click.")
+//!         }
+//!         CardContent { /* form */ }
+//!         CardFooter { Button("deploy", label = "Deploy") }
+//!     }
+//! }
 //! ```
 //!
-//! These parts are written with `#[component]`, the same macro your own components use.
+//! These parts are written with `#[component]` and `styles!`, the same tools
+//! your own components use. Every part takes `.sx(..)` overrides.
 
-use gpui::{div, prelude::*, px, AnyElement, App, FontWeight, SharedString, StyleRefinement};
+use gpui::{div, prelude::*, AnyElement, SharedString, StyleRefinement};
 
-use crate::{component, styles::ApplyStyleOverrides, theme::ActiveTheme};
+use crate::{
+    component, styles,
+    styles::ApplyStyleOverrides,
+    sx::{Sx, SxStyled},
+};
+
+styles! {
+    pub(crate) CARD = {
+        root: {
+            display: flex,
+            direction: column,
+            gap: 6,
+            padding_y: 6,
+            radius: xl,
+            border: 1,
+            border_color: border,
+            background: card,
+            color: card_foreground,
+            shadow: xs,
+        },
+        header: { display: flex, direction: column, gap: 1.5, padding_x: 6 },
+        title: { text: base, font: semibold, line_height: 5 },
+        description: { text: sm, color: muted_foreground },
+        content: { display: flex, direction: column, gap: 4, padding_x: 6 },
+        footer: { display: flex, align: center, gap: 2, padding_x: 6 },
+    }
+}
 
 /// A bordered surface that groups related content.
 #[component]
 pub fn Card(
     #[children] children: Vec<AnyElement>,
     #[style] style_overrides: StyleRefinement,
-    cx: &mut App,
+    #[sx] sx: Sx,
 ) -> impl IntoElement {
-    let theme = cx.theme();
     div()
-        .flex()
-        .flex_col()
-        .gap(px(24.))
-        .py(px(24.))
-        .rounded(theme.radius_extra_large())
-        .border_1()
-        .border_color(theme.colors.border)
-        .bg(theme.colors.card)
-        .text_color(theme.colors.card_foreground)
-        .shadow(super::extra_small_shadow())
+        .sx((&CARD.root, &sx))
         .children(children)
         .apply_style_overrides(&style_overrides)
 }
@@ -43,33 +64,24 @@ pub fn Card(
 pub fn CardHeader(
     #[children] children: Vec<AnyElement>,
     #[style] style_overrides: StyleRefinement,
+    #[sx] sx: Sx,
 ) -> impl IntoElement {
     div()
-        .flex()
-        .flex_col()
-        .gap(px(6.))
-        .px(px(24.))
+        .sx((&CARD.header, &sx))
         .children(children)
         .apply_style_overrides(&style_overrides)
 }
 
 /// The card's heading.
 #[component]
-pub fn CardTitle(text: SharedString) -> impl IntoElement {
-    div()
-        .text_base()
-        .font_weight(FontWeight::SEMIBOLD)
-        .line_height(px(20.))
-        .child(text)
+pub fn CardTitle(text: SharedString, #[sx] sx: Sx) -> impl IntoElement {
+    div().sx((&CARD.title, &sx)).child(text)
 }
 
 /// Secondary text under the title.
 #[component]
-pub fn CardDescription(text: SharedString, cx: &mut App) -> impl IntoElement {
-    div()
-        .text_sm()
-        .text_color(cx.theme().colors.muted_foreground)
-        .child(text)
+pub fn CardDescription(text: SharedString, #[sx] sx: Sx) -> impl IntoElement {
+    div().sx((&CARD.description, &sx)).child(text)
 }
 
 /// The card's main content.
@@ -77,12 +89,10 @@ pub fn CardDescription(text: SharedString, cx: &mut App) -> impl IntoElement {
 pub fn CardContent(
     #[children] children: Vec<AnyElement>,
     #[style] style_overrides: StyleRefinement,
+    #[sx] sx: Sx,
 ) -> impl IntoElement {
     div()
-        .flex()
-        .flex_col()
-        .gap(px(16.))
-        .px(px(24.))
+        .sx((&CARD.content, &sx))
         .children(children)
         .apply_style_overrides(&style_overrides)
 }
@@ -92,12 +102,10 @@ pub fn CardContent(
 pub fn CardFooter(
     #[children] children: Vec<AnyElement>,
     #[style] style_overrides: StyleRefinement,
+    #[sx] sx: Sx,
 ) -> impl IntoElement {
     div()
-        .flex()
-        .items_center()
-        .gap(px(8.))
-        .px(px(24.))
+        .sx((&CARD.footer, &sx))
         .children(children)
         .apply_style_overrides(&style_overrides)
 }

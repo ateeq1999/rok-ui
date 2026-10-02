@@ -39,3 +39,4 @@ name = "counter"
 [dev-dependencies]
 gpui = { version = "0.2.2", features = ["test-support"] }
 env_logger = "0.11"
+trybuild = "1"

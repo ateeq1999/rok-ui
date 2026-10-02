@@ -1,2 +1,30 @@
-target/
-Cargo.lock.bak
+# Build output
+/target/
+
+# trybuild writes failing compile-error output here when TRYBUILD isn't set
+/wip/
+
+# Backups and merge leftovers
+*.bak
+*.orig
+*.rej
+**/*.rs.bk
+
+# Profiling and debugging output
+*.profraw
+*.profdata
+flamegraph.svg
+perf.data*
+*.pdb
+
+# Editors and OS files
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Local environment and logs
+.env
+.env.*
+*.log

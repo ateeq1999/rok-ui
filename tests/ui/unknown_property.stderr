@@ -1,0 +1,5 @@
+error: unknown style property `backgrund`; did you mean `background`?
+ --> tests/ui/unknown_property.rs:5:17
+  |
+5 |         base: { backgrund: card },
+  |                 ^^^^^^^^^
