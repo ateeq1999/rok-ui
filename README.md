@@ -18,9 +18,9 @@ developer experience.
 
 | Rok, light | Rok, dark |
 |---|---|
-| ![Gallery, Rok light](docs/screenshots/rok-light.png) | ![Gallery, Rok dark](docs/screenshots/rok-dark.png) |
+| ![Gallery, Rok light](https://raw.githubusercontent.com/ateeq1999/rok-ui/main/docs/screenshots/rok-light.png) | ![Gallery, Rok dark](https://raw.githubusercontent.com/ateeq1999/rok-ui/main/docs/screenshots/rok-dark.png) |
 | **Neutral, dark** | **Dialog** |
-| ![Gallery, Neutral dark](docs/screenshots/neutral-dark.png) | ![Dialog](docs/screenshots/rok-dialog.png) |
+| ![Gallery, Neutral dark](https://raw.githubusercontent.com/ateeq1999/rok-ui/main/docs/screenshots/neutral-dark.png) | ![Dialog](https://raw.githubusercontent.com/ateeq1999/rok-ui/main/docs/screenshots/rok-dialog.png) |
 
 These are real renders of `cargo run --example gallery` on Linux.
 
