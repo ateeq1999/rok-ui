@@ -3,9 +3,9 @@
 
 pub use gpui::prelude::*;
 pub use gpui::{
-    div, px, relative, rems, AnyElement, App, Application, Bounds, ClickEvent, Context, ElementId,
-    Entity, FontWeight, Hsla, Pixels, SharedString, StyleRefinement, Window, WindowBounds,
-    WindowOptions,
+    div, px, relative, rems, AnyElement, App, Application, Bounds, ClickEvent, Context, Div,
+    ElementId, Entity, FontWeight, Hsla, Pixels, SharedString, StyleRefinement, Window,
+    WindowBounds, WindowOptions,
 };
 
 pub use crate::components::*;

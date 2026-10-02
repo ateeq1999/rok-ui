@@ -15,6 +15,7 @@ pub(crate) fn bind_focus_navigation_keys(cx: &mut App) {
 }
 
 /// Wrap each window's content in `AppRoot` so components inherit the theme.
+/// It also draws the toasts shown with [`super::toast::toast`].
 ///
 /// ```ignore
 /// impl Render for MyView {
@@ -80,6 +81,7 @@ impl RenderOnce for AppRoot {
             .on_action(|_: &FocusNextElement, window, _| window.focus_next())
             .on_action(|_: &FocusPreviousElement, window, _| window.focus_prev())
             .children(self.children)
+            .child(super::toast::Toaster)
             .apply_style_overrides(&self.style_overrides)
     }
 }

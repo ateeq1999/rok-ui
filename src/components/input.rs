@@ -17,10 +17,14 @@ use gpui::{
     FocusHandle, Focusable, GlobalElementId, Hsla, KeyBinding, LayoutId, MouseButton,
     MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point, ShapedLine,
     SharedString, Style, StyleRefinement, TextRun, UTF16Selection, UnderlineStyle, Window,
+    WrappedLine,
 };
 use unicode_segmentation::UnicodeSegmentation;
 
-use super::focus_ring_shadow;
+mod textarea;
+pub use textarea::{use_textarea_state, Textarea};
+
+use super::focus_ring_outline;
 use crate::{
     icon::{Icon, IconName},
     styles::ApplyStyleOverrides,
@@ -43,10 +47,15 @@ actions!(
         Cut,
         Copy,
         Submit,
+        MoveUp,
+        MoveDown,
+        SelectUp,
+        SelectDown,
     ]
 );
 
-const INPUT_KEY_CONTEXT: &str = "RokUiInput";
+pub(crate) const INPUT_KEY_CONTEXT: &str = "RokUiInput";
+pub(crate) const TEXTAREA_KEY_CONTEXT: &str = "RokUiTextarea";
 
 pub(crate) fn bind_text_editing_keys(cx: &mut App) {
     let context = Some(INPUT_KEY_CONTEXT);
@@ -64,6 +73,14 @@ pub(crate) fn bind_text_editing_keys(cx: &mut App) {
         KeyBinding::new("home", MoveToStart, context),
         KeyBinding::new("end", MoveToEnd, context),
         KeyBinding::new("enter", Submit, context),
+        KeyBinding::new("secondary-enter", Submit, context),
+    ]);
+    let textarea_context = Some(TEXTAREA_KEY_CONTEXT);
+    cx.bind_keys([
+        KeyBinding::new("up", MoveUp, textarea_context),
+        KeyBinding::new("down", MoveDown, textarea_context),
+        KeyBinding::new("shift-up", SelectUp, textarea_context),
+        KeyBinding::new("shift-down", SelectDown, textarea_context),
     ]);
 }
 
@@ -72,7 +89,7 @@ pub(crate) fn bind_text_editing_keys(cx: &mut App) {
 pub enum InputEvent {
     /// The text changed; carries the new text.
     Changed(SharedString),
-    /// Enter was pressed; carries the current text.
+    /// Enter was pressed (Ctrl/Cmd-Enter in a multi-line field); carries the current text.
     Submitted(SharedString),
 }
 
@@ -82,11 +99,15 @@ pub struct InputState {
     content: SharedString,
     placeholder: SharedString,
     masked: bool,
+    multiline: bool,
     selected_range: Range<usize>,
     selection_reversed: bool,
     marked_range: Option<Range<usize>>,
     last_layout: Option<ShapedLine>,
     last_bounds: Option<Bounds<Pixels>>,
+    /// Wrapped paragraphs from the last paint of a multi-line field.
+    last_wrapped_lines: Vec<WrappedLine>,
+    last_line_height: Pixels,
     is_selecting: bool,
 }
 
@@ -106,11 +127,14 @@ impl InputState {
             content: SharedString::default(),
             placeholder: SharedString::default(),
             masked: false,
+            multiline: false,
             selected_range: 0..0,
             selection_reversed: false,
             marked_range: None,
             last_layout: None,
             last_bounds: None,
+            last_wrapped_lines: Vec::new(),
+            last_line_height: px(20.),
             is_selecting: false,
         }
     }
@@ -127,11 +151,27 @@ impl InputState {
         self
     }
 
+    /// Allow line breaks: Enter inserts a newline, Up / Down move between lines.
+    /// Use it for the state behind a [`super::Textarea`].
+    pub fn with_multiline(mut self, multiline: bool) -> Self {
+        self.multiline = multiline;
+        self
+    }
+
     /// Start with some text.
     pub fn with_text(mut self, text: impl Into<SharedString>) -> Self {
         self.content = text.into();
         self.selected_range = self.content.len()..self.content.len();
         self
+    }
+
+    /// Whether the field accepts line breaks (see [`InputState::with_multiline`]).
+    pub fn is_multiline(&self) -> bool {
+        self.multiline
+    }
+
+    pub(crate) fn focus_handle_ref(&self) -> &FocusHandle {
+        &self.focus_handle
     }
 
     /// Current text.
@@ -208,13 +248,25 @@ impl InputState {
         self.replace_text_in_range(None, "", window, cx)
     }
 
-    fn submit(&mut self, _: &Submit, _: &mut Window, cx: &mut Context<Self>) {
-        cx.emit(InputEvent::Submitted(self.content.clone()));
+    fn submit(&mut self, _: &Submit, window: &mut Window, cx: &mut Context<Self>) {
+        if self.multiline && !window.modifiers().secondary() {
+            self.replace_text_in_range(
+                None, "
+", window, cx,
+            );
+        } else {
+            cx.emit(InputEvent::Submitted(self.content.clone()));
+        }
     }
 
     fn paste(&mut self, _: &Paste, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
-            self.replace_text_in_range(None, &text.replace('\n', " "), window, cx);
+            let text = if self.multiline {
+                text.replace("\r\n", "\n")
+            } else {
+                text.replace('\n', " ")
+            };
+            self.replace_text_in_range(None, &text, window, cx);
         }
     }
 
@@ -310,6 +362,12 @@ impl InputState {
         if self.content.is_empty() {
             return 0;
         }
+        if self.multiline {
+            return match self.last_bounds.as_ref() {
+                Some(bounds) => self.multiline_index_for_point(position - bounds.origin),
+                None => 0,
+            };
+        }
         let (Some(bounds), Some(line)) = (self.last_bounds.as_ref(), self.last_layout.as_ref())
         else {
             return 0;
@@ -321,6 +379,75 @@ impl InputState {
             return self.content.len();
         }
         self.content_offset(line.closest_index_for_x(position.x - bounds.left()))
+    }
+
+    /// Content offset nearest to `local` (relative to the text's top-left) in a
+    /// multi-line field, using the wrapped lines from the last paint.
+    fn multiline_index_for_point(&self, local: Point<Pixels>) -> usize {
+        let line_height = self.last_line_height;
+        let mut paragraph_start = 0;
+        let mut line_top = px(0.);
+        let line_count = self.last_wrapped_lines.len();
+        for (index, line) in self.last_wrapped_lines.iter().enumerate() {
+            let line_bottom = line_top + line.size(line_height).height;
+            if local.y < line_bottom || index + 1 == line_count {
+                let y_in_line = (local.y - line_top)
+                    .max(px(0.))
+                    .min(line_bottom - line_top - px(1.));
+                let index_in_line = line
+                    .closest_index_for_position(point(local.x.max(px(0.)), y_in_line), line_height)
+                    .unwrap_or_else(|index| index);
+                return (paragraph_start + index_in_line).min(self.content.len());
+            }
+            paragraph_start += line.len() + 1;
+            line_top = line_bottom;
+        }
+        self.content.len()
+    }
+
+    /// Where `offset` is drawn in a multi-line field, relative to the text's top-left.
+    pub(crate) fn multiline_position_for_offset(&self, offset: usize) -> Option<Point<Pixels>> {
+        let line_height = self.last_line_height;
+        let mut paragraph_start = 0;
+        let mut line_top = px(0.);
+        for line in &self.last_wrapped_lines {
+            if offset <= paragraph_start + line.len() {
+                return line
+                    .position_for_index(offset - paragraph_start, line_height)
+                    .map(|position| point(position.x, position.y + line_top));
+            }
+            paragraph_start += line.len() + 1;
+            line_top += line.size(line_height).height;
+        }
+        None
+    }
+
+    /// Offset one visual row above (`rows = -1`) or below (`rows = 1`) the cursor.
+    fn vertical_target(&self, rows: f32) -> usize {
+        let Some(position) = self.multiline_position_for_offset(self.cursor_offset()) else {
+            return self.cursor_offset();
+        };
+        let target_y = position.y + self.last_line_height * (rows + 0.5);
+        if target_y < px(0.) {
+            return 0;
+        }
+        self.multiline_index_for_point(point(position.x, target_y))
+    }
+
+    fn move_up(&mut self, _: &MoveUp, _: &mut Window, cx: &mut Context<Self>) {
+        self.move_cursor_to(self.vertical_target(-1.), cx);
+    }
+
+    fn move_down(&mut self, _: &MoveDown, _: &mut Window, cx: &mut Context<Self>) {
+        self.move_cursor_to(self.vertical_target(1.), cx);
+    }
+
+    fn select_up(&mut self, _: &SelectUp, _: &mut Window, cx: &mut Context<Self>) {
+        self.select_to(self.vertical_target(-1.), cx);
+    }
+
+    fn select_down(&mut self, _: &SelectDown, _: &mut Window, cx: &mut Context<Self>) {
+        self.select_to(self.vertical_target(1.), cx);
     }
 
     fn select_to(&mut self, offset: usize, cx: &mut Context<Self>) {
@@ -482,8 +609,18 @@ impl EntityInputHandler for InputState {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<Bounds<Pixels>> {
-        let last_layout = self.last_layout.as_ref()?;
         let range = self.range_from_utf16(&utf16_range);
+        if self.multiline {
+            let start = self.multiline_position_for_offset(range.start)?;
+            let end = self
+                .multiline_position_for_offset(range.end)
+                .unwrap_or(start);
+            return Some(Bounds::from_corners(
+                bounds.origin + start,
+                bounds.origin + point(end.x.max(start.x), end.y + self.last_line_height),
+            ));
+        }
+        let last_layout = self.last_layout.as_ref()?;
         Some(Bounds::from_corners(
             point(
                 bounds.left() + last_layout.x_for_index(self.displayed_offset(range.start)),
@@ -502,6 +639,11 @@ impl EntityInputHandler for InputState {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<usize> {
+        if self.multiline {
+            let bounds = self.last_bounds?;
+            let index = self.multiline_index_for_point(position - bounds.origin);
+            return Some(self.offset_to_utf16(index));
+        }
         let line_origin = self.last_bounds?.localize(&position)?;
         let last_layout = self.last_layout.as_ref()?;
         let displayed_index = last_layout.index_for_x(position.x - line_origin.x)?;
@@ -531,6 +673,7 @@ pub struct Input {
     leading_icon: Option<IconName>,
     disabled: bool,
     invalid: bool,
+    focus_ring: bool,
     style_overrides: StyleRefinement,
 }
 
@@ -543,6 +686,7 @@ impl Input {
             leading_icon: None,
             disabled: false,
             invalid: false,
+            focus_ring: true,
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -561,6 +705,12 @@ impl Input {
     /// Red border and ring, shadcn/ui's `aria-invalid` styling.
     pub fn invalid(mut self, invalid: bool) -> Self {
         self.invalid = invalid;
+        self
+    }
+
+    /// For fields embedded in a larger control that draws its own ring.
+    pub(crate) fn without_focus_ring(mut self) -> Self {
+        self.focus_ring = false;
         self
     }
 }
@@ -603,10 +753,11 @@ impl RenderOnce for Input {
             .text_color(colors.foreground)
             .text_sm()
             .line_height(px(20.))
-            // No resting shadow: GPUI paints shadows under the element, so it
-            // would tint the transparent field.
-            .when(is_focused, |field| {
-                field.shadow(focus_ring_shadow(ring_color))
+            // No shadows: GPUI paints them under the element, so they would tint the
+            // transparent field. The focus ring is an outline instead.
+            .relative()
+            .when(is_focused && self.focus_ring, |field| {
+                field.child(focus_ring_outline(ring_color, theme.radius_medium()))
             })
             .when(self.disabled, |field| field.opacity(0.5))
             .when_some(self.leading_icon, |field, icon| {

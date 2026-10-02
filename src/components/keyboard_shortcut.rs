@@ -26,3 +26,23 @@ pub fn KeyboardShortcut(keys: SharedString, cx: &mut App) -> impl IntoElement {
         .font_weight(FontWeight::MEDIUM)
         .child(keys)
 }
+
+/// shadcn/ui's name for [`KeyboardShortcut`]: `Kbd::new("⌘")`.
+pub type Kbd = KeyboardShortcut;
+
+/// Key caps for a chord, joined with `+`: `KbdGroup::new(["Ctrl", "Shift", "P"])`.
+#[component]
+pub fn KbdGroup(keys: Vec<SharedString>, cx: &mut App) -> impl IntoElement {
+    let muted_foreground = cx.theme().colors.muted_foreground;
+    let key_count = keys.len();
+    div()
+        .flex()
+        .items_center()
+        .gap(px(4.))
+        .text_xs()
+        .text_color(muted_foreground)
+        .children(keys.into_iter().enumerate().flat_map(move |(index, key)| {
+            let separator = (index + 1 < key_count).then(|| div().child("+").into_any_element());
+            std::iter::once(KeyboardShortcut::new(key).into_any_element()).chain(separator)
+        }))
+}

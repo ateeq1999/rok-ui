@@ -4,8 +4,8 @@ A [shadcn/ui](https://ui.shadcn.com)-style component system for desktop apps bui
 [GPUI](https://gpui.rs), the GPU-accelerated UI framework from the Zed team, with a React-like
 developer experience.
 
-- **shadcn/ui's components and tokens.** Button, Card, Input, Dialog, Tabs, and more, styled from
-  the same design tokens (`background`, `primary`, `muted-foreground`, `ring`, …).
+- **shadcn/ui's components and tokens.** The full catalog, from Button and Dialog to Data Table,
+  Calendar, Chart and the chat components, styled from the same design tokens (`background`, `primary`, `muted-foreground`, `ring`, …).
 - **React-like components.** Write a function with `#[component]` and get a builder API. Props
   become arguments or builder methods, `#[children]` gives you `.child(..)`, and `use_state`
   works like `useState`.
@@ -71,7 +71,8 @@ The examples:
 
 ```sh
 cargo run --example counter                       # a function component with a hook
-cargo run --example gallery                       # every component, with theme switching
+cargo run --example gallery                       # every component, page by page, with theme switching
+cargo run --example gallery -- --page chat        # start on a page: overview, forms, overlays, layout, data, chat
 cargo run --example gallery -- --dark --preset neutral
 ```
 
@@ -151,30 +152,81 @@ gallery's settings card shows this pattern, with `cx.listener(..)` as the change
 
 ## Components
 
-| Component | Notes |
-|---|---|
-| `AppRoot` | Window root. Applies theme colors and font, and wires Tab / Shift-Tab. |
-| `Button` | Variants: `Primary`, `Secondary`, `Outline`, `Ghost`, `Destructive`, `Link`. Sizes: `Small`, `Medium`, `Large`, `Icon`. Also `.icon()`, `.icon_position()`, `.loading()`, `.disabled()`, `.tooltip()`. |
-| `Badge` | `Primary`, `Secondary`, `Destructive` and `Outline` variants, with an optional icon. |
-| `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter` | Composed exactly like shadcn/ui. Built with `#[component]`. |
-| `Input` + `InputState` | Single-line text field: placeholder, masked text, leading icon, invalid state. Emits `InputEvent::Changed` and `InputEvent::Submitted`. |
-| `Label` | Form label, with a disabled state. |
-| `Checkbox` | Controlled: `.checked(bool)` and `.on_change(\|checked, …\|)`. Optional label. |
-| `Switch` | Controlled toggle with an optional label. |
-| `Tabs` | Controlled segmented tab list: `.selected_index()` and `.on_change()`. You render the panel. |
-| `Dialog` | Modal with backdrop, title, description, body and footer. Closes on Escape, on a backdrop click or with the close button. |
-| `Alert` | `Default` and `Destructive` variants, with an icon, title and description. |
-| `Tooltip` | `Tooltip::text("…")` for any `.tooltip(..)`. Buttons take `.tooltip("…")`. |
-| `Avatar` | Image with an initials fallback. |
-| `Progress` | Percentage bar. |
-| `Skeleton` | Pulsing placeholder. |
-| `Spinner` | Rotating loader. |
-| `Separator` | Horizontal or vertical 1px rule. |
-| `KeyboardShortcut` | shadcn/ui's `<Kbd>` key cap. |
-| `Icon` | 18 built-in stroke icons (`IconName::ALL`). |
+Every component in shadcn/ui's catalog has a rok-ui counterpart.
 
-Controlled components never own their value. You pass `checked`, `selected_index` or `open` in,
-and read changes back through `on_change` / `on_close`, as with controlled React inputs.
+| shadcn/ui | rok-ui | Notes |
+|---|---|---|
+| Accordion | `Accordion`, `AccordionItem` | Single or `.multiple(true)`; uncontrolled (`default_open`) or controlled (`open_items`). |
+| Alert | `Alert` | `Default` and `Destructive`, with icon, title and description. |
+| Alert Dialog | `AlertDialog` | Modal that needs an answer; the backdrop does not dismiss it, Escape cancels. |
+| Aspect Ratio | `AspectRatio` | `AspectRatio::new(16. / 9.)`; children fill the box. |
+| Attachment | `Attachment`, `AttachmentState` | File or image chip: metadata, upload progress, failure, retry and remove. |
+| Avatar | `Avatar` | Image with an initials fallback. |
+| Badge | `Badge` | `Primary`, `Secondary`, `Destructive`, `Outline`, optional icon. |
+| Breadcrumb | `Breadcrumb` | Links, current page, `…` (optionally opening a menu), custom separator. |
+| Bubble | `Bubble` | Chat bubble: variants, alignment, run grouping, reactions, "Show more" collapsing. |
+| Button | `Button` | Six variants, four sizes, icons, loading, disabled, tooltip. |
+| Button Group | `ButtonGroup`, `ButtonGroupText` | Joins any styled controls; horizontal or vertical. |
+| Calendar | `Calendar`, `CalendarDate`, `DateRange` | Single or range selection, several months, min / max / disabled dates. |
+| Card | `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter` | Composed exactly like shadcn/ui. |
+| Carousel | `Carousel` | Animated slides, several per view, arrows, dots, keyboard, wrap-around. |
+| Chart | `Chart`, `ChartSeries`, `ChartKind` | Bar (grouped or stacked), line, area, pie and donut; grid, legend, y-axis, hover tooltip. |
+| Checkbox | `Checkbox` | Controlled, optional label. |
+| Collapsible | `Collapsible` | Trigger, always-visible peek content and a collapsible panel. |
+| Combobox | `Combobox` | Searchable select built from a popover and a command list. |
+| Command | `Command`, `CommandItem`, `CommandDialog` | Filtered, grouped actions with Up / Down / Enter; `CommandDialog` is the ⌘K palette. |
+| Context Menu | `ContextMenu` | Right-click menu at the pointer. |
+| Data Table | `DataTable`, `DataColumn` | Filter, sort, row selection, column visibility, pagination, row actions. |
+| Date Picker | `DatePicker` | Calendar in a popover; single or range, with presets. |
+| Dialog | `Dialog` | Closes on Escape, backdrop click or the close button. |
+| Direction | `Direction`, `TextDirection` | RTL subtree: mirrors breadcrumbs, pagination, carousels and sidebars. See limitations. |
+| Drawer | `Drawer` | Bottom sheet with a grab handle. |
+| Dropdown Menu | `DropdownMenu`, `Menu`, `MenuItem` | Icons, shortcuts, checkbox and radio items, submenus, labels, keyboard navigation. |
+| Empty | `Empty` | Icon or media, title, description and actions; optional dashed border. |
+| Field | `Field`, `FieldLabel`, `FieldDescription`, `FieldError`, `FieldGroup`, `FieldSet`, `FieldLegend`, `FieldSeparator`, `FieldContent`, `FieldTitle` | Vertical or horizontal form fields. |
+| Hover Card | `HoverCard` | Opens after a delay, stays open while the pointer is on the trigger or card. |
+| Input | `Input`, `InputState` | Single-line field: placeholder, masked text, leading icon, invalid state. |
+| Input Group | `InputGroup` | Text, icon or element addons inside the border; textarea mode with toolbars. |
+| Input OTP | `InputOtp` | One box per character, groups with separators, paste, digits or alphanumeric. |
+| Item | `Item`, `ItemGroup` | Media, title, description and actions; default, outline or muted. |
+| Kbd | `Kbd` (= `KeyboardShortcut`), `KbdGroup` | Key caps. |
+| Label | `Label` | Form label with a disabled state. |
+| Marker | `Marker` | Inline status, system note, bordered event row or labeled separator. |
+| Menubar | `Menubar` | Desktop menu bar; hover switches menus while one is open, Left / Right too. |
+| Message | `Message` | Conversation turn with avatar, name, timestamp and footer; start or end aligned. |
+| Message Scroller | `MessageScroller`, `MessageScrollerState` | Virtualized chat log: follows new and streamed messages, keeps place when history loads, jump-to-latest, scroll to any message. |
+| Native Select | `NativeSelect` | Full-width select styled like a native control (GPUI has no platform select). |
+| Navigation Menu | `NavigationMenu`, `NavigationMenuLink` | Links plus titles that reveal content panels on hover. |
+| Pagination | `Pagination` | Previous / next, page numbers and ellipses. |
+| Popover | `Popover` | Floating panel; uncontrolled or controlled, four sides, two alignments. |
+| Progress | `Progress` | Percentage bar. |
+| Questionnaire | `Questionnaire`, `Question` | Steps of single-choice, multiple-choice and freeform questions, any skippable; summary at the end. |
+| Radio Group | `RadioGroup` | Options with optional descriptions; arrow keys change the selection. |
+| Resizable | `ResizablePanelGroup`, `ResizablePanel` | Draggable (and keyboard-adjustable) handles with min / max sizes. |
+| Scroll Area | `ScrollArea` | Thin themed scrollbars that can be dragged; vertical, horizontal or both. |
+| Select | `Select` | Groups, separators, disabled options, keyboard navigation. |
+| Separator | `Separator` | Horizontal or vertical. |
+| Sheet | `Sheet` | Dialog attached to any edge of the window. |
+| Sidebar | `Sidebar`, `SidebarGroup`, `SidebarItem`, `SidebarTrigger` | Header, footer, groups, nested items, badges; collapses to icons with tooltips. |
+| Skeleton | `Skeleton` | Pulsing placeholder. |
+| Slider | `Slider` | Single value or range; step snapping; drag, click or arrow keys. |
+| Spinner | `Spinner` | Rotating loader. |
+| Switch | `Switch` | Controlled toggle with a label. |
+| Table | `Table`, `TableHeader`, `TableBody`, `TableFooter`, `TableRow`, `TableHead`, `TableCell`, `TableCaption` | Flex-based rows; size a column by giving its cells a width. |
+| Tabs | `Tabs` | Controlled tab list; you render the panel. |
+| Textarea | `Textarea`, `use_textarea_state` | Multi-line field that grows with its text; Enter adds a line, Ctrl/Cmd-Enter submits. |
+| Toast | `toast(cx, Toast::…)`, `Toaster` | Sonner-style: variants, loading toasts, actions, update and dismiss. `AppRoot` draws them. |
+| Toggle | `Toggle` | Pressed / unpressed, default or outline. |
+| Toggle Group | `ToggleGroup` | Single or multiple selection; outline groups join into one strip. |
+| Tooltip | `Tooltip` | `Tooltip::text("…")` for any `.tooltip(..)`. |
+| Typography | `H1`–`H4`, `P`, `Lead`, `Large`, `Small`, `Muted`, `Blockquote`, `List`, `InlineCode` | shadcn/ui's text styles. |
+
+`Icon` ships 66 stroke icons in the Lucide style (`IconName::ALL`).
+
+Value components are controlled, like React inputs: you pass `checked`, `value` or `open` in and
+read changes back through `on_change` / `on_close`. Floating and disclosure components (popovers,
+menus, selects, accordions, hover cards, carousels) keep their open state per element id, like
+Radix, unless you pass `open` (or `index`, `open_items`) yourself.
 
 ## Theming
 
@@ -227,7 +279,7 @@ rok-ui/
 │   ├── styles.rs           ApplyStyleOverrides, ComponentSize
 │   ├── icon.rs             Icon, IconName, Assets
 │   └── components/         one file per component
-├── examples/               counter.rs, gallery.rs
+├── examples/               counter.rs, gallery.rs (+ gallery/pages.rs)
 ├── tests/components.rs     macro API, hooks, full render under every theme
 └── docs/screenshots/
 ```
@@ -253,8 +305,11 @@ cargo publish -p rok-ui
   `:focus-visible` equivalent.
 - Dialogs move focus into the panel, but they do not trap Tab yet. Focus does not jump to the
   first field automatically.
-- `Input` is single-line. There are no textarea, select, dropdown menu, popover or toast
-  components yet.
+- GPUI shapes text left to right only. `Direction` mirrors layouts and arrows but does not
+  reorder bidirectional text.
+- `CalendarDate::today()` is the UTC date; rok-ui has no time-zone database.
+- Floating surfaces (popovers, menus, selects) dismiss on a click outside themselves, so a popover
+  nested inside another popover closes its parent when clicked.
 - Font weights depend on the system UI font. Some Linux fonts have no medium or semibold weight,
   so those render as regular.
 

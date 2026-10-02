@@ -1,14 +1,75 @@
-//! Every rok-ui component on one screen, with live theme switching.
+//! Every rok-ui component, page by page, with live theme switching.
 //!
 //! Run with `cargo run --example gallery`.
-//! Options: `--dark`, `--preset neutral`, `--open-dialog`.
+//! Options: `--dark`, `--preset neutral`, `--open-dialog`,
+//! `--page overview|forms|overlays|layout|data|chat`.
+
+#[path = "gallery/pages.rs"]
+mod pages;
 
 use rok_ui::prelude::*;
+
+/// The gallery's pages, in sidebar order.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum GalleryPage {
+    Overview,
+    Forms,
+    Overlays,
+    Layout,
+    Data,
+    Chat,
+}
+
+impl GalleryPage {
+    const ALL: [GalleryPage; 6] = [
+        GalleryPage::Overview,
+        GalleryPage::Forms,
+        GalleryPage::Overlays,
+        GalleryPage::Layout,
+        GalleryPage::Data,
+        GalleryPage::Chat,
+    ];
+
+    fn title(self) -> &'static str {
+        match self {
+            GalleryPage::Overview => "Overview",
+            GalleryPage::Forms => "Forms",
+            GalleryPage::Overlays => "Overlays & menus",
+            GalleryPage::Layout => "Layout & navigation",
+            GalleryPage::Data => "Data",
+            GalleryPage::Chat => "Chat",
+        }
+    }
+
+    fn icon(self) -> IconName {
+        match self {
+            GalleryPage::Overview => IconName::Home,
+            GalleryPage::Forms => IconName::Pencil,
+            GalleryPage::Overlays => IconName::Menu,
+            GalleryPage::Layout => IconName::PanelLeft,
+            GalleryPage::Data => IconName::FileText,
+            GalleryPage::Chat => IconName::Send,
+        }
+    }
+
+    fn from_argument(argument: &str) -> Option<Self> {
+        Some(match argument {
+            "overview" => GalleryPage::Overview,
+            "forms" => GalleryPage::Forms,
+            "overlays" => GalleryPage::Overlays,
+            "layout" => GalleryPage::Layout,
+            "data" => GalleryPage::Data,
+            "chat" => GalleryPage::Chat,
+            _ => return None,
+        })
+    }
+}
 
 struct GalleryOptions {
     start_in_dark_mode: bool,
     preset: ThemePreset,
     open_dialog_on_start: bool,
+    page: GalleryPage,
 }
 
 fn parse_gallery_options() -> GalleryOptions {
@@ -26,6 +87,12 @@ fn parse_gallery_options() -> GalleryOptions {
         start_in_dark_mode: arguments.iter().any(|argument| argument == "--dark"),
         preset,
         open_dialog_on_start: arguments.iter().any(|argument| argument == "--open-dialog"),
+        page: arguments
+            .iter()
+            .position(|argument| argument == "--page")
+            .and_then(|index| arguments.get(index + 1))
+            .and_then(|page| GalleryPage::from_argument(page))
+            .unwrap_or(GalleryPage::Overview),
     }
 }
 
@@ -109,6 +176,8 @@ fn form_field(label: &'static str, control: impl IntoElement) -> impl IntoElemen
 }
 
 struct Gallery {
+    page: GalleryPage,
+    sidebar_collapsed: bool,
     dialog_open: bool,
     selected_tab_index: usize,
     notifications_enabled: bool,
@@ -121,6 +190,8 @@ struct Gallery {
 impl Gallery {
     fn new(options: &GalleryOptions, cx: &mut Context<Self>) -> Self {
         Self {
+            page: options.page,
+            sidebar_collapsed: false,
             dialog_open: options.open_dialog_on_start,
             selected_tab_index: 0,
             notifications_enabled: true,
@@ -533,45 +604,124 @@ fn rok_logo_mark(background: Hsla, bar_color: Hsla) -> impl IntoElement {
 
 impl Render for Gallery {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let page_content = match self.page {
+            GalleryPage::Overview => self.overview(cx).into_any_element(),
+            GalleryPage::Forms => pages::FormsPage::new().into_any_element(),
+            GalleryPage::Overlays => pages::OverlaysPage::new().into_any_element(),
+            GalleryPage::Layout => pages::LayoutPage::new().into_any_element(),
+            GalleryPage::Data => pages::DataPage::new().into_any_element(),
+            GalleryPage::Chat => pages::ChatPage::new().into_any_element(),
+        };
         AppRoot::new()
             .child(self.header(cx))
             .child(
                 div()
-                    .id("gallery-scroll")
+                    .flex()
                     .flex_1()
-                    .overflow_y_scroll()
+                    .min_h_0()
+                    .child(self.sidebar(cx))
                     .child(
                         div()
-                            .flex()
-                            .gap(px(24.))
-                            .p(px(32.))
+                            .id("gallery-scroll")
+                            .flex_1()
+                            .min_w_0()
+                            .overflow_y_scroll()
                             .child(
                                 div()
                                     .flex()
                                     .flex_col()
-                                    .flex_1()
                                     .gap(px(16.))
-                                    .child(SectionTitle::new("Actions"))
-                                    .child(self.buttons_card())
-                                    .child(SectionTitle::new("Feedback"))
-                                    .child(self.alerts_column())
-                                    .child(SectionTitle::new("Data display"))
-                                    .child(self.display_card(cx)),
-                            )
-                            .child(
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .flex_1()
-                                    .gap(px(16.))
-                                    .child(SectionTitle::new("Forms"))
-                                    .child(CreateAccountCard::new())
-                                    .child(SectionTitle::new("Navigation"))
-                                    .child(self.settings_card(cx)),
+                                    .p(px(32.))
+                                    .child(
+                                        div()
+                                            .flex()
+                                            .items_center()
+                                            .gap(px(8.))
+                                            .child(SidebarTrigger::new("toggle-sidebar").on_toggle(
+                                                cx.listener(|gallery, _: &(), _, cx| {
+                                                    gallery.sidebar_collapsed =
+                                                        !gallery.sidebar_collapsed;
+                                                    cx.notify();
+                                                }),
+                                            ))
+                                            .child(
+                                                div().h(px(16.)).child(
+                                                    Separator::new().orientation(
+                                                        SeparatorOrientation::Vertical,
+                                                    ),
+                                                ),
+                                            )
+                                            .child(
+                                                Breadcrumb::new("gallery-path")
+                                                    .text("Gallery")
+                                                    .page(self.page.title()),
+                                            ),
+                                    )
+                                    .child(page_content),
                             ),
                     ),
             )
             .child(self.dialog(cx))
+    }
+}
+
+impl Gallery {
+    fn sidebar(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let items =
+            GalleryPage::ALL
+                .iter()
+                .fold(SidebarGroup::new().label("Components"), |group, page| {
+                    let page = *page;
+                    group.item(
+                        SidebarItem::new(page.title())
+                            .icon(page.icon())
+                            .active(self.page == page)
+                            .on_click(cx.listener(move |gallery, _: &(), _, cx| {
+                                gallery.page = page;
+                                cx.notify();
+                            })),
+                    )
+                });
+        Sidebar::new("gallery-sidebar")
+            .collapsed(self.sidebar_collapsed)
+            .group(items)
+            .group(
+                SidebarGroup::new().label("Resources").item(
+                    SidebarItem::new("shadcn/ui")
+                        .icon(IconName::ExternalLink)
+                        .on_click(|_, _, cx| cx.open_url("https://ui.shadcn.com/docs/components")),
+                ),
+            )
+    }
+
+    fn overview(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .flex()
+            .gap(px(24.))
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .flex_1()
+                    .gap(px(16.))
+                    .child(SectionTitle::new("Actions"))
+                    .child(self.buttons_card())
+                    .child(SectionTitle::new("Feedback"))
+                    .child(self.alerts_column())
+                    .child(SectionTitle::new("Data display"))
+                    .child(self.display_card(cx)),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .flex_1()
+                    .gap(px(16.))
+                    .child(SectionTitle::new("Forms"))
+                    .child(CreateAccountCard::new())
+                    .child(SectionTitle::new("Navigation"))
+                    .child(self.settings_card(cx)),
+            )
     }
 }
 

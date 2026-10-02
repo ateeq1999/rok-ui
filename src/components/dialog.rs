@@ -3,10 +3,11 @@
 use std::rc::Rc;
 
 use gpui::{
-    anchored, deferred, div, point, prelude::*, px, AnyElement, App, ElementId, FontWeight,
-    SharedString, Window,
+    div, point, prelude::*, px, AnyElement, App, Corner, ElementId, FontWeight, SharedString,
+    Window,
 };
 
+use super::layer::layer_at;
 use crate::{components::button::Button, hooks::EventHandler, icon::IconName, theme::ActiveTheme};
 
 /// A controlled modal. Render it anywhere in your view; it draws on top of everything.
@@ -87,11 +88,14 @@ impl RenderOnce for Dialog {
         }
 
         // Focus moves into the dialog when it opens so Escape and Tab work inside it.
-        let dialog_focus_handle = window
-            .use_keyed_state(self.id.clone(), cx, |_, cx| cx.focus_handle())
+        // Only once: grabbing it every frame would fight a modal stacked on top.
+        let (dialog_focus_handle, focus_pending) = window
+            .use_keyed_state(self.id.clone(), cx, |_, cx| {
+                (cx.focus_handle(), Rc::new(std::cell::Cell::new(true)))
+            })
             .read(cx)
             .clone();
-        if !dialog_focus_handle.contains_focused(window, cx) {
+        if focus_pending.replace(false) {
             let focus_handle_to_focus = dialog_focus_handle.clone();
             window.defer(cx, move |window, _| window.focus(&focus_handle_to_focus));
         }
@@ -178,27 +182,22 @@ impl RenderOnce for Dialog {
                 ),
             );
 
-        deferred(
-            anchored().position(point(px(0.), px(0.))).child(
-                div()
-                    .id(self.id)
-                    .occlude()
-                    .w(viewport_size.width)
-                    .h(viewport_size.height)
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .p(px(16.))
-                    .bg(colors.overlay)
-                    .font_family(theme.font_family.clone())
-                    .text_size(theme.font_size)
-                    .on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
-                        close_from_backdrop(window, cx)
-                    })
-                    .child(panel),
-            ),
-        )
-        .with_priority(1)
-        .into_any_element()
+        let scrim = div()
+            .id(self.id)
+            .occlude()
+            .w(viewport_size.width)
+            .h(viewport_size.height)
+            .flex()
+            .items_center()
+            .justify_center()
+            .p(px(16.))
+            .bg(colors.overlay)
+            .font_family(theme.font_family.clone())
+            .text_size(theme.font_size)
+            .on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
+                close_from_backdrop(window, cx)
+            })
+            .child(panel);
+        layer_at(point(px(0.), px(0.)), Corner::TopLeft, px(0.), scrim, 1, cx)
     }
 }
