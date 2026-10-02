@@ -2,15 +2,13 @@
 
 use std::rc::Rc;
 
-use gpui::{
-    div, prelude::*, px, App, CursorStyle, ElementId, SharedString, StyleRefinement, Window,
-};
+use gpui::{div, prelude::*, px, App, ElementId, SharedString, StyleRefinement, Window};
 
-use super::direction::DirectionalStyled;
 use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -73,65 +71,63 @@ impl Checkbox {
     }
 }
 
+styles! {
+    CHECKBOX = {
+        row: { display: flex, align: center, gap: 2, text: sm, radius: 1 },
+        interactive: { cursor: pointer, focus: { shadow: ring } },
+        inert: { opacity: 0.5 },
+        check_box: {
+            display: flex,
+            flex: none,
+            align: center,
+            justify: center,
+            size: 4,
+            border: 1,
+            border_color: input,
+            background: background,
+            shadow: xs,
+        },
+        checked: { border_color: primary, background: primary },
+    }
+}
+
 impl RenderOnce for Checkbox {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        // The component's own interaction styles, merged with the caller's `sx` in one
-        // call (GPUI allows a single hover / focus style per element).
-        let own_states = if self.disabled {
-            crate::sx::Sx::new()
-        } else {
-            crate::sx::Sx::new().focus(|state| state.shadow(crate::sx::SxShadow::Ring))
-        };
         let theme = cx.theme();
-        let colors = &theme.colors;
         let checked = self.checked;
         let is_interactive = !self.disabled;
 
         let check_box = div()
-            .flex_dir()
-            .flex_none()
-            .items_center()
-            .justify_center()
-            .size(px(16.))
             .rounded(px(4.).min(theme.radius))
-            .border_1()
-            .border_color(if checked {
-                colors.primary
-            } else {
-                colors.input
-            })
-            .bg(if checked {
-                colors.primary
-            } else {
-                colors.background
-            })
-            .shadow(super::extra_small_shadow())
+            .sx((&CHECKBOX.check_box, checked.then_some(&CHECKBOX.checked)))
             .when(checked, |check_box| {
                 check_box.child(
                     Icon::new(IconName::Check)
                         .size(px(14.))
-                        .color(colors.primary_foreground),
+                        .color(theme.colors.primary_foreground),
                 )
             });
 
         div()
             .id(self.id)
-            .flex_dir()
-            .items_center()
-            .gap(px(8.))
-            .text_sm()
-            .rounded(px(4.))
             .child(check_box)
             .when_some(self.label, |row, label| row.child(label))
             .when(is_interactive, |row| {
-                row.tab_index(0)
-                    .cursor(CursorStyle::PointingHand)
-                    .when_some(self.on_change, |row, handler| {
-                        row.on_click(move |_, window, cx| handler(&!checked, window, cx))
-                    })
+                row.tab_index(0).when_some(self.on_change, |row, handler| {
+                    row.on_click(move |_, window, cx| handler(&!checked, window, cx))
+                })
             })
-            .when(!is_interactive, |row| row.opacity(0.5))
-            .sx((&own_states, &self.sx))
+            // The caller's `sx` is merged into the same call: GPUI allows a single
+            // hover / focus style per element.
+            .sx((
+                &CHECKBOX.row,
+                if is_interactive {
+                    &CHECKBOX.interactive
+                } else {
+                    &CHECKBOX.inert
+                },
+                &self.sx,
+            ))
             .apply_style_overrides(&self.style_overrides)
     }
 }

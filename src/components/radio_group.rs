@@ -2,14 +2,10 @@
 
 use std::rc::Rc;
 
-use gpui::{
-    div, prelude::*, px, App, CursorStyle, ElementId, SharedString, StyleRefinement, Window,
-};
+use gpui::{div, prelude::*, App, ElementId, SharedString, StyleRefinement, Window};
 
-use super::direction::DirectionalStyled;
-use super::extra_small_shadow;
 use crate::sx::SxStyled;
-use crate::{hooks::EventHandler, styles::ApplyStyleOverrides, theme::ActiveTheme};
+use crate::{hooks::EventHandler, styles, styles::ApplyStyleOverrides};
 
 #[derive(Clone)]
 struct RadioOption {
@@ -122,10 +118,40 @@ impl RadioGroup {
     }
 }
 
+styles! {
+    RADIO = {
+        group: { display: flex, gap: 3 },
+        vertical: { direction: column },
+        option: { display: flex, align: start, gap: 3, radius: 1, text: sm },
+        interactive: {
+            cursor: pointer,
+            border: 1,
+            border_color: transparent,
+            focus: { border_color: ring },
+        },
+        inert: { opacity: 0.5 },
+        indicator: {
+            display: flex,
+            flex: none,
+            align: center,
+            justify: center,
+            size: 4,
+            margin_top: 0.5,
+            radius: full,
+            border: 1,
+            border_color: input,
+            background: background,
+            shadow: xs,
+        },
+        indicator_selected: { border_color: primary },
+        dot: { size: 2, radius: full, background: primary },
+        text: { display: flex, direction: column, gap: 1 },
+        description: { color: muted_foreground },
+    }
+}
+
 impl RenderOnce for RadioGroup {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let colors = cx.theme().colors.clone();
-        let ring_color = colors.ring;
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         let enabled_values: Rc<Vec<SharedString>> = Rc::new(
             self.options
                 .iter()
@@ -134,99 +160,84 @@ impl RenderOnce for RadioGroup {
                 .collect(),
         );
 
-        let options = self.options.into_iter().enumerate().map(|(index, option)| {
-            let is_selected = self.value.as_ref() == Some(&option.value);
-            let is_interactive = !option.disabled && !self.disabled;
-            let indicator = div()
-                .flex_dir()
-                .flex_none()
-                .items_center()
-                .justify_center()
-                .size(px(16.))
-                .mt(px(2.))
-                .rounded_full()
-                .border_1()
-                .border_color(if is_selected {
-                    colors.primary
-                } else {
-                    colors.input
-                })
-                .bg(colors.background)
-                .shadow(extra_small_shadow())
-                .when(is_selected, |indicator| {
-                    indicator.child(div().size(px(8.)).rounded_full().bg(colors.primary))
-                });
+        let options =
+            self.options.into_iter().enumerate().map(|(index, option)| {
+                let is_selected = self.value.as_ref() == Some(&option.value);
+                let is_interactive = !option.disabled && !self.disabled;
+                let indicator = div()
+                    .sx((
+                        &RADIO.indicator,
+                        is_selected.then_some(&RADIO.indicator_selected),
+                    ))
+                    .when(is_selected, |indicator| {
+                        indicator.child(div().sx(&RADIO.dot))
+                    });
 
-            let on_change = self.on_change.clone();
-            let key_on_change = self.on_change.clone();
-            let value = option.value.clone();
-            let enabled_values = enabled_values.clone();
-            let horizontal = self.horizontal;
-            // Captured while rendering: handlers run outside the `Direction` scope.
-            let rtl = super::direction::is_rtl();
-            div()
-                .id(index)
-                .flex_dir()
-                .items_start()
-                .gap(px(12.))
-                .rounded(px(4.))
-                .text_sm()
-                .child(indicator)
-                .child(
-                    div()
-                        .flex_dir()
-                        .flex_col()
-                        .gap(px(4.))
-                        .child(option.label)
-                        .when_some(option.description, |text, description| {
-                            text.child(div().text_color(colors.muted_foreground).child(description))
-                        }),
-                )
-                .when(is_interactive, |row| {
-                    row.tab_index(0)
-                        .cursor(CursorStyle::PointingHand)
-                        .border_1()
-                        .border_color(gpui::transparent_black())
-                        .focus(move |style| style.border_color(ring_color))
-                        .on_click({
-                            let value = value.clone();
-                            move |_, window, cx| {
-                                if let Some(handler) = on_change.as_ref() {
-                                    handler(&value, window, cx);
+                let on_change = self.on_change.clone();
+                let key_on_change = self.on_change.clone();
+                let value = option.value.clone();
+                let enabled_values = enabled_values.clone();
+                let horizontal = self.horizontal;
+                // Captured while rendering: handlers run outside the `Direction` scope.
+                let rtl = super::direction::is_rtl();
+                div()
+                    .id(index)
+                    .sx((
+                        &RADIO.option,
+                        if is_interactive {
+                            &RADIO.interactive
+                        } else {
+                            &RADIO.inert
+                        },
+                    ))
+                    .child(indicator)
+                    .child(div().sx(&RADIO.text).child(option.label).when_some(
+                        option.description,
+                        |text, description| {
+                            text.child(div().sx(&RADIO.description).child(description))
+                        },
+                    ))
+                    .when(is_interactive, |row| {
+                        row.tab_index(0)
+                            .on_click({
+                                let value = value.clone();
+                                move |_, window, cx| {
+                                    if let Some(handler) = on_change.as_ref() {
+                                        handler(&value, window, cx);
+                                    }
                                 }
-                            }
-                        })
-                        .on_key_down(move |event, window, cx| {
-                            let step: isize = match (event.keystroke.key.as_str(), horizontal) {
-                                ("down", false) | ("right", true) => 1,
-                                ("up", false) | ("left", true) => -1,
-                                _ => return,
-                            };
-                            // A horizontal group runs right to left in RTL.
-                            let step = if horizontal && rtl { -step } else { step };
-                            let Some(position) =
-                                enabled_values.iter().position(|enabled| *enabled == value)
-                            else {
-                                return;
-                            };
-                            cx.stop_propagation();
-                            let count = enabled_values.len() as isize;
-                            let next = (position as isize + step).rem_euclid(count) as usize;
-                            if let Some(handler) = key_on_change.as_ref() {
-                                handler(&enabled_values[next], window, cx);
-                            }
-                        })
-                })
-                .when(!is_interactive, |row| row.opacity(0.5))
-        });
+                            })
+                            .on_key_down(move |event, window, cx| {
+                                let step: isize = match (event.keystroke.key.as_str(), horizontal) {
+                                    ("down", false) | ("right", true) => 1,
+                                    ("up", false) | ("left", true) => -1,
+                                    _ => return,
+                                };
+                                // A horizontal group runs right to left in RTL.
+                                let step = if horizontal && rtl { -step } else { step };
+                                let Some(position) =
+                                    enabled_values.iter().position(|enabled| *enabled == value)
+                                else {
+                                    return;
+                                };
+                                cx.stop_propagation();
+                                let count = enabled_values.len() as isize;
+                                let next = (position as isize + step).rem_euclid(count) as usize;
+                                if let Some(handler) = key_on_change.as_ref() {
+                                    handler(&enabled_values[next], window, cx);
+                                }
+                            })
+                    })
+            });
 
         div()
             .id(self.id)
-            .flex_dir()
-            .gap(px(12.))
-            .when(!self.horizontal, |group| group.flex_col())
+            .sx((
+                &RADIO.group,
+                (!self.horizontal).then_some(&RADIO.vertical),
+                &self.sx,
+            ))
             .children(options)
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

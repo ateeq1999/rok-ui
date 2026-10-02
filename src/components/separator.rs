@@ -1,9 +1,9 @@
 //! Separator: a 1px divider.
 
-use gpui::{div, prelude::*, px, App};
+use gpui::{div, prelude::*};
 
-use crate::sx::SxStyled;
-use crate::{component, theme::ActiveTheme};
+use crate::sx::{Sx, SxStyled};
+use crate::{component, styles};
 
 /// Direction of a [`Separator`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -13,20 +13,22 @@ pub enum SeparatorOrientation {
     Vertical,
 }
 
+styles! {
+    SEPARATOR = {
+        base: { flex: none, background: border },
+        orientation(SeparatorOrientation): {
+            Horizontal: { height: 0.25, width: full },
+            Vertical: { width: 0.25, height: full },
+        },
+    }
+}
+
 /// `Separator::new()` for a horizontal rule; `.orientation(SeparatorOrientation::Vertical)`
 /// inside a row.
 #[component]
 pub fn Separator(
     #[prop(optional)] orientation: SeparatorOrientation,
-    cx: &mut App,
-    #[sx] sx: crate::sx::Sx,
+    #[sx] sx: Sx,
 ) -> impl IntoElement {
-    let element = {
-        let line = div().flex_none().bg(cx.theme().colors.border);
-        match orientation {
-            SeparatorOrientation::Horizontal => line.h(px(1.)).w_full(),
-            SeparatorOrientation::Vertical => line.w(px(1.)).h_full(),
-        }
-    };
-    element.sx(&sx)
+    div().sx((&SEPARATOR.base, SEPARATOR.orientation(orientation), &sx))
 }

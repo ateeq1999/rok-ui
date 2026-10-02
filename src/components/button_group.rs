@@ -4,7 +4,7 @@ use gpui::{div, prelude::*, px, AnyElement, App, SharedString, StyleRefinement, 
 
 use super::direction::DirectionalStyled;
 use crate::sx::SxStyled;
-use crate::{styles::ApplyStyleOverrides, theme::ActiveTheme};
+use crate::{styles, styles::ApplyStyleOverrides};
 
 /// Direction of a [`ButtonGroup`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -104,6 +104,27 @@ impl Default for ButtonGroup {
     }
 }
 
+styles! {
+    BUTTON_GROUP = {
+        group: { display: flex, align: stretch },
+        orientation(ButtonGroupOrientation): {
+            Horizontal: {},
+            Vertical: { direction: column },
+        },
+        text: {
+            display: flex,
+            align: center,
+            padding_x: 4,
+            radius: md,
+            border: 1,
+            border_color: input,
+            background: muted,
+            text: sm,
+            font: medium,
+        },
+    }
+}
+
 impl RenderOnce for ButtonGroup {
     fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         let count = self.items.len();
@@ -118,17 +139,12 @@ impl RenderOnce for ButtonGroup {
             item(position, orientation)
         });
         div()
-            .flex_dir()
-            .when(orientation == ButtonGroupOrientation::Vertical, |group| {
-                group.flex_col()
-            })
-            .map(|group| {
-                let mut group = group;
-                group.style().align_items = Some(gpui::AlignItems::Stretch);
-                group
-            })
+            .sx((
+                &BUTTON_GROUP.group,
+                BUTTON_GROUP.orientation(orientation),
+                &self.sx,
+            ))
             .children(children)
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }
@@ -154,20 +170,10 @@ impl ButtonGroupText {
 }
 
 impl RenderOnce for ButtonGroupText {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = cx.theme();
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         div()
-            .flex_dir()
-            .items_center()
-            .px(px(16.))
-            .rounded(theme.radius_medium())
-            .border_1()
-            .border_color(theme.colors.input)
-            .bg(theme.colors.muted)
-            .text_sm()
-            .font_weight(gpui::FontWeight::MEDIUM)
+            .sx((&BUTTON_GROUP.text, &self.sx))
             .child(self.text)
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

@@ -2,14 +2,13 @@
 
 use std::rc::Rc;
 
-use gpui::{
-    div, point, prelude::*, px, AnyElement, App, Corner, ElementId, FontWeight, SharedString,
-    Window,
-};
+use gpui::{div, point, prelude::*, px, AnyElement, App, Corner, ElementId, SharedString, Window};
 
-use super::direction::DirectionalStyled;
 use super::layer::layer_at;
-use crate::{components::button::Button, hooks::EventHandler, icon::IconName, theme::ActiveTheme};
+use crate::sx::SxStyled;
+use crate::{
+    components::button::Button, hooks::EventHandler, icon::IconName, styles, theme::ActiveTheme,
+};
 
 /// A controlled modal. Render it anywhere in your view; it draws on top of everything.
 /// It closes on Escape, on backdrop click and on its close button, by calling `on_close`.
@@ -82,6 +81,41 @@ impl ParentElement for Dialog {
     }
 }
 
+styles! {
+    DIALOG = {
+        // Layers lay out apart from the window root, so text alignment is set here.
+        scrim: {
+            display: flex,
+            align: center,
+            justify: center,
+            padding: 4,
+            font_family: sans,
+            text_align: start,
+        },
+        panel: {
+            position: relative,
+            display: flex,
+            direction: column,
+            gap: 4,
+            width: full,
+            max_width: 128,
+            padding: 6,
+            radius: lg,
+            border: 1,
+            border_color: border,
+            background: popover,
+            color: popover_foreground,
+            shadow: lg,
+        },
+        header: { display: flex, direction: column, gap: 2, padding_end: 6 },
+        title: { text: lg, font: semibold, line_height: 5 },
+        description: { text: sm, color: muted_foreground },
+        footer: { display: flex, justify: end, gap: 2 },
+        close_slot: { position: absolute, top: 3, inset_end: 3 },
+        close: { width: 7, height: 7 },
+    }
+}
+
 impl RenderOnce for Dialog {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let presence =
@@ -105,7 +139,6 @@ impl RenderOnce for Dialog {
         }
 
         let theme = cx.theme();
-        let colors = theme.colors.clone();
         let viewport_size = window.viewport_size();
         let on_close = self.on_close;
 
@@ -132,61 +165,28 @@ impl RenderOnce for Dialog {
             })
             // Clicks inside the panel must not reach the backdrop.
             .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
-            .relative()
-            .flex_dir()
-            .flex_col()
-            .gap(px(16.))
-            .w_full()
-            .max_w(px(512.))
-            .p(px(24.))
-            .rounded(theme.radius_large())
-            .border_1()
-            .border_color(colors.border)
-            .bg(colors.popover)
-            .text_color(colors.popover_foreground)
-            .shadow_lg()
+            .sx(&DIALOG.panel)
             .child(
                 div()
-                    .flex_dir()
-                    .flex_col()
-                    .gap(px(8.))
-                    .pe(px(24.))
+                    .sx(&DIALOG.header)
                     .when_some(self.title, |header, title| {
-                        header.child(
-                            div()
-                                .text_lg()
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .line_height(px(20.))
-                                .child(title),
-                        )
+                        header.child(div().sx(&DIALOG.title).child(title))
                     })
                     .when_some(self.description, |header, description| {
-                        header.child(
-                            div()
-                                .text_sm()
-                                .text_color(colors.muted_foreground)
-                                .child(description),
-                        )
+                        header.child(div().sx(&DIALOG.description).child(description))
                     }),
             )
             .children(self.children)
             .when(!self.footer.is_empty(), |panel| {
-                panel.child(
-                    div()
-                        .flex_dir()
-                        .justify_end()
-                        .gap(px(8.))
-                        .children(self.footer),
-                )
+                panel.child(div().sx(&DIALOG.footer).children(self.footer))
             })
             .child(
-                div().absolute().top(px(12.)).inset_end(px(12.)).child(
+                div().sx(&DIALOG.close_slot).child(
                     Button::new("dialog-close")
                         .ghost()
                         .small()
                         .icon_only(IconName::Close)
-                        .w(px(28.))
-                        .h(px(28.))
+                        .sx(&DIALOG.close)
                         .tooltip("Close")
                         .on_click(move |_, window, cx| close_from_button(window, cx)),
                 ),
@@ -197,14 +197,9 @@ impl RenderOnce for Dialog {
             .occlude()
             .w(viewport_size.width)
             .h(viewport_size.height)
-            .flex_dir()
-            .items_center()
-            .justify_center()
-            .p(px(16.))
-            .bg(colors.overlay.opacity(progress))
-            .font_family(theme.font_family.clone())
+            .sx(&DIALOG.scrim)
+            .bg(theme.colors.overlay.opacity(progress))
             .text_size(theme.font_size)
-            .when(super::direction::is_rtl(), |layer| layer.text_right())
             .on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
                 close_from_backdrop(window, cx)
             })

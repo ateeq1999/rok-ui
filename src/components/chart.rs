@@ -4,8 +4,8 @@
 use std::{cell::Cell, f32::consts::PI, rc::Rc};
 
 use gpui::{
-    canvas, div, hsla, point, prelude::*, px, relative, AnyElement, App, Bounds, ElementId,
-    FontWeight, Hsla, PathBuilder, Pixels, Point, SharedString, StyleRefinement, Window,
+    canvas, div, hsla, point, prelude::*, px, relative, AnyElement, App, Bounds, ElementId, Hsla,
+    PathBuilder, Pixels, Point, SharedString, StyleRefinement, Window,
 };
 
 use super::direction::DirectionalStyled;
@@ -13,6 +13,7 @@ use super::{interaction::measure_bounds, overlay::child_id};
 use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, State},
+    styles,
     styles::ApplyStyleOverrides,
     theme::{ActiveTheme, ThemeMode},
 };
@@ -239,6 +240,71 @@ struct ChartMemory {
     bounds: Rc<Cell<Bounds<Pixels>>>,
 }
 
+// Charts read left to right in every direction, so their rows use `flex_ltr()`
+// and these styles leave the flex direction alone.
+styles! {
+    CHART = {
+        column: { direction: column, width: full },
+        full_width: { width: full },
+        fill: { position: absolute, top: 0, left: 0, size: full },
+        legend: { wrap: true, justify: center, gap: 4, padding_top: 3, text: xs },
+        legend_item: { align: center, gap: 1.5 },
+        legend_swatch: { size: 2, radius: 0.5 },
+        grid_line: {
+            position: absolute,
+            left: 0,
+            width: full,
+            height: 0.25,
+            background: border/60,
+        },
+        bars: { align: end },
+        bar_column: { flex: 1, height: full, align: end, justify: center, padding_x: 1 },
+        grouped: { gap: 1 },
+        dimmed: { opacity: 0.6 },
+        stack: { direction: column_reverse, width: 70%, max_width: 12, height: full },
+        stack_segment: { width: full },
+        bar: { flex: 1, max_width: 8 },
+        bar_top: { radius_top: sm },
+        plot: { position: relative, flex: 1 },
+        y_axis: { position: relative, width: 10, text: xs, color: muted_foreground },
+        y_tick: { position: absolute, right: 2, margin_top: -2 },
+        x_labels: { padding_top: 2, text: xs, color: muted_foreground },
+        x_labels_offset: { padding_left: 10 },
+        x_label: {
+            flex: 1,
+            min_width: 0,
+            justify: center,
+            overflow: hidden,
+            whitespace: nowrap,
+        },
+        tooltip: {
+            padding_x: 2.5,
+            padding_y: 1.5,
+            radius: md,
+            border: 1,
+            border_color: border,
+            background: background,
+            shadow: lg,
+            text: xs,
+        },
+        tooltip_card: { direction: column, gap: 1.5, min_width: 32 },
+        tooltip_anchor: { position: absolute, top: 2, width: 0 },
+        tooltip_anchor_end: { justify: end },
+        tooltip_before: { margin_right: 2 },
+        tooltip_after: { margin_left: 2 },
+        tooltip_row: { align: center, gap: 2 },
+        tooltip_swatch: { size: 2.5, radius: 0.5 },
+        tooltip_label: { flex: 1, color: muted_foreground },
+        tooltip_value: { font: medium },
+        pie_label: { color: muted_foreground },
+        pie: { position: relative, margin_x: auto },
+        pie_tooltip: { position: absolute, top: 2, right: 2, align: center, gap: 2 },
+        center_label: { direction: column, align: center, justify: center },
+        center_value: { text: 28.0, font: bold },
+        center_caption: { text: xs, color: muted_foreground },
+    }
+}
+
 impl RenderOnce for Chart {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let memory: State<ChartMemory> =
@@ -311,17 +377,12 @@ impl RenderOnce for Chart {
         let legend = self.show_legend.then(|| {
             div()
                 .flex_ltr()
-                .flex_wrap()
-                .justify_center()
-                .gap(px(16.))
-                .pt(px(12.))
-                .text_xs()
+                .sx(&CHART.legend)
                 .children(legend_items.into_iter().map(|(label, color)| {
                     div()
                         .flex_ltr()
-                        .items_center()
-                        .gap(px(6.))
-                        .child(div().size(px(8.)).rounded(px(2.)).bg(color))
+                        .sx(&CHART.legend_item)
+                        .child(div().sx(&CHART.legend_swatch).bg(color))
                         .child(label)
                 }))
         });
@@ -329,11 +390,9 @@ impl RenderOnce for Chart {
         div()
             .id(self.id.clone())
             .flex_ltr()
-            .flex_col()
-            .w_full()
+            .sx((&CHART.column, &self.sx))
             .child(plot)
             .children(legend)
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }
@@ -350,80 +409,52 @@ impl Chart {
         max: f32,
         cx: &App,
     ) -> AnyElement {
-        let colors = cx.theme().colors.clone();
-        let radius = cx.theme().radius_small();
         let height = self.height;
         let value = |series: &ChartSeries, index: usize| -> f32 {
             series.values.get(index).copied().unwrap_or(0.).max(0.)
         };
 
         let grid = self.show_grid.then(|| {
-            div()
-                .absolute()
-                .top_0()
-                .left_0()
-                .size_full()
-                .children((0..=4).map(|step| {
-                    div()
-                        .absolute()
-                        .left_0()
-                        .w_full()
-                        .h(px(1.))
-                        .top(relative(step as f32 / 4.))
-                        .bg(colors.border.opacity(0.6))
-                }))
+            div().sx(&CHART.fill).children(
+                (0..=4).map(|step| div().sx(&CHART.grid_line).top(relative(step as f32 / 4.))),
+            )
         });
 
         let marks: AnyElement = match self.kind {
             ChartKind::Bar => div()
-                .absolute()
-                .top_0()
-                .left_0()
-                .size_full()
                 .flex_ltr()
-                .items_end()
+                .sx((&CHART.fill, &CHART.bars))
                 .children((0..category_count).map(|index| {
                     let is_dimmed = hovered.is_some_and(|hovered| hovered != index);
-                    let column = div()
-                        .flex_1()
-                        .h_full()
-                        .flex_ltr()
-                        .items_end()
-                        .justify_center()
-                        .px(px(4.))
-                        .when(is_dimmed, |column| column.opacity(0.6));
+                    let column = div().flex_ltr().sx((
+                        &CHART.bar_column,
+                        is_dimmed.then_some(&CHART.dimmed),
+                        (!self.stacked).then_some(&CHART.grouped),
+                    ));
                     if self.stacked {
-                        column.child(
-                            div()
-                                .flex_ltr()
-                                .flex_col_reverse()
-                                .w(relative(0.7))
-                                .max_w(px(48.))
-                                .h_full()
-                                .children(self.series.iter().zip(series_colors).enumerate().map(
-                                    |(series_index, (series, color))| {
-                                        let is_top = series_index + 1 == self.series.len();
-                                        div()
-                                            .w_full()
-                                            .h(relative(value(series, index) / max))
-                                            .bg(*color)
-                                            .when(is_top, |bar| bar.rounded_t(radius))
-                                    },
-                                )),
-                        )
-                    } else {
-                        column
-                            .gap(px(4.))
-                            .children(self.series.iter().zip(series_colors).map(
-                                |(series, color)| {
+                        column.child(div().flex_ltr().sx(&CHART.stack).children(
+                            self.series.iter().zip(series_colors).enumerate().map(
+                                |(series_index, (series, color))| {
+                                    let is_top = series_index + 1 == self.series.len();
                                     div()
-                                        .flex_1()
-                                        .max_w(px(32.))
+                                        .sx((
+                                            &CHART.stack_segment,
+                                            is_top.then_some(&CHART.bar_top),
+                                        ))
                                         .h(relative(value(series, index) / max))
-                                        .rounded_t(radius)
                                         .bg(*color)
                                 },
-                            ))
+                            ),
+                        ))
+                    } else {
+                        column.children(self.series.iter().zip(series_colors).map(
+                            |(series, color)| {
+                                div()
+                                    .sx((&CHART.bar, &CHART.bar_top))
+                                    .h(relative(value(series, index) / max))
+                                    .bg(*color)
+                            },
+                        ))
                     }
                 }))
                 .into_any_element(),
@@ -442,7 +473,7 @@ impl Chart {
                     })
                     .collect();
                 let filled = self.kind == ChartKind::Area;
-                let cursor_color = colors.border;
+                let cursor_color = cx.theme().colors.border;
                 canvas(
                     |_, _, _| {},
                     move |plot_bounds, _, window, _| {
@@ -513,47 +544,31 @@ impl Chart {
                     .map(|(series, color)| {
                         div()
                             .flex_ltr()
-                            .items_center()
-                            .gap(px(8.))
-                            .child(div().size(px(10.)).rounded(px(2.)).bg(*color))
+                            .sx(&CHART.tooltip_row)
+                            .child(div().sx(&CHART.tooltip_swatch).bg(*color))
+                            .child(div().sx(&CHART.tooltip_label).child(series.label.clone()))
                             .child(
                                 div()
-                                    .flex_1()
-                                    .text_color(colors.muted_foreground)
-                                    .child(series.label.clone()),
-                            )
-                            .child(
-                                div()
-                                    .font_weight(FontWeight::MEDIUM)
+                                    .sx(&CHART.tooltip_value)
                                     .child((self.value_format)(value(series, index))),
                             )
                     });
                 let card = div()
                     .flex_ltr()
-                    .flex_col()
-                    .gap(px(6.))
-                    .min_w(px(128.))
-                    .px(px(10.))
-                    .py(px(6.))
-                    .rounded(cx.theme().radius_medium())
-                    .border_1()
-                    .border_color(colors.border)
-                    .bg(colors.background)
-                    .shadow_lg()
-                    .text_xs()
-                    .child(div().font_weight(FontWeight::MEDIUM).child(label))
+                    .sx((&CHART.tooltip, &CHART.tooltip_card))
+                    .child(div().sx(&CHART.tooltip_value).child(label))
                     .children(rows);
                 // Show the card on whichever side of the cursor has room.
-                let column = div().absolute().top(px(8.)).w(px(0.)).flex_ltr();
+                let column = div()
+                    .flex_ltr()
+                    .sx(&CHART.tooltip_anchor)
+                    .left(relative(fraction));
                 if fraction > 0.6 {
                     column
-                        .left(relative(fraction))
-                        .justify_end()
-                        .child(div().mr(px(8.)).child(card))
+                        .sx(&CHART.tooltip_anchor_end)
+                        .child(div().sx(&CHART.tooltip_before).child(card))
                 } else {
-                    column
-                        .left(relative(fraction))
-                        .child(div().ml(px(8.)).child(card))
+                    column.child(div().sx(&CHART.tooltip_after).child(card))
                 }
             });
 
@@ -562,8 +577,7 @@ impl Chart {
         let leave_memory = memory.clone();
         let plot = div()
             .id("chart-plot")
-            .relative()
-            .flex_1()
+            .sx(&CHART.plot)
             .h(height)
             .child(measure_bounds(bounds))
             .children(grid)
@@ -589,44 +603,39 @@ impl Chart {
 
         let y_axis = self.show_y_axis.then(|| {
             div()
-                .relative()
-                .w(px(40.))
+                .sx(&CHART.y_axis)
                 .h(height)
-                .text_xs()
-                .text_color(colors.muted_foreground)
                 .children((0..=4).map(|step| {
                     let fraction = step as f32 / 4.;
                     div()
-                        .absolute()
-                        .right(px(8.))
+                        .sx(&CHART.y_tick)
                         .top(relative(fraction))
-                        .mt(px(-8.))
                         .child((self.value_format)(max * (1. - fraction)))
                 }))
         });
 
         let x_labels = div()
             .flex_ltr()
-            .pt(px(8.))
-            .when(self.show_y_axis, |labels| labels.pl(px(40.)))
-            .text_xs()
-            .text_color(colors.muted_foreground)
-            .children(self.categories.iter().map(|label| {
-                div()
-                    .flex_1()
-                    .min_w_0()
-                    .flex_ltr()
-                    .justify_center()
-                    .overflow_hidden()
-                    .whitespace_nowrap()
-                    .child(label.clone())
-            }));
+            .sx((
+                &CHART.x_labels,
+                self.show_y_axis.then_some(&CHART.x_labels_offset),
+            ))
+            .children(
+                self.categories
+                    .iter()
+                    .map(|label| div().flex_ltr().sx(&CHART.x_label).child(label.clone())),
+            );
 
         div()
             .flex_ltr()
-            .flex_col()
-            .w_full()
-            .child(div().flex_ltr().w_full().children(y_axis).child(plot))
+            .sx(&CHART.column)
+            .child(
+                div()
+                    .flex_ltr()
+                    .sx(&CHART.full_width)
+                    .children(y_axis)
+                    .child(plot),
+            )
             .child(x_labels)
             .into_any_element()
     }
@@ -724,50 +733,22 @@ impl Chart {
                 .flatten()
                 .map(|(value, caption)| {
                     div()
-                        .absolute()
-                        .top_0()
-                        .left_0()
-                        .size_full()
                         .flex_ltr()
-                        .flex_col()
-                        .items_center()
-                        .justify_center()
-                        .child(
-                            div()
-                                .text_size(px(28.))
-                                .font_weight(FontWeight::BOLD)
-                                .child(value),
-                        )
-                        .child(
-                            div()
-                                .text_xs()
-                                .text_color(colors.muted_foreground)
-                                .child(caption),
-                        )
+                        .sx((&CHART.fill, &CHART.center_label))
+                        .child(div().sx(&CHART.center_value).child(value))
+                        .child(div().sx(&CHART.center_caption).child(caption))
                 });
 
         let tooltip = hovered.filter(|index| *index < values.len()).map(|index| {
             let label = self.categories.get(index).cloned().unwrap_or_default();
             div()
-                .absolute()
-                .top(px(8.))
-                .right(px(8.))
                 .flex_ltr()
-                .items_center()
-                .gap(px(8.))
-                .px(px(10.))
-                .py(px(6.))
-                .rounded(cx.theme().radius_medium())
-                .border_1()
-                .border_color(colors.border)
-                .bg(colors.background)
-                .shadow_lg()
-                .text_xs()
-                .child(div().size(px(10.)).rounded(px(2.)).bg(palette[index % 5]))
-                .child(div().text_color(colors.muted_foreground).child(label))
+                .sx((&CHART.tooltip, &CHART.pie_tooltip))
+                .child(div().sx(&CHART.tooltip_swatch).bg(palette[index % 5]))
+                .child(div().sx(&CHART.pie_label).child(label))
                 .child(
                     div()
-                        .font_weight(FontWeight::MEDIUM)
+                        .sx(&CHART.tooltip_value)
                         .child((self.value_format)(values[index])),
                 )
         });
@@ -778,8 +759,7 @@ impl Chart {
         let slice_values = values.clone();
         div()
             .id("chart-pie")
-            .relative()
-            .mx_auto()
+            .sx(&CHART.pie)
             .size(size)
             .child(measure_bounds(bounds))
             .child(pie)

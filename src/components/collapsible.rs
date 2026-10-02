@@ -2,13 +2,13 @@
 
 use std::rc::Rc;
 
-use gpui::{div, prelude::*, px, AnyElement, App, ElementId, StyleRefinement, Window};
+use gpui::{div, prelude::*, AnyElement, App, ElementId, StyleRefinement, Window};
 
-use super::direction::DirectionalStyled;
 use super::{interaction::on_activate, overlay::child_id};
 use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler},
+    styles,
     styles::ApplyStyleOverrides,
 };
 
@@ -88,6 +88,10 @@ impl ParentElement for Collapsible {
     }
 }
 
+styles! {
+    COLLAPSIBLE = { root: { display: flex, direction: column, gap: 2 } }
+}
+
 impl RenderOnce for Collapsible {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let default_open = self.default_open;
@@ -102,15 +106,12 @@ impl RenderOnce for Collapsible {
         });
 
         div()
-            .flex_dir()
-            .flex_col()
-            .gap(px(8.))
+            .sx((&COLLAPSIBLE.root, &self.sx))
             .when_some(self.trigger, |collapsible, trigger| {
                 collapsible.child(on_activate(div().id(self.id.clone()), toggle).child(trigger))
             })
             .children(self.always_visible)
             .when(is_open, |collapsible| collapsible.children(self.children))
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

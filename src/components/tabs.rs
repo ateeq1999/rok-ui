@@ -3,15 +3,10 @@
 
 use std::rc::Rc;
 
-use gpui::{
-    div, prelude::*, px, App, CursorStyle, ElementId, FontWeight, SharedString, StyleRefinement,
-    Window,
-};
+use gpui::{div, prelude::*, App, ElementId, SharedString, StyleRefinement, Window};
 
-use super::direction::DirectionalStyled;
-use super::focus_ring_shadow;
 use crate::sx::SxStyled;
-use crate::{hooks::EventHandler, styles::ApplyStyleOverrides, theme::ActiveTheme};
+use crate::{hooks::EventHandler, styles, styles::ApplyStyleOverrides};
 
 /// ```ignore
 /// let selected_tab = use_state(window, cx, || 0usize);
@@ -65,12 +60,48 @@ impl Tabs {
     }
 }
 
+styles! {
+    TABS = {
+        list: {
+            display: flex,
+            align: center,
+            height: 9,
+            padding: 0.75,
+            radius: lg,
+            background: muted,
+            color: muted_foreground,
+        },
+        trigger: {
+            display: flex,
+            flex: 1,
+            align: center,
+            justify: center,
+            height: full,
+            padding_x: 2,
+            radius: md,
+            border: 1,
+            text: sm,
+            font: medium,
+            whitespace: nowrap,
+            cursor: pointer,
+            focus: { shadow: ring },
+        },
+        selected: {
+            background: background,
+            border_color: border,
+            color: foreground,
+            shadow: xs,
+        },
+        unselected: {
+            border_color: transparent,
+            color: muted_foreground,
+            hover: { color: foreground },
+        },
+    }
+}
+
 impl RenderOnce for Tabs {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = cx.theme();
-        let colors = theme.colors.clone();
-        let trigger_radius = theme.radius_medium();
-        let ring_color = colors.ring;
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         let selected_index = self.selected_index;
         let on_change = self.on_change;
 
@@ -79,38 +110,18 @@ impl RenderOnce for Tabs {
             .into_iter()
             .enumerate()
             .map(|(tab_index, label)| {
-                let is_selected = tab_index == selected_index;
                 let on_change = on_change.clone();
                 div()
                     .id(tab_index)
-                    .flex_dir()
-                    .flex_1()
-                    .items_center()
-                    .justify_center()
-                    .h_full()
-                    .px(px(8.))
-                    .rounded(trigger_radius)
-                    .border_1()
-                    .text_sm()
-                    .font_weight(FontWeight::MEDIUM)
-                    .whitespace_nowrap()
                     .tab_index(0)
-                    .cursor(CursorStyle::PointingHand)
-                    .focus(move |style| style.shadow(focus_ring_shadow(ring_color)))
-                    .map(|trigger| {
-                        if is_selected {
-                            trigger
-                                .bg(colors.background)
-                                .border_color(colors.border)
-                                .text_color(colors.foreground)
-                                .shadow(super::extra_small_shadow())
+                    .sx((
+                        &TABS.trigger,
+                        if tab_index == selected_index {
+                            &TABS.selected
                         } else {
-                            trigger
-                                .border_color(gpui::transparent_black())
-                                .text_color(colors.muted_foreground)
-                                .hover(|style| style.text_color(colors.foreground))
-                        }
-                    })
+                            &TABS.unselected
+                        },
+                    ))
                     .when_some(on_change, |trigger, handler| {
                         trigger.on_click(move |_, window, cx| handler(&tab_index, window, cx))
                     })
@@ -119,15 +130,8 @@ impl RenderOnce for Tabs {
 
         div()
             .id(self.id)
-            .flex_dir()
-            .items_center()
-            .h(px(36.))
-            .p(px(3.))
-            .rounded(theme.radius_large())
-            .bg(colors.muted)
-            .text_color(colors.muted_foreground)
+            .sx((&TABS.list, &self.sx))
             .children(triggers)
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

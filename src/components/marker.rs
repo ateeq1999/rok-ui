@@ -3,11 +3,11 @@
 
 use gpui::{div, prelude::*, px, App, Hsla, SharedString, StyleRefinement, Window};
 
-use super::direction::DirectionalStyled;
 use super::spinner::Spinner;
 use crate::sx::SxStyled;
 use crate::{
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -107,20 +107,40 @@ impl Marker {
     }
 }
 
+styles! {
+    MARKER = {
+        base: { display: flex, align: center, gap: 2, text: xs, color: muted_foreground },
+        dot: { size: 1.5, radius: full, background: muted_foreground },
+        note: { width: full, justify: center },
+        row: {
+            width: full,
+            padding_x: 3,
+            padding_y: 2,
+            radius: md,
+            border: 1,
+            border_color: border,
+            color: foreground,
+        },
+        row_text: { flex: 1, truncate: true },
+        row_detail: { color: muted_foreground },
+        separator: { width: full },
+        rule: { flex: 1, height: 0.25, background: border },
+    }
+}
+
 impl RenderOnce for Marker {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = cx.theme();
-        let colors = theme.colors.clone();
-        let muted = colors.muted_foreground;
+        let muted = cx.theme().colors.muted_foreground;
         let icon = self
             .icon
             .map(|icon| Icon::new(icon).size(px(14.)).color(muted));
-        let row = div()
-            .flex_dir()
-            .items_center()
-            .gap(px(8.))
-            .text_xs()
-            .text_color(muted);
+        let kind_style = match self.kind {
+            MarkerKind::Status { .. } => None,
+            MarkerKind::Note => Some(&MARKER.note),
+            MarkerKind::Row => Some(&MARKER.row),
+            MarkerKind::Separator => Some(&MARKER.separator),
+        };
+        let row = div().sx((&MARKER.base, kind_style, &self.sx));
 
         match self.kind {
             MarkerKind::Status { dot, busy } => row
@@ -128,37 +148,28 @@ impl RenderOnce for Marker {
                     if busy {
                         row.child(Spinner::new().size(px(12.)))
                     } else {
-                        row.child(div().size(px(6.)).rounded_full().bg(dot.unwrap_or(muted)))
+                        row.child(
+                            div()
+                                .sx(&MARKER.dot)
+                                .when_some(dot, |dot, color| dot.bg(color)),
+                        )
                     }
                 })
                 .children(icon)
                 .child(self.text),
-            MarkerKind::Note => row
-                .w_full()
-                .justify_center()
-                .children(icon)
-                .child(self.text),
+            MarkerKind::Note => row.children(icon).child(self.text),
             MarkerKind::Row => row
-                .w_full()
-                .px(px(12.))
-                .py(px(8.))
-                .rounded(theme.radius_medium())
-                .border_1()
-                .border_color(colors.border)
-                .text_color(colors.foreground)
                 .children(icon)
-                .child(div().flex_1().truncate().child(self.text))
+                .child(div().sx(&MARKER.row_text).child(self.text))
                 .when_some(self.detail, |row, detail| {
-                    row.child(div().text_color(muted).child(detail))
+                    row.child(div().sx(&MARKER.row_detail).child(detail))
                 }),
             MarkerKind::Separator => row
-                .w_full()
-                .child(div().flex_1().h(px(1.)).bg(colors.border))
+                .child(div().sx(&MARKER.rule))
                 .children(icon)
                 .child(self.text)
-                .child(div().flex_1().h(px(1.)).bg(colors.border)),
+                .child(div().sx(&MARKER.rule)),
         }
-        .sx(&self.sx)
         .apply_style_overrides(&self.style_overrides)
     }
 }

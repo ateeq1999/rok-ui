@@ -1,39 +1,38 @@
 //! KeyboardShortcut: shadcn/ui's `<Kbd>`, a key cap for shortcuts.
 
-use gpui::{div, prelude::*, px, App, FontWeight, SharedString};
+use gpui::{div, prelude::*, px, App, SharedString};
 
-use super::direction::DirectionalStyled;
-use crate::sx::SxStyled;
-use crate::{component, theme::ActiveTheme};
+use crate::sx::{Sx, SxStyled};
+use crate::{component, styles, theme::ActiveTheme};
+
+styles! {
+    KBD = {
+        key: {
+            display: flex,
+            flex: none,
+            align: center,
+            justify: center,
+            height: 5,
+            min_width: 5,
+            padding_x: 1,
+            border: 1,
+            border_color: border,
+            background: muted,
+            color: muted_foreground,
+            font_family: mono,
+            text: xs,
+            font: medium,
+        },
+        group: { display: flex, align: center, gap: 1, text: xs, color: muted_foreground },
+    }
+}
 
 /// `KeyboardShortcut::new("⌘K")`.
 #[component]
-pub fn KeyboardShortcut(
-    keys: SharedString,
-    cx: &mut App,
-    #[sx] sx: crate::sx::Sx,
-) -> impl IntoElement {
-    let element = {
-        let theme = cx.theme();
-        div()
-            .flex_dir()
-            .flex_none()
-            .items_center()
-            .justify_center()
-            .h(px(20.))
-            .min_w(px(20.))
-            .px(px(4.))
-            .rounded(theme.radius_small().max(px(3.)))
-            .border_1()
-            .border_color(theme.colors.border)
-            .bg(theme.colors.muted)
-            .text_color(theme.colors.muted_foreground)
-            .font_family(theme.monospace_font_family.clone())
-            .text_xs()
-            .font_weight(FontWeight::MEDIUM)
-            .child(keys)
-    };
-    element.sx(&sx)
+pub fn KeyboardShortcut(keys: SharedString, cx: &mut App, #[sx] sx: Sx) -> impl IntoElement {
+    // Key caps keep a little rounding even in square themes.
+    let radius = cx.theme().radius_small().max(px(3.));
+    div().rounded(radius).sx((&KBD.key, &sx)).child(keys)
 }
 
 /// shadcn/ui's name for [`KeyboardShortcut`]: `Kbd::new("⌘")`.
@@ -41,25 +40,12 @@ pub type Kbd = KeyboardShortcut;
 
 /// Key caps for a chord, joined with `+`: `KbdGroup::new(["Ctrl", "Shift", "P"])`.
 #[component]
-pub fn KbdGroup(
-    keys: Vec<SharedString>,
-    cx: &mut App,
-    #[sx] sx: crate::sx::Sx,
-) -> impl IntoElement {
-    let element = {
-        let muted_foreground = cx.theme().colors.muted_foreground;
-        let key_count = keys.len();
-        div()
-            .flex_dir()
-            .items_center()
-            .gap(px(4.))
-            .text_xs()
-            .text_color(muted_foreground)
-            .children(keys.into_iter().enumerate().flat_map(move |(index, key)| {
-                let separator =
-                    (index + 1 < key_count).then(|| div().child("+").into_any_element());
-                std::iter::once(KeyboardShortcut::new(key).into_any_element()).chain(separator)
-            }))
-    };
-    element.sx(&sx)
+pub fn KbdGroup(keys: Vec<SharedString>, #[sx] sx: Sx) -> impl IntoElement {
+    let key_count = keys.len();
+    div()
+        .sx((&KBD.group, &sx))
+        .children(keys.into_iter().enumerate().flat_map(move |(index, key)| {
+            let separator = (index + 1 < key_count).then(|| div().child("+").into_any_element());
+            std::iter::once(KeyboardShortcut::new(key).into_any_element()).chain(separator)
+        }))
 }

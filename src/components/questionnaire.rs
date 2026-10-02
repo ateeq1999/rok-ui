@@ -4,11 +4,9 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, prelude::*, px, AnyElement, App, CursorStyle, ElementId, FontWeight, SharedString,
-    StyleRefinement, Window,
+    div, prelude::*, px, AnyElement, App, ElementId, SharedString, StyleRefinement, Window,
 };
 
-use super::direction::DirectionalStyled;
 use super::{
     button::Button,
     input::{use_textarea_state, Textarea},
@@ -20,6 +18,7 @@ use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler, State},
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -226,6 +225,65 @@ fn advance(
     }
 }
 
+styles! {
+    QUESTIONNAIRE = {
+        container: {
+            display: flex,
+            direction: column,
+            gap: 5,
+            width: full,
+            max_width: 140,
+            padding: 6,
+            radius: xl,
+            border: 1,
+            border_color: border,
+            background: card,
+            color: card_foreground,
+        },
+        stack: { display: flex, direction: column, gap: 2 },
+        header: { display: flex, direction: column, gap: 1.5 },
+        caption: { text: xs, color: muted_foreground },
+        title: { text: lg, font: semibold },
+        description: { text: sm, color: muted_foreground },
+        done_row: { display: flex, align: center, gap: 3 },
+        summary: { display: flex, direction: column, gap: 3 },
+        summary_item: { display: flex, direction: column, gap: 0.5 },
+        summary_answer: { text: sm },
+        restart_row: { display: flex, justify: end },
+        actions: { display: flex, align: center, gap: 2 },
+        spacer: { flex: 1 },
+        option: {
+            display: flex,
+            align: center,
+            gap: 3,
+            padding_x: 3.5,
+            padding_y: 2.5,
+            radius: md,
+            border: 1,
+            border_color: border,
+            text: sm,
+            cursor: pointer,
+            hover: { background: accent },
+            focus: { border_color: ring },
+        },
+        option_selected: { border_color: primary, background: accent },
+        indicator: {
+            display: flex,
+            flex: none,
+            align: center,
+            justify: center,
+            size: 4,
+            border: 1,
+            border_color: input,
+        },
+        indicator_selected: { border_color: primary },
+        checkbox: { radius: 1 },
+        checkbox_checked: { background: primary },
+        radio: { radius: full },
+        radio_dot: { size: 2, radius: full, background: primary },
+    }
+}
+
 impl RenderOnce for Questionnaire {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let question_count = self.questions.len();
@@ -243,10 +301,7 @@ impl RenderOnce for Questionnaire {
                 memory.step = memory.step.min(question_count.saturating_sub(1));
             });
         }
-        let theme = cx.theme();
-        let colors = theme.colors.clone();
-        let radius = theme.radius_medium();
-        let ring_color = colors.ring;
+        let primary_foreground = cx.theme().colors.primary_foreground;
         let questions: Rc<Vec<Question>> = Rc::new(self.questions);
         let on_complete = self.on_complete;
         let (step, finished) = {
@@ -256,55 +311,35 @@ impl RenderOnce for Questionnaire {
 
         let container = div()
             .id(self.id.clone())
-            .flex_dir()
-            .flex_col()
-            .gap(px(20.))
-            .w_full()
-            .max_w(px(560.))
-            .p(px(24.))
-            .rounded(theme.radius_extra_large())
-            .border_1()
-            .border_color(colors.border)
-            .bg(colors.card)
-            .text_color(colors.card_foreground);
+            .sx((&QUESTIONNAIRE.container, &self.sx));
 
         if finished || question_count == 0 {
             let answers = memory.read(cx).answers.clone();
             let restart_memory = memory.clone();
             let summary = questions.iter().zip(answers).map(|(question, answer)| {
                 div()
-                    .flex_dir()
-                    .flex_col()
-                    .gap(px(2.))
+                    .sx(&QUESTIONNAIRE.summary_item)
                     .child(
                         div()
-                            .text_xs()
-                            .text_color(colors.muted_foreground)
+                            .sx(&QUESTIONNAIRE.caption)
                             .child(question.title.clone()),
                     )
                     .child(
                         div()
-                            .text_sm()
+                            .sx(&QUESTIONNAIRE.summary_answer)
                             .child(answer.unwrap_or(Answer::Skipped).summary()),
                     )
             });
             return container
                 .child(
                     div()
-                        .flex_dir()
-                        .items_center()
-                        .gap(px(12.))
+                        .sx(&QUESTIONNAIRE.done_row)
                         .child(Icon::new(IconName::CircleCheck).size(px(24.)))
-                        .child(
-                            div()
-                                .text_lg()
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .child("All done"),
-                        ),
+                        .child(div().sx(&QUESTIONNAIRE.title).child("All done")),
                 )
-                .child(div().flex_dir().flex_col().gap(px(12.)).children(summary))
+                .child(div().sx(&QUESTIONNAIRE.summary).children(summary))
                 .child(
-                    div().flex_dir().justify_end().child(
+                    div().sx(&QUESTIONNAIRE.restart_row).child(
                         Button::new("questionnaire-restart")
                             .outline()
                             .label("Start over")
@@ -317,7 +352,6 @@ impl RenderOnce for Questionnaire {
                             }),
                     ),
                 )
-                .sx(&self.sx)
                 .apply_style_overrides(&self.style_overrides);
         }
 
@@ -340,52 +374,34 @@ impl RenderOnce for Questionnaire {
                           multiple: bool,
                           on_pick: Callback| {
             let indicator = div()
-                .flex_dir()
-                .flex_none()
-                .items_center()
-                .justify_center()
-                .size(px(16.))
-                .border_1()
-                .border_color(if selected {
-                    colors.primary
-                } else {
-                    colors.input
-                })
-                .map(|indicator| {
+                .sx((
+                    &QUESTIONNAIRE.indicator,
+                    selected.then_some(&QUESTIONNAIRE.indicator_selected),
                     if multiple {
-                        indicator.rounded(px(4.)).when(selected, |indicator| {
-                            indicator.bg(colors.primary).child(
-                                Icon::new(IconName::Check)
-                                    .size(px(12.))
-                                    .color(colors.primary_foreground),
-                            )
-                        })
+                        &QUESTIONNAIRE.checkbox
                     } else {
-                        indicator.rounded_full().when(selected, |indicator| {
-                            indicator.child(div().size(px(8.)).rounded_full().bg(colors.primary))
-                        })
+                        &QUESTIONNAIRE.radio
+                    },
+                    (multiple && selected).then_some(&QUESTIONNAIRE.checkbox_checked),
+                ))
+                .when(selected, |indicator| {
+                    if multiple {
+                        indicator.child(
+                            Icon::new(IconName::Check)
+                                .size(px(12.))
+                                .color(primary_foreground),
+                        )
+                    } else {
+                        indicator.child(div().sx(&QUESTIONNAIRE.radio_dot))
                     }
                 });
             div()
                 .id(("questionnaire-option", index))
-                .flex_dir()
-                .items_center()
-                .gap(px(12.))
-                .px(px(14.))
-                .py(px(10.))
-                .rounded(radius)
-                .border_1()
-                .border_color(if selected {
-                    colors.primary
-                } else {
-                    colors.border
-                })
-                .when(selected, |row| row.bg(colors.accent))
-                .text_sm()
-                .cursor(CursorStyle::PointingHand)
                 .tab_index(0)
-                .focus(move |style| style.border_color(ring_color))
-                .hover(|style| style.bg(colors.accent))
+                .sx((
+                    &QUESTIONNAIRE.option,
+                    selected.then_some(&QUESTIONNAIRE.option_selected),
+                ))
                 .on_click(move |_, window, cx| on_pick(window, cx))
                 .child(indicator)
                 .child(label)
@@ -394,9 +410,7 @@ impl RenderOnce for Questionnaire {
 
         let body: AnyElement = match &question.kind {
             QuestionKind::Single(options) => div()
-                .flex_dir()
-                .flex_col()
-                .gap(px(8.))
+                .sx(&QUESTIONNAIRE.stack)
                 .children(options.iter().enumerate().map(|(index, option)| {
                     let selected = current_answer == Some(Answer::Choice(option.clone()));
                     let memory = memory.clone();
@@ -420,9 +434,7 @@ impl RenderOnce for Questionnaire {
                     _ => Vec::new(),
                 };
                 div()
-                    .flex_dir()
-                    .flex_col()
-                    .gap(px(8.))
+                    .sx(&QUESTIONNAIRE.stack)
                     .children(options.iter().enumerate().map(|(index, option)| {
                         let selected = chosen.contains(option);
                         let memory = memory.clone();
@@ -514,43 +526,26 @@ impl RenderOnce for Questionnaire {
         container
             .child(
                 div()
-                    .flex_dir()
-                    .flex_col()
-                    .gap(px(8.))
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(colors.muted_foreground)
-                            .child(format!("Question {} of {}", step + 1, question_count)),
-                    )
+                    .sx(&QUESTIONNAIRE.stack)
+                    .child(div().sx(&QUESTIONNAIRE.caption).child(format!(
+                        "Question {} of {}",
+                        step + 1,
+                        question_count
+                    )))
                     .child(Progress::new(step as f32 / question_count as f32 * 100.).h(px(4.))),
             )
             .child(
                 div()
-                    .flex_dir()
-                    .flex_col()
-                    .gap(px(6.))
-                    .child(
-                        div()
-                            .text_lg()
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child(question.title.clone()),
-                    )
+                    .sx(&QUESTIONNAIRE.header)
+                    .child(div().sx(&QUESTIONNAIRE.title).child(question.title.clone()))
                     .when_some(question.description.clone(), |header, description| {
-                        header.child(
-                            div()
-                                .text_sm()
-                                .text_color(colors.muted_foreground)
-                                .child(description),
-                        )
+                        header.child(div().sx(&QUESTIONNAIRE.description).child(description))
                     }),
             )
             .child(body)
             .child(
                 div()
-                    .flex_dir()
-                    .items_center()
-                    .gap(px(8.))
+                    .sx(&QUESTIONNAIRE.actions)
                     .child(
                         Button::new("questionnaire-back")
                             .ghost()
@@ -563,11 +558,10 @@ impl RenderOnce for Questionnaire {
                                 })
                             }),
                     )
-                    .child(div().flex_1())
+                    .child(div().sx(&QUESTIONNAIRE.spacer))
                     .children(skip)
                     .child(next),
             )
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

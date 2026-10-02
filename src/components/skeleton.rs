@@ -8,7 +8,11 @@ use gpui::{
 };
 
 use crate::sx::SxStyled;
-use crate::{styles::ApplyStyleOverrides, theme::ActiveTheme};
+use crate::{styles, styles::ApplyStyleOverrides};
+
+styles! {
+    SKELETON = { root: { radius: md, background: muted } }
+}
 
 /// Size it like the content it stands in for: `Skeleton::new("title").h(px(16.)).w(px(200.))`.
 #[derive(IntoElement)]
@@ -31,12 +35,9 @@ impl Skeleton {
 }
 
 impl RenderOnce for Skeleton {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = cx.theme();
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         div()
-            .rounded(theme.radius_medium())
-            .bg(theme.colors.muted)
-            .sx(&self.sx)
+            .sx((&SKELETON.root, &self.sx))
             .apply_style_overrides(&self.style_overrides)
             .with_animation(
                 self.id,

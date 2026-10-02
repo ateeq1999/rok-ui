@@ -7,14 +7,23 @@ use gpui::{
     Window,
 };
 
-use crate::{icon::IconName, styles::ApplyStyleOverrides, sx::SxStyled, theme::ActiveTheme};
+use crate::{
+    icon::IconName,
+    styles,
+    styles::ApplyStyleOverrides,
+    sx::{Sx, SxStyled},
+};
+
+styles! {
+    SPINNER = { root: { flex: none, color: muted_foreground } }
+}
 
 /// An indeterminate loading indicator. Used by `Button::loading(true)`.
 #[derive(IntoElement)]
 pub struct Spinner {
     size: Pixels,
     color: Option<Hsla>,
-    sx: crate::sx::Sx,
+    sx: Sx,
     style_overrides: gpui::StyleRefinement,
 }
 
@@ -25,7 +34,7 @@ impl Spinner {
         Self {
             size: px(16.),
             color: None,
-            sx: crate::sx::Sx::new(),
+            sx: Sx::new(),
             style_overrides: gpui::StyleRefinement::default(),
         }
     }
@@ -48,14 +57,12 @@ impl Default for Spinner {
 }
 
 impl RenderOnce for Spinner {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let color = self.color.unwrap_or(cx.theme().colors.muted_foreground);
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
+        let color = self.color.map(|color| Sx::new().text_color(color));
         svg()
             .path(IconName::Loader.asset_path())
-            .flex_none()
             .size(self.size)
-            .text_color(color)
-            .sx(&self.sx)
+            .sx((&SPINNER.root, color, &self.sx))
             .apply_style_overrides(&self.style_overrides)
             .with_animation(
                 "rok-ui-spinner-rotation",

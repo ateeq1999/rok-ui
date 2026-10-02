@@ -3,16 +3,16 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, img, prelude::*, px, relative, App, CursorStyle, ElementId, FontWeight, ImageSource,
-    SharedString, StyleRefinement, Window,
+    div, img, prelude::*, px, relative, App, ElementId, ImageSource, SharedString, StyleRefinement,
+    Window,
 };
 
-use super::direction::DirectionalStyled;
 use super::{button::Button, spinner::Spinner};
 use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -128,92 +128,113 @@ pub fn icon_for_file_name(name: &str) -> IconName {
     }
 }
 
+styles! {
+    ATTACHMENT = {
+        root: {
+            display: flex,
+            align: center,
+            gap: 3,
+            width: 70,
+            padding: 2,
+            radius: lg,
+            border: 1,
+            border_color: border,
+            background: card,
+        },
+        failed: { border_color: destructive/50 },
+        openable: { cursor: pointer, hover: { background: accent/50 } },
+        media: {
+            position: relative,
+            flex: none,
+            size: 10,
+            display: flex,
+            align: center,
+            justify: center,
+            radius: md,
+            overflow: hidden,
+            background: muted,
+        },
+        image: { size: full },
+        uploading_overlay: {
+            position: absolute,
+            top: 0,
+            left: 0,
+            size: full,
+            display: flex,
+            align: center,
+            justify: center,
+            background: background/60,
+        },
+        text: { display: flex, direction: column, flex: 1, min_width: 0, gap: 0.5 },
+        name: { text: sm, font: medium, truncate: true },
+        meta: { text: xs, color: muted_foreground, truncate: true },
+        uploading: { text: xs, color: muted_foreground },
+        error: { text: xs, color: destructive_text, truncate: true },
+        progress_track: {
+            margin_top: 1,
+            height: 1,
+            width: full,
+            radius: full,
+            background: primary/20,
+        },
+        progress_bar: { height: full, radius: full, background: primary },
+        action: { width: 7, height: 7 },
+    }
+}
+
 impl RenderOnce for Attachment {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        // The component's own interaction styles, merged with the caller's `sx` in one
-        // call (GPUI allows a single hover / focus style per element).
-        let own_states = if self.on_open.is_some() {
-            crate::sx::Sx::new().hover(|state| state.bg(crate::sx::ColorToken::Accent.alpha(0.5)))
-        } else {
-            crate::sx::Sx::new()
-        };
-        let theme = cx.theme();
-        let colors = theme.colors.clone();
+        let colors = &cx.theme().colors;
         let failed = matches!(self.state, AttachmentState::Failed(_));
+        let icon_color = if failed {
+            colors.destructive_text
+        } else {
+            colors.muted_foreground
+        };
 
         let media = div()
-            .relative()
-            .flex_none()
-            .size(px(40.))
-            .flex_dir()
-            .items_center()
-            .justify_center()
-            .rounded(theme.radius_medium())
-            .overflow_hidden()
-            .bg(colors.muted)
+            .sx(&ATTACHMENT.media)
             .map(|media| match self.image.clone() {
-                Some(image) => {
-                    media.child(img(image).size_full().object_fit(gpui::ObjectFit::Cover))
-                }
-                None => media.child(Icon::new(self.icon).size(px(20.)).color(if failed {
-                    colors.destructive_text
-                } else {
-                    colors.muted_foreground
-                })),
+                Some(image) => media.child(
+                    img(image)
+                        .sx(&ATTACHMENT.image)
+                        .object_fit(gpui::ObjectFit::Cover),
+                ),
+                None => media.child(Icon::new(self.icon).size(px(20.)).color(icon_color)),
             })
             .when(
                 matches!(self.state, AttachmentState::Uploading(_)),
                 |media| {
                     media.child(
                         div()
-                            .absolute()
-                            .top_0()
-                            .left_0()
-                            .size_full()
-                            .flex_dir()
-                            .items_center()
-                            .justify_center()
-                            .bg(colors.background.opacity(0.6))
+                            .sx(&ATTACHMENT.uploading_overlay)
                             .child(Spinner::new()),
                     )
                 },
             );
 
         let detail = match &self.state {
-            AttachmentState::Ready => self.meta.clone().map(|meta| {
-                div()
-                    .text_xs()
-                    .text_color(colors.muted_foreground)
-                    .truncate()
-                    .child(meta)
-                    .into_any_element()
-            }),
+            AttachmentState::Ready => self
+                .meta
+                .clone()
+                .map(|meta| div().sx(&ATTACHMENT.meta).child(meta).into_any_element()),
             AttachmentState::Uploading(progress) => Some(match progress {
                 Some(progress) => div()
-                    .mt(px(4.))
-                    .h(px(4.))
-                    .w_full()
-                    .rounded_full()
-                    .bg(colors.primary.opacity(0.2))
+                    .sx(&ATTACHMENT.progress_track)
                     .child(
                         div()
-                            .h_full()
-                            .w(relative((progress / 100.).clamp(0., 1.)))
-                            .rounded_full()
-                            .bg(colors.primary),
+                            .sx(&ATTACHMENT.progress_bar)
+                            .w(relative((progress / 100.).clamp(0., 1.))),
                     )
                     .into_any_element(),
                 None => div()
-                    .text_xs()
-                    .text_color(colors.muted_foreground)
+                    .sx(&ATTACHMENT.uploading)
                     .child("Uploading…")
                     .into_any_element(),
             }),
             AttachmentState::Failed(message) => Some(
                 div()
-                    .text_xs()
-                    .text_color(colors.destructive_text)
-                    .truncate()
+                    .sx(&ATTACHMENT.error)
                     .child(message.clone())
                     .into_any_element(),
             ),
@@ -223,8 +244,7 @@ impl RenderOnce for Attachment {
             Button::new("attachment-retry")
                 .ghost()
                 .icon_only(IconName::Refresh)
-                .w(px(28.))
-                .h(px(28.))
+                .sx(&ATTACHMENT.action)
                 .tooltip("Retry")
                 .on_click(move |_, window, cx| handler(&(), window, cx))
         });
@@ -232,52 +252,33 @@ impl RenderOnce for Attachment {
             Button::new("attachment-remove")
                 .ghost()
                 .icon_only(IconName::Close)
-                .w(px(28.))
-                .h(px(28.))
+                .sx(&ATTACHMENT.action)
                 .tooltip("Remove")
                 .on_click(move |_, window, cx| handler(&(), window, cx))
         });
 
         div()
             .id(self.id)
-            .flex_dir()
-            .items_center()
-            .gap(px(12.))
-            .w(px(280.))
-            .p(px(8.))
-            .rounded(theme.radius_large())
-            .border_1()
-            .border_color(if failed {
-                colors.destructive.opacity(0.5)
-            } else {
-                colors.border
-            })
-            .bg(colors.card)
+            // The caller's `sx` is merged into the same call: GPUI allows a single
+            // hover / focus style per element.
+            .sx((
+                &ATTACHMENT.root,
+                failed.then_some(&ATTACHMENT.failed),
+                self.on_open.is_some().then_some(&ATTACHMENT.openable),
+                &self.sx,
+            ))
             .when_some(self.on_open, |attachment, handler| {
-                attachment
-                    .cursor(CursorStyle::PointingHand)
-                    .on_click(move |_, window, cx| handler(&(), window, cx))
+                attachment.on_click(move |_, window, cx| handler(&(), window, cx))
             })
             .child(media)
             .child(
                 div()
-                    .flex_dir()
-                    .flex_col()
-                    .flex_1()
-                    .min_w_0()
-                    .gap(px(2.))
-                    .child(
-                        div()
-                            .text_sm()
-                            .font_weight(FontWeight::MEDIUM)
-                            .truncate()
-                            .child(self.name),
-                    )
+                    .sx(&ATTACHMENT.text)
+                    .child(div().sx(&ATTACHMENT.name).child(self.name))
                     .children(detail),
             )
             .children(retry)
             .children(remove)
-            .sx((&own_states, &self.sx))
             .apply_style_overrides(&self.style_overrides)
     }
 }

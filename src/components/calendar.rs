@@ -3,19 +3,15 @@
 
 use std::{fmt, rc::Rc};
 
-use gpui::{
-    div, prelude::*, px, AnyElement, App, CursorStyle, ElementId, FontWeight, SharedString,
-    StyleRefinement, Window,
-};
+use gpui::{div, prelude::*, AnyElement, App, ElementId, SharedString, StyleRefinement, Window};
 
-use super::direction::DirectionalStyled;
 use super::{button::Button, overlay::child_id};
 use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler},
     icon::IconName,
+    styles,
     styles::ApplyStyleOverrides,
-    theme::ActiveTheme,
 };
 
 const MONTH_NAMES: [&str; 12] = [
@@ -394,21 +390,64 @@ impl Calendar {
     }
 }
 
+styles! {
+    CALENDAR = {
+        root: { display: flex, gap: 4, padding: 3 },
+        month: { display: flex, direction: column, gap: 2 },
+        header: {
+            position: relative,
+            display: flex,
+            align: center,
+            justify: center,
+            height: 8,
+        },
+        caption: { text: sm, font: medium },
+        previous_slot: { position: absolute, inset_start: 0 },
+        next_slot: { position: absolute, inset_end: 0 },
+        nav_button: { width: 8, height: 8 },
+        weekdays: { display: flex },
+        weekday: {
+            width: 8,
+            display: flex,
+            justify: center,
+            text: xs,
+            color: muted_foreground,
+        },
+        weeks: { display: flex, direction: column, gap: 0.5 },
+        week: { display: flex },
+        day: {
+            size: 8,
+            display: flex,
+            align: center,
+            justify: center,
+            radius: md,
+            text: sm,
+        },
+        selected: { background: primary, color: primary_foreground },
+        range_middle: { radius: none, background: accent, color: accent_foreground },
+        today: { background: accent, color: accent_foreground },
+        outside: { color: muted_foreground },
+        disabled: { opacity: 0.5, line_through: true },
+        interactive: {
+            cursor: pointer,
+            border: 1,
+            border_color: transparent,
+            focus: { border_color: ring },
+        },
+        hoverable: { hover: { background: accent } },
+    }
+}
+
 impl RenderOnce for Calendar {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let anchor = self.anchor_date().first_of_month();
         let visible_month = use_keyed_state(child_id(&self.id, "month"), window, cx, || anchor);
         let first_month = visible_month.get(cx);
-        let theme = cx.theme();
-        let colors = theme.colors.clone();
-        let cell_radius = theme.radius_medium();
-        let ring_color = colors.ring;
         let weekday_labels: Vec<&str> = if self.week_starts_on_monday {
             vec!["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
         } else {
             vec!["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
         };
-        let cell = px(32.);
 
         let months = (0..self.number_of_months).map(|month_offset| {
             let month = first_month.add_months(month_offset as i32);
@@ -419,25 +458,19 @@ impl RenderOnce for Calendar {
             let previous_state = visible_month.clone();
             let next_state = visible_month.clone();
             let header = div()
-                .relative()
-                .flex_dir()
-                .items_center()
-                .justify_center()
-                .h(cell)
-                .child(
-                    div()
-                        .text_sm()
-                        .font_weight(FontWeight::MEDIUM)
-                        .child(format!("{} {}", month_name(month.month), month.year)),
-                )
+                .sx(&CALENDAR.header)
+                .child(div().sx(&CALENDAR.caption).child(format!(
+                    "{} {}",
+                    month_name(month.month),
+                    month.year
+                )))
                 .when(is_first, |header| {
                     header.child(
-                        div().absolute().inset_start(px(0.)).child(
+                        div().sx(&CALENDAR.previous_slot).child(
                             Button::new("calendar-previous")
                                 .ghost()
                                 .icon_only(IconName::ChevronLeft.for_direction())
-                                .w(cell)
-                                .h(cell)
+                                .sx(&CALENDAR.nav_button)
                                 .tooltip("Previous month")
                                 .on_click(move |_, _, cx| {
                                     previous_state.update(cx, |month| *month = month.add_months(-1))
@@ -447,12 +480,11 @@ impl RenderOnce for Calendar {
                 })
                 .when(is_last, |header| {
                     header.child(
-                        div().absolute().inset_end(px(0.)).child(
+                        div().sx(&CALENDAR.next_slot).child(
                             Button::new("calendar-next")
                                 .ghost()
                                 .icon_only(IconName::ChevronRight.for_direction())
-                                .w(cell)
-                                .h(cell)
+                                .sx(&CALENDAR.nav_button)
                                 .tooltip("Next month")
                                 .on_click(move |_, _, cx| {
                                     next_state.update(cx, |month| *month = month.add_months(1))
@@ -461,20 +493,14 @@ impl RenderOnce for Calendar {
                     )
                 });
 
-            let weekday_row = div()
-                .flex_dir()
-                .children(weekday_labels.iter().map(|label| {
-                    div()
-                        .w(cell)
-                        .flex_dir()
-                        .justify_center()
-                        .text_xs()
-                        .text_color(colors.muted_foreground)
-                        .child(*label)
-                }));
+            let weekday_row = div().sx(&CALENDAR.weekdays).children(
+                weekday_labels
+                    .iter()
+                    .map(|label| div().sx(&CALENDAR.weekday).child(*label)),
+            );
 
             let weeks = days.chunks(7).map(|week| {
-                div().flex_dir().children(week.iter().map(|date| {
+                div().sx(&CALENDAR.week).children(week.iter().map(|date| {
                     let date = *date;
                     let is_outside = date.month != month.month;
                     let is_disabled = self.is_disabled(date);
@@ -491,40 +517,35 @@ impl RenderOnce for Calendar {
                             None => (false, false),
                         },
                     };
-                    let selection = self.selection.clone();
-                    let mut day = div()
-                        .id(("calendar-day", date.days_since_epoch() as u64))
-                        .size(cell)
-                        .flex_dir()
-                        .items_center()
-                        .justify_center()
-                        .rounded(cell_radius)
-                        .text_sm()
-                        .child(SharedString::from(date.day.to_string()));
-                    day = if is_selected {
-                        day.bg(colors.primary).text_color(colors.primary_foreground)
+                    let state = if is_selected {
+                        Some(&CALENDAR.selected)
                     } else if is_range_middle {
-                        day.rounded_none()
-                            .bg(colors.accent)
-                            .text_color(colors.accent_foreground)
+                        Some(&CALENDAR.range_middle)
                     } else if is_today {
-                        day.bg(colors.accent).text_color(colors.accent_foreground)
+                        Some(&CALENDAR.today)
                     } else if is_outside {
-                        day.text_color(colors.muted_foreground)
+                        Some(&CALENDAR.outside)
                     } else {
-                        day
+                        None
                     };
+                    let selection = self.selection.clone();
+                    let day = div()
+                        .id(("calendar-day", date.days_since_epoch() as u64))
+                        .sx((
+                            &CALENDAR.day,
+                            state,
+                            if is_disabled {
+                                &CALENDAR.disabled
+                            } else {
+                                &CALENDAR.interactive
+                            },
+                            (!is_disabled && !is_selected).then_some(&CALENDAR.hoverable),
+                        ))
+                        .child(SharedString::from(date.day.to_string()));
                     if is_disabled {
-                        day.opacity(0.5).line_through()
+                        day
                     } else {
-                        day.cursor(CursorStyle::PointingHand)
-                            .tab_index(0)
-                            .border_1()
-                            .border_color(gpui::transparent_black())
-                            .focus(move |style| style.border_color(ring_color))
-                            .when(!is_selected, |day| {
-                                day.hover(|style| style.bg(colors.accent))
-                            })
+                        day.tab_index(0)
                             .on_click(move |_, window, cx| match &selection {
                                 CalendarSelection::Single {
                                     on_select: Some(handler),
@@ -543,22 +564,17 @@ impl RenderOnce for Calendar {
 
             div()
                 .id(("calendar-month", month_offset))
-                .flex_dir()
-                .flex_col()
-                .gap(px(8.))
+                .sx(&CALENDAR.month)
                 .child(header)
                 .child(weekday_row)
-                .child(div().flex_dir().flex_col().gap(px(2.)).children(weeks))
+                .child(div().sx(&CALENDAR.weeks).children(weeks))
         });
         let months: Vec<AnyElement> = months.map(IntoElement::into_any_element).collect();
 
         div()
             .id(self.id)
-            .flex_dir()
-            .gap(px(16.))
-            .p(px(12.))
+            .sx((&CALENDAR.root, &self.sx))
             .children(months)
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

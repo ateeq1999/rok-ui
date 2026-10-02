@@ -1,8 +1,25 @@
 //! Tooltip: shadcn/ui's dark pill that appears on hover.
 
-use gpui::{div, prelude::*, px, AnyView, App, Context, SharedString, Window};
+use gpui::{div, prelude::*, AnyView, App, Context, SharedString, Window};
 
-use crate::theme::ActiveTheme;
+use crate::styles;
+use crate::sx::SxStyled;
+
+styles! {
+    TOOLTIP = {
+        // Tooltips sit a little below and right of the pointer.
+        offset: { padding_left: 2, padding_top: 2.5 },
+        pill: {
+            padding_x: 3,
+            padding_y: 1.5,
+            radius: md,
+            background: foreground,
+            color: background,
+            font_family: sans,
+            text: xs,
+        },
+    }
+}
 
 /// A text tooltip. Attach it to any interactive element:
 ///
@@ -28,19 +45,9 @@ impl Tooltip {
 }
 
 impl Render for Tooltip {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = cx.theme();
-        // Tooltips sit a little below and right of the pointer.
-        div().pl(px(8.)).pt(px(10.)).child(
-            div()
-                .px(px(12.))
-                .py(px(6.))
-                .rounded(theme.radius_medium())
-                .bg(theme.colors.foreground)
-                .text_color(theme.colors.background)
-                .font_family(theme.font_family.clone())
-                .text_xs()
-                .child(self.text.clone()),
-        )
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .sx(&TOOLTIP.offset)
+            .child(div().sx(&TOOLTIP.pill).child(self.text.clone()))
     }
 }

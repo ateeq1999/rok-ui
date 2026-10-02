@@ -3,15 +3,10 @@
 
 use std::rc::Rc;
 
-use gpui::{
-    div, prelude::*, px, App, CursorStyle, ElementId, FontWeight, SharedString, StyleRefinement,
-    Window,
-};
+use gpui::{div, prelude::*, px, App, ElementId, SharedString, StyleRefinement, Window};
 
-use super::direction::DirectionalStyled;
 use super::{
     command::{render_command, CommandGroup, CommandItem},
-    extra_small_shadow,
     input::use_input_state,
     interaction::Callback,
     overlay::{
@@ -23,6 +18,7 @@ use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -117,21 +113,39 @@ impl Combobox {
     }
 }
 
+styles! {
+    COMBOBOX = {
+        trigger: {
+            position: relative,
+            display: flex,
+            align: center,
+            justify: between,
+            gap: 2,
+            height: 9,
+            width: 50,
+            padding_x: 3,
+            radius: md,
+            border: 1,
+            border_color: input,
+            background: background,
+            text: sm,
+            font: medium,
+            shadow: xs,
+        },
+        interactive: {
+            cursor: pointer,
+            hover: { background: accent },
+            focus: { border_color: ring, shadow: ring },
+        },
+        inert: { opacity: 0.5 },
+        value: { truncate: true },
+        placeholder: { truncate: true, color: muted_foreground },
+        panel: { overflow: hidden },
+    }
+}
+
 impl RenderOnce for Combobox {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        // The component's own interaction styles, merged with the caller's `sx` in one
-        // call (GPUI allows a single hover / focus style per element).
-        let own_states = if self.disabled {
-            crate::sx::Sx::new()
-        } else {
-            crate::sx::Sx::new()
-                .hover(|state| state.bg(crate::sx::ColorToken::Accent))
-                .focus(|state| {
-                    state
-                        .border_color(crate::sx::ColorToken::Ring)
-                        .shadow(crate::sx::SxShadow::Ring)
-                })
-        };
         let open_state = use_open_state(&self.id, None, None, window, cx);
         let is_open = open_state.is_open(cx);
         let trigger_width = open_state.trigger_width(cx);
@@ -139,9 +153,7 @@ impl RenderOnce for Combobox {
         let search = use_input_state(child_id(&self.id, "search"), window, cx, |state| {
             state.with_placeholder(search_placeholder)
         });
-        let theme = cx.theme();
-        let colors = theme.colors.clone();
-        let radius = theme.radius_medium();
+        let muted_foreground = cx.theme().colors.muted_foreground;
 
         let selected_label = self.value.as_ref().and_then(|value| {
             self.options
@@ -152,39 +164,28 @@ impl RenderOnce for Combobox {
 
         let trigger = div()
             .id("combobox-trigger")
-            .relative()
-            .flex_dir()
-            .items_center()
-            .justify_between()
-            .gap(px(8.))
-            .h(px(36.))
-            .w(px(200.))
-            .px(px(12.))
-            .rounded(radius)
-            .border_1()
-            .border_color(colors.input)
-            .bg(colors.background)
-            .text_sm()
-            .font_weight(FontWeight::MEDIUM)
-            .shadow(extra_small_shadow())
-            .when(!self.disabled, |trigger| {
-                trigger.tab_index(0).cursor(CursorStyle::PointingHand)
-            })
-            .when(self.disabled, |trigger| trigger.opacity(0.5))
+            // The caller's `sx` is merged into the same call: GPUI allows a single
+            // hover / focus style per element.
+            .sx((
+                &COMBOBOX.trigger,
+                if self.disabled {
+                    &COMBOBOX.inert
+                } else {
+                    &COMBOBOX.interactive
+                },
+                &self.sx,
+            ))
+            .when(!self.disabled, |trigger| trigger.tab_index(0))
             .child(match selected_label {
-                Some(label) => div().truncate().child(label),
-                None => div()
-                    .truncate()
-                    .text_color(colors.muted_foreground)
-                    .child(self.placeholder),
+                Some(label) => div().sx(&COMBOBOX.value).child(label),
+                None => div().sx(&COMBOBOX.placeholder).child(self.placeholder),
             })
             .child(
                 Icon::new(IconName::ChevronsUpDown)
                     .size(px(16.))
-                    .color(colors.muted_foreground),
+                    .color(muted_foreground),
             )
             .child(measure_width(trigger_width.clone()))
-            .sx((&own_states, &self.sx))
             .apply_style_overrides(&self.style_overrides);
 
         let wrapper =
@@ -232,8 +233,8 @@ impl RenderOnce for Combobox {
             cx,
         );
         let panel = popover_surface(cx.theme())
+            .sx(&COMBOBOX.panel)
             .w(trigger_width.get().max(px(200.)))
-            .overflow_hidden()
             .child(command);
         let panel = dismissable(panel, &open_state, window, cx);
         wrapper.child(floating(Side::Bottom, Align::Start, panel, cx))

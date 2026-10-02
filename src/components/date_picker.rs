@@ -2,15 +2,10 @@
 
 use std::rc::Rc;
 
-use gpui::{
-    div, prelude::*, px, App, CursorStyle, ElementId, FontWeight, SharedString, StyleRefinement,
-    Window,
-};
+use gpui::{div, prelude::*, px, App, ElementId, SharedString, StyleRefinement, Window};
 
-use super::direction::DirectionalStyled;
 use super::{
     calendar::{Calendar, CalendarDate, DateRange},
-    extra_small_shadow,
     overlay::{
         dismissable, floating, popover_surface, trigger_wrapper, use_open_state, Align, Side,
     },
@@ -19,6 +14,7 @@ use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -156,25 +152,47 @@ impl DatePicker {
     }
 }
 
+styles! {
+    DATE_PICKER = {
+        trigger: {
+            display: flex,
+            align: center,
+            gap: 2,
+            height: 9,
+            width: 60,
+            padding_x: 3,
+            radius: md,
+            border: 1,
+            border_color: input,
+            background: background,
+            text: sm,
+            font: medium,
+            shadow: xs,
+        },
+        interactive: {
+            cursor: pointer,
+            hover: { background: accent },
+            focus: { border_color: ring, shadow: ring },
+        },
+        inert: { opacity: 0.5 },
+        value: { truncate: true },
+        placeholder: { truncate: true, color: muted_foreground },
+        presets: {
+            display: flex,
+            direction: column,
+            gap: 0.5,
+            padding: 2,
+            border_end: 1,
+            border_color: border,
+        },
+    }
+}
+
 impl RenderOnce for DatePicker {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        // The component's own interaction styles, merged with the caller's `sx` in one
-        // call (GPUI allows a single hover / focus style per element).
-        let own_states = if self.disabled {
-            crate::sx::Sx::new()
-        } else {
-            crate::sx::Sx::new()
-                .hover(|state| state.bg(crate::sx::ColorToken::Accent))
-                .focus(|state| {
-                    state
-                        .border_color(crate::sx::ColorToken::Ring)
-                        .shadow(crate::sx::SxShadow::Ring)
-                })
-        };
         let open_state = use_open_state(&self.id, None, None, window, cx);
         let is_open = open_state.is_open(cx);
-        let theme = cx.theme();
-        let colors = theme.colors.clone();
+        let muted_foreground = cx.theme().colors.muted_foreground;
 
         let label: Option<String> = match &self.value {
             PickerValue::Single { date, .. } => date.map(CalendarDate::format_long),
@@ -183,36 +201,27 @@ impl RenderOnce for DatePicker {
 
         let trigger = div()
             .id("date-picker-trigger")
-            .flex_dir()
-            .items_center()
-            .gap(px(8.))
-            .h(px(36.))
-            .w(px(240.))
-            .px(px(12.))
-            .rounded(theme.radius_medium())
-            .border_1()
-            .border_color(colors.input)
-            .bg(colors.background)
-            .text_sm()
-            .font_weight(FontWeight::MEDIUM)
-            .shadow(extra_small_shadow())
-            .when(!self.disabled, |trigger| {
-                trigger.tab_index(0).cursor(CursorStyle::PointingHand)
-            })
-            .when(self.disabled, |trigger| trigger.opacity(0.5))
+            // The caller's `sx` is merged into the same call: GPUI allows a single
+            // hover / focus style per element.
+            .sx((
+                &DATE_PICKER.trigger,
+                if self.disabled {
+                    &DATE_PICKER.inert
+                } else {
+                    &DATE_PICKER.interactive
+                },
+                &self.sx,
+            ))
+            .when(!self.disabled, |trigger| trigger.tab_index(0))
             .child(
                 Icon::new(IconName::Calendar)
                     .size(px(16.))
-                    .color(colors.muted_foreground),
+                    .color(muted_foreground),
             )
             .child(match label {
-                Some(label) => div().truncate().child(label),
-                None => div()
-                    .truncate()
-                    .text_color(colors.muted_foreground)
-                    .child(self.placeholder),
+                Some(label) => div().sx(&DATE_PICKER.value).child(label),
+                None => div().sx(&DATE_PICKER.placeholder).child(self.placeholder),
             })
-            .sx((&own_states, &self.sx))
             .apply_style_overrides(&self.style_overrides);
 
         let wrapper =
@@ -273,16 +282,7 @@ impl RenderOnce for DatePicker {
                                 close_state.set_open(false, window, cx);
                             })
                     });
-                Some(
-                    div()
-                        .flex_dir()
-                        .flex_col()
-                        .gap(px(2.))
-                        .p(px(8.))
-                        .border_e_1()
-                        .border_color(colors.border)
-                        .children(buttons),
-                )
+                Some(div().sx(&DATE_PICKER.presets).children(buttons))
             }
             _ => None,
         };

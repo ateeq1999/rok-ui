@@ -3,8 +3,7 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, prelude::*, px, AnyElement, App, CursorStyle, ElementId, SharedString, StyleRefinement,
-    Window,
+    div, prelude::*, px, AnyElement, App, ElementId, SharedString, StyleRefinement, Window,
 };
 
 use super::direction::DirectionalStyled;
@@ -13,6 +12,7 @@ use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -135,6 +135,31 @@ impl InputOtp {
     }
 }
 
+styles! {
+    INPUT_OTP = {
+        root: { align: center, gap: 2 },
+        interactive: { cursor: text },
+        inert: { opacity: 0.5 },
+        group: { align: center },
+        // Neighbouring slots share a border, so each draws only its right edge.
+        slot: {
+            position: relative,
+            align: center,
+            justify: center,
+            size: 9,
+            border_y: 1,
+            border_right: 1,
+            border_color: input,
+            text: sm,
+        },
+        slot_first: { border_left: 1, radius_left: md },
+        slot_last: { radius_right: md },
+        slot_active: { border_color: ring },
+        invalid: { border_color: destructive_text },
+        caret: { width: 0.25, height: 4, background: foreground },
+    }
+}
+
 impl RenderOnce for InputOtp {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let focus_handle = window
@@ -145,7 +170,7 @@ impl RenderOnce for InputOtp {
             .clone();
         let is_focused = focus_handle.is_focused(window);
         let theme = cx.theme();
-        let colors = theme.colors.clone();
+        let colors = &theme.colors;
         let radius = theme.radius_medium();
         let length = self.length;
         let value: Vec<char> = self.value.chars().take(length).collect();
@@ -183,34 +208,31 @@ impl RenderOnce for InputOtp {
                 let is_active = is_focused && index == active_slot;
                 let is_first = index == slot_index;
                 let is_last = index + 1 == group_end;
+                // Codes read left to right in every direction.
                 div()
-                    .relative()
                     .flex_ltr()
-                    .items_center()
-                    .justify_center()
-                    .size(px(36.))
-                    .border_y_1()
-                    .border_r_1()
-                    .when(is_first, |slot| slot.border_l_1().rounded_l(radius))
-                    .when(is_last, |slot| slot.rounded_r(radius))
-                    .border_color(if self.invalid { accent } else { colors.input })
-                    .text_sm()
+                    .sx((
+                        &INPUT_OTP.slot,
+                        is_first.then_some(&INPUT_OTP.slot_first),
+                        is_last.then_some(&INPUT_OTP.slot_last),
+                        is_active.then_some(&INPUT_OTP.slot_active),
+                        self.invalid.then_some(&INPUT_OTP.invalid),
+                    ))
                     .when(is_active, |slot| {
                         let ring_radius = if is_first || is_last { radius } else { px(0.) };
-                        slot.border_color(accent)
-                            .child(focus_ring_outline(accent, ring_radius))
+                        slot.child(focus_ring_outline(accent, ring_radius))
                     })
                     .when_some(character, |slot, character| {
                         slot.child(SharedString::from(character.to_string()))
                     })
                     .when(is_active && character.is_none(), |slot| {
-                        slot.child(div().w(px(1.)).h(px(16.)).bg(colors.foreground))
+                        slot.child(div().sx(&INPUT_OTP.caret))
                     })
             });
             children.push(
                 div()
                     .flex_ltr()
-                    .items_center()
+                    .sx(&INPUT_OTP.group)
                     .children(slots)
                     .into_any_element(),
             );
@@ -225,12 +247,17 @@ impl RenderOnce for InputOtp {
         div()
             .id(self.id)
             .flex_ltr()
-            .items_center()
-            .gap(px(8.))
-            .when(self.disabled, |otp| otp.opacity(0.5))
+            .sx((
+                &INPUT_OTP.root,
+                if self.disabled {
+                    &INPUT_OTP.inert
+                } else {
+                    &INPUT_OTP.interactive
+                },
+                &self.sx,
+            ))
             .when(!self.disabled, |otp| {
                 otp.track_focus(&focus_handle)
-                    .cursor(CursorStyle::IBeam)
                     .on_click(move |_, window, _| window.focus(&focus_on_click))
                     .on_key_down(move |event, window, cx| {
                         let keystroke = &event.keystroke;
@@ -271,7 +298,6 @@ impl RenderOnce for InputOtp {
                     })
             })
             .children(children)
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

@@ -3,18 +3,17 @@
 use std::{rc::Rc, time::Duration};
 
 use gpui::{
-    div, ease_in_out, prelude::*, px, relative, Animation, AnimationExt, AnyElement, App,
-    ElementId, StyleRefinement, Window,
+    div, ease_in_out, prelude::*, relative, Animation, AnimationExt, AnyElement, App, ElementId,
+    StyleRefinement, Window,
 };
 
-use super::direction::DirectionalStyled;
 use super::{button::Button, direction::ActiveDirection, overlay::child_id};
 use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler, State},
     icon::IconName,
+    styles,
     styles::ApplyStyleOverrides,
-    theme::ActiveTheme,
 };
 
 /// Which way slides move.
@@ -137,12 +136,53 @@ fn go_to(
     }
 }
 
+styles! {
+    CAROUSEL = {
+        root: {
+            display: flex,
+            direction: column,
+            width: full,
+            border: 1,
+            border_color: transparent,
+            focus: { border_color: ring },
+        },
+        frame: { position: relative, width: full, height: full },
+        viewport: { size: full, overflow: hidden },
+        track: { position: relative, display: flex, size: full },
+        track_direction(CarouselOrientation): {
+            Horizontal: {},
+            Vertical: { direction: column },
+        },
+        slide: { flex: none, padding: 1 },
+        slide_direction(CarouselOrientation): {
+            Horizontal: { height: full },
+            Vertical: { width: full },
+        },
+        arrow: { radius: full, width: 8, height: 8 },
+        // Arrows straddle the edges, centered on the cross axis.
+        arrow_slot: { position: absolute },
+        previous_slot(CarouselOrientation): {
+            Horizontal: { inset_start: -4, top: 50%, margin_top: -4 },
+            Vertical: { top: -4, left: 50%, margin_left: -4 },
+        },
+        next_slot(CarouselOrientation): {
+            Horizontal: { inset_end: -4, top: 50%, margin_top: -4 },
+            Vertical: { bottom: -4, left: 50%, margin_left: -4 },
+        },
+        dots: { display: flex, justify: center, gap: 1.5, padding_top: 3 },
+        dot: {
+            height: 2,
+            width: 2,
+            radius: full,
+            background: muted_foreground/30,
+            cursor: pointer,
+        },
+        dot_active: { width: 5, background: primary },
+    }
+}
+
 impl RenderOnce for Carousel {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        // The component's own interaction styles, merged with the caller's `sx` in one
-        // call (GPUI allows a single hover / focus style per element).
-        let own_states =
-            crate::sx::Sx::new().focus(|state| state.border_color(crate::sx::ColorToken::Ring));
         let memory: State<CarouselMemory> =
             use_keyed_state(child_id(&self.id, "carousel"), window, cx, || {
                 CarouselMemory {
@@ -170,7 +210,7 @@ impl RenderOnce for Carousel {
                 memory.generation,
             )
         };
-        let colors = cx.theme().colors.clone();
+        let orientation = self.orientation;
         let per_view = self.items_per_view as f32;
         let is_horizontal = self.orientation == CarouselOrientation::Horizontal;
         let is_rtl = cx.direction().is_rtl() && is_horizontal;
@@ -189,24 +229,20 @@ impl RenderOnce for Carousel {
 
         let items = self.items.into_iter().map(|item| {
             div()
-                .flex_none()
+                .sx((&CAROUSEL.slide, CAROUSEL.slide_direction(orientation)))
                 .map(|slide| {
                     if is_horizontal {
-                        slide.w(relative(1. / per_view)).h_full()
+                        slide.w(relative(1. / per_view))
                     } else {
-                        slide.h(relative(1. / per_view)).w_full()
+                        slide.h(relative(1. / per_view))
                     }
                 })
-                .p(px(4.))
                 .child(item)
         });
         let offset_for = move |index: usize| -(index as f32) / per_view;
         let (from, to) = (offset_for(previous_index), offset_for(index));
         let track = div()
-            .relative()
-            .flex_dir()
-            .size_full()
-            .when(!is_horizontal, |track| track.flex_col())
+            .sx((&CAROUSEL.track, CAROUSEL.track_direction(orientation)))
             .children(items)
             .with_animation(
                 ElementId::NamedInteger("carousel-slide".into(), generation as u64),
@@ -243,9 +279,7 @@ impl RenderOnce for Carousel {
             })
             .outline()
             .icon_only(icon)
-            .rounded_full()
-            .w(px(32.))
-            .h(px(32.))
+            .sx(&CAROUSEL.arrow)
             .tooltip(if forward {
                 "Next slide"
             } else {
@@ -257,46 +291,24 @@ impl RenderOnce for Carousel {
             })
         };
         let previous_button = div()
-            .absolute()
-            .map(|slot| {
-                if is_horizontal {
-                    slot.inset_start(px(-16.)).top(relative(0.5)).mt(px(-16.))
-                } else {
-                    slot.top(px(-16.)).left(relative(0.5)).ml(px(-16.))
-                }
-            })
+            .sx((&CAROUSEL.arrow_slot, CAROUSEL.previous_slot(orientation)))
             .child(arrow(false));
         let next_button = div()
-            .absolute()
-            .map(|slot| {
-                if is_horizontal {
-                    slot.inset_end(px(-16.)).top(relative(0.5)).mt(px(-16.))
-                } else {
-                    slot.bottom(px(-16.)).left(relative(0.5)).ml(px(-16.))
-                }
-            })
+            .sx((&CAROUSEL.arrow_slot, CAROUSEL.next_slot(orientation)))
             .child(arrow(true));
 
         let dots = (self.show_dots && last_index > 0).then(|| {
             div()
-                .flex_dir()
-                .justify_center()
-                .gap(px(6.))
-                .pt(px(12.))
+                .sx(&CAROUSEL.dots)
                 .children((0..=last_index).map(|dot_index| {
                     let memory = memory.clone();
                     let on_index_change = self.on_index_change.clone();
                     div()
                         .id(("carousel-dot", dot_index))
-                        .h(px(8.))
-                        .w(if dot_index == index { px(20.) } else { px(8.) })
-                        .rounded_full()
-                        .bg(if dot_index == index {
-                            colors.primary
-                        } else {
-                            colors.muted_foreground.opacity(0.3)
-                        })
-                        .cursor_pointer()
+                        .sx((
+                            &CAROUSEL.dot,
+                            (dot_index == index).then_some(&CAROUSEL.dot_active),
+                        ))
                         .on_click(move |_, window, cx| {
                             go_to(&memory, dot_index, on_index_change.as_ref(), window, cx)
                         })
@@ -307,12 +319,10 @@ impl RenderOnce for Carousel {
         let key_on_change = self.on_index_change.clone();
         div()
             .id(self.id)
-            .flex_dir()
-            .flex_col()
-            .w_full()
             .tab_index(0)
-            .border_1()
-            .border_color(gpui::transparent_black())
+            // The caller's `sx` is merged into the same call: GPUI allows a single
+            // hover / focus style per element.
+            .sx((&CAROUSEL.root, &self.sx))
             .on_key_down(move |event, window, cx| {
                 let forward_key = if is_horizontal { "right" } else { "down" };
                 let back_key = if is_horizontal { "left" } else { "up" };
@@ -337,15 +347,12 @@ impl RenderOnce for Carousel {
             })
             .child(
                 div()
-                    .relative()
-                    .w_full()
-                    .h_full()
-                    .child(div().size_full().overflow_hidden().child(track))
+                    .sx(&CAROUSEL.frame)
+                    .child(div().sx(&CAROUSEL.viewport).child(track))
                     .child(previous_button)
                     .child(next_button),
             )
             .children(dots)
-            .sx((&own_states, &self.sx))
             .apply_style_overrides(&self.style_overrides)
     }
 }

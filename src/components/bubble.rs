@@ -3,15 +3,14 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, prelude::*, px, AnyElement, App, CursorStyle, ElementId, Pixels, SharedString,
-    StyleRefinement, Window,
+    div, prelude::*, px, AnyElement, App, ElementId, Pixels, SharedString, StyleRefinement, Window,
 };
 
-use super::direction::DirectionalStyled;
 use super::overlay::child_id;
 use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -156,6 +155,61 @@ impl ParentElement for Bubble {
     }
 }
 
+styles! {
+    BUBBLE = {
+        // Physical sides: end-aligned bubbles sit on the right in LTR and the left in RTL.
+        column: { display: flex, direction: column, gap: 1 },
+        column_left: { align: start },
+        column_right: { align: end },
+        bubble: {
+            display: flex,
+            direction: column,
+            max_width: 120,
+            padding_x: 3.5,
+            padding_y: 2,
+            border: 1,
+            text: sm,
+        },
+        variant(BubbleVariant): {
+            Default: { background: muted, color: foreground, border_color: muted },
+            Primary: { background: primary, color: primary_foreground, border_color: primary },
+            Outline: { background: transparent, color: foreground, border_color: border },
+            Ghost: {
+                padding_x: 0,
+                padding_y: 0,
+                background: transparent,
+                color: foreground,
+                border_color: transparent,
+            },
+        },
+        content: { position: relative, display: flex, direction: column, gap: 1 },
+        fade: { position: absolute, bottom: 0, left: 0, width: full, height: 6 },
+        collapse_toggle: {
+            padding_top: 1,
+            text: xs,
+            font: medium,
+            opacity: 0.8,
+            cursor: pointer,
+            hover: { underline: true },
+        },
+        reactions: { display: flex, wrap: true, gap: 1 },
+        reaction: {
+            display: flex,
+            align: center,
+            gap: 1,
+            height: 6,
+            padding_x: 2,
+            radius: full,
+            border: 1,
+            border_color: border,
+            background: background,
+            text: xs,
+        },
+        reacted: { border_color: ring, background: accent },
+        reaction_clickable: { cursor: pointer },
+    }
+}
+
 impl RenderOnce for Bubble {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let expanded = use_keyed_state(child_id(&self.id, "expanded"), window, cx, || false);
@@ -165,17 +219,13 @@ impl RenderOnce for Bubble {
         let large = theme.radius_extra_large().max(px(12.));
         let small = px(4.);
 
-        let (background, text, border) = match self.variant {
-            BubbleVariant::Default => (colors.muted, colors.foreground, colors.muted),
-            BubbleVariant::Primary => (colors.primary, colors.primary_foreground, colors.primary),
-            BubbleVariant::Outline => (gpui::transparent_black(), colors.foreground, colors.border),
-            BubbleVariant::Ghost => (
-                gpui::transparent_black(),
-                colors.foreground,
-                gpui::transparent_black(),
-            ),
+        // Collapsed content fades out into the bubble fill (or the page behind a
+        // transparent bubble) instead of cutting a line in half.
+        let fade_color = match self.variant {
+            BubbleVariant::Default => colors.muted,
+            BubbleVariant::Primary => colors.primary,
+            BubbleVariant::Outline | BubbleVariant::Ghost => colors.background,
         };
-        let is_ghost = self.variant == BubbleVariant::Ghost;
         let on_right = (self.align == BubbleAlign::End) ^ super::direction::is_rtl();
 
         // Tail-side corners: the bottom one is the tail; the top one tightens when
@@ -190,12 +240,7 @@ impl RenderOnce for Bubble {
             let expanded = expanded.clone();
             div()
                 .id("bubble-collapse-toggle")
-                .pt(px(4.))
-                .text_xs()
-                .font_weight(gpui::FontWeight::MEDIUM)
-                .opacity(0.8)
-                .cursor(CursorStyle::PointingHand)
-                .hover(|style| style.underline())
+                .sx(&BUBBLE.collapse_toggle)
                 .on_click(move |_, _, cx| expanded.update(cx, |expanded| *expanded = !*expanded))
                 .child(if is_expanded {
                     "Show less"
@@ -204,43 +249,22 @@ impl RenderOnce for Bubble {
                 })
         });
 
-        // Collapsed content fades out at the bottom instead of cutting a line in half.
-        let fade_color = if background.a > 0. {
-            background
-        } else {
-            colors.background
-        };
-        let content = div()
-            .relative()
-            .flex_dir()
-            .flex_col()
-            .gap(px(4.))
-            .children(self.children)
-            .when_some(
-                self.collapse_after.filter(|_| !is_expanded),
-                |content, height| {
-                    content.max_h(height).overflow_hidden().child(
-                        div().absolute().bottom_0().left_0().w_full().h(px(24.)).bg(
-                            gpui::linear_gradient(
-                                180.,
-                                gpui::linear_color_stop(fade_color.opacity(0.), 0.),
-                                gpui::linear_color_stop(fade_color, 1.),
-                            ),
-                        ),
-                    )
-                },
-            );
+        let content = div().sx(&BUBBLE.content).children(self.children).when_some(
+            self.collapse_after.filter(|_| !is_expanded),
+            |content, height| {
+                content
+                    .max_h(height)
+                    .overflow_hidden()
+                    .child(div().sx(&BUBBLE.fade).bg(gpui::linear_gradient(
+                        180.,
+                        gpui::linear_color_stop(fade_color.opacity(0.), 0.),
+                        gpui::linear_color_stop(fade_color, 1.),
+                    )))
+            },
+        );
 
         let bubble = div()
-            .flex_dir()
-            .flex_col()
-            .max_w(px(480.))
-            .when(!is_ghost, |bubble| bubble.px(px(14.)).py(px(8.)))
-            .border_1()
-            .border_color(border)
-            .bg(background)
-            .text_color(text)
-            .text_sm()
+            .sx((&BUBBLE.bubble, BUBBLE.variant(self.variant)))
             // The tail is on the left for start-aligned bubbles in LTR, the right in RTL.
             .map(|bubble| match on_right {
                 false => bubble
@@ -259,55 +283,44 @@ impl RenderOnce for Bubble {
 
         let reactions = (!self.reactions.is_empty()).then(|| {
             let on_reaction = self.on_reaction.clone();
-            div().flex_dir().flex_wrap().gap(px(4.)).children(
-                self.reactions
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, reaction)| {
-                        let on_reaction = on_reaction.clone();
-                        let emoji = reaction.emoji.clone();
-                        div()
-                            .id(("bubble-reaction", index))
-                            .flex_dir()
-                            .items_center()
-                            .gap(px(4.))
-                            .h(px(24.))
-                            .px(px(8.))
-                            .rounded_full()
-                            .border_1()
-                            .border_color(if reaction.reacted {
-                                colors.ring
-                            } else {
-                                colors.border
-                            })
-                            .bg(if reaction.reacted {
-                                colors.accent
-                            } else {
-                                colors.background
-                            })
-                            .text_xs()
-                            .when_some(on_reaction, |chip, handler| {
-                                chip.cursor(CursorStyle::PointingHand)
-                                    .on_click(move |_, window, cx| handler(&emoji, window, cx))
-                            })
-                            .child(reaction.emoji)
-                            .child(reaction.count.to_string())
-                    }),
-            )
+            div()
+                .sx(&BUBBLE.reactions)
+                .children(
+                    self.reactions
+                        .into_iter()
+                        .enumerate()
+                        .map(|(index, reaction)| {
+                            let on_reaction = on_reaction.clone();
+                            let emoji = reaction.emoji.clone();
+                            div()
+                                .id(("bubble-reaction", index))
+                                .sx((
+                                    &BUBBLE.reaction,
+                                    reaction.reacted.then_some(&BUBBLE.reacted),
+                                    on_reaction.is_some().then_some(&BUBBLE.reaction_clickable),
+                                ))
+                                .when_some(on_reaction, |chip, handler| {
+                                    chip.on_click(move |_, window, cx| handler(&emoji, window, cx))
+                                })
+                                .child(reaction.emoji)
+                                .child(reaction.count.to_string())
+                        }),
+                )
         });
 
         div()
             .id(self.id)
-            .flex_dir()
-            .flex_col()
-            .gap(px(4.))
-            .map(|column| match on_right {
-                false => column.items_start(),
-                true => column.items_end(),
-            })
+            .sx((
+                &BUBBLE.column,
+                if on_right {
+                    &BUBBLE.column_right
+                } else {
+                    &BUBBLE.column_left
+                },
+                &self.sx,
+            ))
             .child(bubble)
             .children(reactions)
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

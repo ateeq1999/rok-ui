@@ -2,14 +2,14 @@
 
 use std::rc::Rc;
 
-use gpui::{div, prelude::*, px, AnyElement, App, ElementId, FontWeight, SharedString, Window};
+use gpui::{div, prelude::*, AnyElement, App, ElementId, SharedString, Window};
 
-use super::direction::DirectionalStyled;
 use super::{
     button::Button,
     interaction::{modal_presence, render_modal, Callback, ModalPlacement},
 };
-use crate::{hooks::EventHandler, theme::ActiveTheme};
+use crate::sx::SxStyled;
+use crate::{hooks::EventHandler, styles};
 
 /// Unlike [`super::Dialog`], a click on the backdrop does not dismiss it: the
 /// user must pick Cancel (or press Escape, which counts as Cancel) or the action.
@@ -112,57 +112,53 @@ fn to_callback(handler: Option<EventHandler<()>>) -> Callback {
     })
 }
 
+styles! {
+    ALERT_DIALOG = {
+        panel: {
+            display: flex,
+            direction: column,
+            gap: 4,
+            width: full,
+            max_width: 128,
+            padding: 6,
+            radius: lg,
+            border: 1,
+            border_color: border,
+            background: popover,
+            color: popover_foreground,
+            shadow: lg,
+        },
+        header: { display: flex, direction: column, gap: 2 },
+        title: { text: lg, font: semibold },
+        description: { text: sm, color: muted_foreground },
+        footer: { display: flex, justify: end, gap: 2 },
+    }
+}
+
 impl RenderOnce for AlertDialog {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let presence = modal_presence(&self.id, self.open, window, cx);
         if !presence.is_mounted() {
             return div().into_any_element();
         }
-        let theme = cx.theme();
-        let colors = theme.colors.clone();
         let cancel = to_callback(self.on_cancel);
         let action = to_callback(self.on_action);
         let cancel_from_button = cancel.clone();
 
         let panel = div()
-            .flex_dir()
-            .flex_col()
-            .gap(px(16.))
-            .w_full()
-            .max_w(px(512.))
-            .p(px(24.))
-            .rounded(theme.radius_large())
-            .border_1()
-            .border_color(colors.border)
-            .bg(colors.popover)
-            .text_color(colors.popover_foreground)
-            .shadow_lg()
+            .sx(&ALERT_DIALOG.panel)
             .child(
                 div()
-                    .flex_dir()
-                    .flex_col()
-                    .gap(px(8.))
-                    .child(
-                        div()
-                            .text_lg()
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child(self.title),
-                    )
+                    .sx(&ALERT_DIALOG.header)
+                    .child(div().sx(&ALERT_DIALOG.title).child(self.title))
                     .when_some(self.description, |header, description| {
-                        header.child(
-                            div()
-                                .text_sm()
-                                .text_color(colors.muted_foreground)
-                                .child(description),
-                        )
+                        header.child(div().sx(&ALERT_DIALOG.description).child(description))
                     }),
             )
             .children(self.children)
             .child(
                 div()
-                    .flex_dir()
-                    .justify_end()
-                    .gap(px(8.))
+                    .sx(&ALERT_DIALOG.footer)
                     .child(
                         Button::new("alert-dialog-cancel")
                             .outline()

@@ -3,17 +3,16 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, prelude::*, px, AnyElement, App, ClickEvent, CursorStyle, ElementId, FontWeight,
-    SharedString, StyleRefinement, Window,
+    div, prelude::*, px, AnyElement, App, ClickEvent, ElementId, SharedString, StyleRefinement,
+    Window,
 };
 
-use super::direction::DirectionalStyled;
 use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
-    theme::ActiveTheme,
 };
 
 /// Visual style of an [`Item`].
@@ -137,96 +136,84 @@ impl ParentElement for Item {
     }
 }
 
+styles! {
+    ITEM = {
+        root: {
+            display: flex,
+            align: center,
+            gap: 4,
+            width: full,
+            padding_x: 4,
+            padding_y: 4,
+            radius: md,
+            border: 1,
+            border_color: transparent,
+            text: sm,
+        },
+        small: { gap: 2.5, padding_y: 3 },
+        variant(ItemVariant): {
+            Default: {},
+            Outline: { border_color: border },
+            Muted: { background: muted/50 },
+        },
+        clickable: { cursor: pointer, hover: { background: accent/50 } },
+        icon: {
+            flex: none,
+            size: 8,
+            display: flex,
+            align: center,
+            justify: center,
+            radius: sm,
+            border: 1,
+            border_color: border,
+            background: muted,
+        },
+        media: { flex: none },
+        content: { display: flex, direction: column, flex: 1, gap: 1, min_width: 0 },
+        title: { font: medium, line_height: 5 },
+        description: { color: muted_foreground, line_clamp: 2 },
+        actions: { display: flex, align: center, gap: 2 },
+        group: { display: flex, direction: column, width: full },
+        divider: { height: 0.25, margin_x: 4, background: border },
+    }
+}
+
 impl RenderOnce for Item {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        // The component's own interaction styles, merged with the caller's `sx` in one
-        // call (GPUI allows a single hover / focus style per element).
-        let own_states = if self.on_click.is_some() {
-            crate::sx::Sx::new().hover(|state| state.bg(crate::sx::ColorToken::Accent.alpha(0.5)))
-        } else {
-            crate::sx::Sx::new()
-        };
-        let theme = cx.theme();
-        let colors = theme.colors.clone();
-        let (padding_x, padding_y, gap) = if self.small {
-            (px(16.), px(12.), px(10.))
-        } else {
-            (px(16.), px(16.), px(16.))
-        };
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         div()
             .id(self.id)
-            .flex_dir()
-            .items_center()
-            .gap(gap)
-            .w_full()
-            .px(padding_x)
-            .py(padding_y)
-            .rounded(theme.radius_medium())
-            .border_1()
-            .border_color(gpui::transparent_black())
-            .text_sm()
-            .map(|item| match self.variant {
-                ItemVariant::Default => item,
-                ItemVariant::Outline => item.border_color(colors.border),
-                ItemVariant::Muted => item.bg(colors.muted.opacity(0.5)),
-            })
+            // The caller's `sx` is merged into the same call: GPUI allows a single
+            // hover / focus style per element.
+            .sx((
+                &ITEM.root,
+                self.small.then_some(&ITEM.small),
+                ITEM.variant(self.variant),
+                self.on_click.is_some().then_some(&ITEM.clickable),
+                &self.sx,
+            ))
             .when_some(self.on_click, |item, handler| {
-                item.cursor(CursorStyle::PointingHand)
-                    .on_click(move |event, window, cx| handler(event, window, cx))
+                item.on_click(move |event, window, cx| handler(event, window, cx))
             })
             .when_some(self.icon, |item, icon| {
-                item.child(
-                    div()
-                        .flex_none()
-                        .size(px(32.))
-                        .flex_dir()
-                        .items_center()
-                        .justify_center()
-                        .rounded(theme.radius_small())
-                        .border_1()
-                        .border_color(colors.border)
-                        .bg(colors.muted)
-                        .child(Icon::new(icon).size(px(16.))),
-                )
+                item.child(div().sx(&ITEM.icon).child(Icon::new(icon).size(px(16.))))
             })
             .when_some(self.media, |item, media| {
-                item.child(div().flex_none().child(media))
+                item.child(div().sx(&ITEM.media).child(media))
             })
             .child(
                 div()
-                    .flex_dir()
-                    .flex_col()
-                    .flex_1()
-                    .gap(px(4.))
-                    .min_w_0()
+                    .sx(&ITEM.content)
                     .when_some(self.title, |content, title| {
-                        content.child(
-                            div()
-                                .font_weight(FontWeight::MEDIUM)
-                                .line_height(px(20.))
-                                .child(title),
-                        )
+                        content.child(div().sx(&ITEM.title).child(title))
                     })
                     .when_some(self.description, |content, description| {
-                        content.child(
-                            div()
-                                .text_color(colors.muted_foreground)
-                                .line_clamp(2)
-                                .child(description),
-                        )
+                        content.child(div().sx(&ITEM.description).child(description))
                     })
                     .children(self.children),
             )
             .when(!self.actions.is_empty(), |item| {
-                item.child(
-                    div()
-                        .flex_dir()
-                        .items_center()
-                        .gap(px(8.))
-                        .children(self.actions),
-                )
+                item.child(div().sx(&ITEM.actions).children(self.actions))
             })
-            .sx((&own_states, &self.sx))
             .apply_style_overrides(&self.style_overrides)
     }
 }
@@ -264,22 +251,18 @@ impl ParentElement for ItemGroup {
 }
 
 impl RenderOnce for ItemGroup {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let border = cx.theme().colors.border;
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         let count = self.items.len();
         let mut children = Vec::with_capacity(count * 2);
         for (index, item) in self.items.into_iter().enumerate() {
             children.push(item);
             if index + 1 < count {
-                children.push(div().h(px(1.)).mx(px(16.)).bg(border).into_any_element());
+                children.push(div().sx(&ITEM.divider).into_any_element());
             }
         }
         div()
-            .flex_dir()
-            .flex_col()
-            .w_full()
+            .sx((&ITEM.group, &self.sx))
             .children(children)
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

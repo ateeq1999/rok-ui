@@ -3,11 +3,10 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, prelude::*, px, AnyElement, App, CursorStyle, ElementId, FontWeight, MouseButton,
-    SharedString, StyleRefinement, Window,
+    div, prelude::*, px, AnyElement, App, ElementId, MouseButton, SharedString, StyleRefinement,
+    Window,
 };
 
-use super::direction::DirectionalStyled;
 use super::{
     menu::{render_menu_panel, Menu},
     overlay::{child_id, floating, popover_surface, Align, Side},
@@ -16,9 +15,76 @@ use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler, State},
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
+
+styles! {
+    MENUBAR = {
+        bar: {
+            display: flex,
+            align: center,
+            gap: 1,
+            height: 9,
+            padding: 1,
+            radius: md,
+            border: 1,
+            border_color: border,
+            background: background,
+            shadow: xs,
+        },
+        trigger: {
+            position: relative,
+            padding_x: 2,
+            padding_y: 1,
+            radius: sm,
+            text: sm,
+            font: medium,
+            cursor: pointer,
+            border: 1,
+            border_color: transparent,
+            hover: { background: accent },
+            focus: { border_color: ring },
+        },
+        trigger_open: { background: accent, color: accent_foreground },
+    }
+}
+
+styles! {
+    NAVIGATION = {
+        bar: { display: flex, align: center, gap: 1 },
+        trigger: {
+            position: relative,
+            display: flex,
+            align: center,
+            gap: 1,
+            height: 9,
+            padding_x: 4,
+            radius: md,
+            text: sm,
+            font: medium,
+            cursor: pointer,
+            border: 1,
+            border_color: transparent,
+            hover: { background: accent },
+            focus: { border_color: ring },
+        },
+        trigger_highlighted: { background: accent },
+        panel: { padding: 2 },
+        link: {
+            display: flex,
+            direction: column,
+            gap: 1,
+            padding: 2,
+            radius: sm,
+            cursor: pointer,
+            hover: { background: accent },
+        },
+        link_title: { text: sm, font: medium },
+        link_description: { text: sm, color: muted_foreground, line_clamp: 2 },
+    }
+}
 
 struct MenubarMemory {
     open_index: Option<usize>,
@@ -73,11 +139,6 @@ impl RenderOnce for Menubar {
         };
         let open_index = memory.read(cx).open_index;
         let focus_handle = memory.read(cx).focus_handle.clone();
-        let theme = cx.theme();
-        let colors = theme.colors.clone();
-        let radius = theme.radius_small();
-        let bar_radius = theme.radius_medium();
-        let ring_color = colors.ring;
         let menu_count = self.menus.len();
         let menu_id = child_id(&self.id, "menu");
 
@@ -89,23 +150,8 @@ impl RenderOnce for Menubar {
             let click_focus = focus_handle.clone();
             let mut trigger = div()
                 .id(("menubar-trigger", index))
-                .relative()
-                .px(px(8.))
-                .py(px(4.))
-                .rounded(radius)
-                .text_sm()
-                .font_weight(FontWeight::MEDIUM)
-                .cursor(CursorStyle::PointingHand)
                 .tab_index(0)
-                .border_1()
-                .border_color(gpui::transparent_black())
-                .focus(move |style| style.border_color(ring_color))
-                .when(is_open, |trigger| {
-                    trigger
-                        .bg(colors.accent)
-                        .text_color(colors.accent_foreground)
-                })
-                .hover(|style| style.bg(colors.accent))
+                .sx((&MENUBAR.trigger, is_open.then_some(&MENUBAR.trigger_open)))
                 .on_mouse_down(MouseButton::Left, move |_, window, cx| {
                     click_memory.update(cx, |memory| {
                         memory.open_index = if is_open { None } else { Some(index) }
@@ -149,16 +195,7 @@ impl RenderOnce for Menubar {
         div()
             .id(self.id)
             .track_focus(&focus_handle)
-            .flex_dir()
-            .items_center()
-            .gap(px(4.))
-            .h(px(36.))
-            .p(px(4.))
-            .rounded(bar_radius)
-            .border_1()
-            .border_color(colors.border)
-            .bg(colors.background)
-            .shadow(super::extra_small_shadow())
+            .sx((&MENUBAR.bar, &self.sx))
             .children(triggers)
             .when(open_index.is_some(), |bar| {
                 bar.on_mouse_down_out(move |_, _, cx| {
@@ -181,7 +218,6 @@ impl RenderOnce for Menubar {
                 cx.stop_propagation();
                 key_memory.update(cx, |memory| memory.open_index = next);
             })
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }
@@ -292,35 +328,16 @@ impl NavigationMenuLink {
 }
 
 impl RenderOnce for NavigationMenuLink {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = cx.theme();
-        let colors = theme.colors.clone();
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         div()
             .id(self.id)
-            .flex_dir()
-            .flex_col()
-            .gap(px(4.))
-            .p(px(8.))
-            .rounded(theme.radius_small())
-            .cursor(CursorStyle::PointingHand)
-            .hover(|style| style.bg(colors.accent))
+            .sx(&NAVIGATION.link)
             .when_some(self.on_click, |link, handler| {
                 link.on_click(move |_, window, cx| handler(&(), window, cx))
             })
-            .child(
-                div()
-                    .text_sm()
-                    .font_weight(FontWeight::MEDIUM)
-                    .child(self.title),
-            )
+            .child(div().sx(&NAVIGATION.link_title).child(self.title))
             .when_some(self.description, |link, description| {
-                link.child(
-                    div()
-                        .text_sm()
-                        .text_color(colors.muted_foreground)
-                        .line_clamp(2)
-                        .child(description),
-                )
+                link.child(div().sx(&NAVIGATION.link_description).child(description))
             })
     }
 }
@@ -329,34 +346,20 @@ impl RenderOnce for NavigationMenu {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let open_panel = use_keyed_state(child_id(&self.id, "open"), window, cx, || None::<usize>);
         let open_index = open_panel.get(cx);
-        let theme = cx.theme();
-        let colors = theme.colors.clone();
-        let radius = theme.radius_medium();
-        let ring_color = colors.ring;
+        let muted_foreground = cx.theme().colors.muted_foreground;
 
         let entries = self.entries.into_iter().enumerate().map(|(index, entry)| {
-            let trigger = div()
-                .id(("navigation-trigger", index))
-                .relative()
-                .flex_dir()
-                .items_center()
-                .gap(px(4.))
-                .h(px(36.))
-                .px(px(16.))
-                .rounded(radius)
-                .text_sm()
-                .font_weight(FontWeight::MEDIUM)
-                .cursor(CursorStyle::PointingHand)
-                .tab_index(0)
-                .border_1()
-                .border_color(gpui::transparent_black())
-                .focus(move |style| style.border_color(ring_color))
-                .hover(|style| style.bg(colors.accent));
+            let highlighted = match &entry {
+                NavigationEntry::Link { active, .. } => *active,
+                NavigationEntry::Panel { .. } => open_index == Some(index),
+            };
+            let trigger = div().id(("navigation-trigger", index)).tab_index(0).sx((
+                &NAVIGATION.trigger,
+                highlighted.then_some(&NAVIGATION.trigger_highlighted),
+            ));
             match entry {
                 NavigationEntry::Link {
-                    label,
-                    on_click,
-                    active,
+                    label, on_click, ..
                 } => trigger
                     .on_hover({
                         let close_state = open_panel.clone();
@@ -366,7 +369,6 @@ impl RenderOnce for NavigationMenu {
                             }
                         }
                     })
-                    .when(active, |trigger| trigger.bg(colors.accent))
                     .when_some(on_click, |trigger, handler| {
                         trigger.on_click(move |_, window, cx| handler(&(), window, cx))
                     })
@@ -377,7 +379,6 @@ impl RenderOnce for NavigationMenu {
                     let hover_state = open_panel.clone();
                     let key_state = open_panel.clone();
                     trigger
-                        .when(is_open, |trigger| trigger.bg(colors.accent))
                         .on_hover(move |hovered, _, cx| {
                             if *hovered {
                                 hover_state.set(Some(index), cx);
@@ -397,13 +398,13 @@ impl RenderOnce for NavigationMenu {
                                 IconName::ChevronDown
                             })
                             .size(px(12.))
-                            .color(colors.muted_foreground),
+                            .color(muted_foreground),
                         )
                         .when(is_open, |trigger| {
                             let panel = popover_surface(cx.theme())
                                 .id(("navigation-panel", index))
                                 .occlude()
-                                .p(px(8.))
+                                .sx(&NAVIGATION.panel)
                                 // Hovering the panel keeps it open; it is not inside the trigger's bounds.
                                 .on_hover({
                                     let panel_state = open_panel.clone();
@@ -424,14 +425,11 @@ impl RenderOnce for NavigationMenu {
         let leave_state = open_panel.clone();
         div()
             .id(self.id)
-            .flex_dir()
-            .items_center()
-            .gap(px(4.))
+            .sx((&NAVIGATION.bar, &self.sx))
             .children(entries)
             .when(open_index.is_some(), |bar| {
                 bar.on_mouse_down_out(move |_, _, cx| leave_state.set(None, cx))
             })
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

@@ -3,11 +3,9 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, prelude::*, px, AnyElement, App, CursorStyle, ElementId, SharedString, StyleRefinement,
-    Window,
+    div, prelude::*, px, AnyElement, App, ElementId, SharedString, StyleRefinement, Window,
 };
 
-use super::direction::DirectionalStyled;
 use super::{
     direction::ActiveDirection,
     menu::{DropdownMenu, Menu},
@@ -16,6 +14,7 @@ use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -105,9 +104,26 @@ impl Breadcrumb {
     }
 }
 
+styles! {
+    BREADCRUMB = {
+        list: {
+            display: flex,
+            wrap: true,
+            align: center,
+            gap: 1.5,
+            text: sm,
+            color: muted_foreground,
+        },
+        link: { cursor: pointer, hover: { color: foreground } },
+        page: { color: foreground },
+        ellipsis: { size: 9, display: flex, align: center, justify: center },
+        ellipsis_menu: { cursor: pointer },
+    }
+}
+
 impl RenderOnce for Breadcrumb {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let colors = cx.theme().colors.clone();
+        let muted_foreground = cx.theme().colors.muted_foreground;
         let separator_icon = if cx.direction().is_rtl() {
             IconName::ChevronLeft
         } else {
@@ -120,31 +136,29 @@ impl RenderOnce for Breadcrumb {
                 BreadcrumbEntry::Link { label, on_click } => div()
                     .id(index)
                     .when_some(on_click, |link, handler| {
-                        link.cursor(CursorStyle::PointingHand)
-                            .hover(|style| style.text_color(colors.foreground))
+                        link.sx(&BREADCRUMB.link)
                             .on_click(move |_, window, cx| handler(&(), window, cx))
                     })
                     .child(label)
                     .into_any_element(),
-                BreadcrumbEntry::Page(label) => div()
-                    .text_color(colors.foreground)
-                    .child(label)
-                    .into_any_element(),
+                BreadcrumbEntry::Page(label) => {
+                    div().sx(&BREADCRUMB.page).child(label).into_any_element()
+                }
                 BreadcrumbEntry::Ellipsis(menu) => {
                     let dots = div()
                         .id(("breadcrumb-ellipsis", index))
-                        .size(px(36.))
-                        .flex_dir()
-                        .items_center()
-                        .justify_center()
+                        .sx((
+                            &BREADCRUMB.ellipsis,
+                            menu.is_some().then_some(&BREADCRUMB.ellipsis_menu),
+                        ))
                         .child(
                             Icon::new(IconName::Ellipsis)
                                 .size(px(16.))
-                                .color(colors.muted_foreground),
+                                .color(muted_foreground),
                         );
                     match menu {
                         Some(menu) => DropdownMenu::new(("breadcrumb-menu", index))
-                            .trigger(dots.cursor(CursorStyle::PointingHand))
+                            .trigger(dots)
                             .menu(menu)
                             .into_any_element(),
                         None => dots.into_any_element(),
@@ -156,7 +170,7 @@ impl RenderOnce for Breadcrumb {
                     Some(separator) => div().child(separator).into_any_element(),
                     None => Icon::new(separator_icon)
                         .size(px(14.))
-                        .color(colors.muted_foreground)
+                        .color(muted_foreground)
                         .into_any_element(),
                 });
             }
@@ -164,14 +178,8 @@ impl RenderOnce for Breadcrumb {
 
         div()
             .id(self.id)
-            .flex_dir()
-            .flex_wrap()
-            .items_center()
-            .gap(px(6.))
-            .text_sm()
-            .text_color(colors.muted_foreground)
+            .sx((&BREADCRUMB.list, &self.sx))
             .children(children)
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

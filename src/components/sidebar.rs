@@ -3,16 +3,15 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, prelude::*, px, AnyElement, App, CursorStyle, ElementId, FontWeight, SharedString,
-    StyleRefinement, Window,
+    div, prelude::*, px, AnyElement, App, ElementId, SharedString, StyleRefinement, Window,
 };
 
-use super::direction::DirectionalStyled;
 use super::{button::Button, direction::ActiveDirection, overlay::child_id, tooltip::Tooltip};
 use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler},
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -193,6 +192,68 @@ impl ParentElement for Sidebar {
     }
 }
 
+styles! {
+    SIDEBAR = {
+        root: {
+            display: flex,
+            direction: column,
+            flex: none,
+            height: full,
+            width: 64,
+            background: muted/40,
+            border_color: border,
+        },
+        collapsed: { width: 12 },
+        // Physical sides: `Left` and `Right` are already swapped for RTL.
+        side(SidebarSide): {
+            Left: { border_right: 1 },
+            Right: { border_left: 1 },
+        },
+        section: { display: flex, direction: column, gap: 2, padding: 2 },
+        content: { display: flex, direction: column, flex: 1 },
+        group: { display: flex, direction: column, gap: 0.5, padding: 2 },
+        group_label: {
+            height: 8,
+            padding_x: 2,
+            display: flex,
+            align: center,
+            text: xs,
+            font: medium,
+            color: muted_foreground,
+        },
+        item: {
+            display: flex,
+            align: center,
+            gap: 2,
+            height: 8,
+            padding_x: 2,
+            radius: md,
+            text: sm,
+            cursor: pointer,
+            border: 1,
+            border_color: transparent,
+            hover: { background: accent, color: accent_foreground },
+            focus: { border_color: ring },
+        },
+        nested_item: { height: 7 },
+        active: { background: accent, color: accent_foreground, font: medium },
+        collapsed_item: { width: 8, justify: center, padding_x: 0 },
+        item_label: { flex: 1, truncate: true },
+        badge: { text: xs, font: medium },
+        item_with_children: { display: flex, direction: column, gap: 0.5 },
+        children: {
+            display: flex,
+            direction: column,
+            gap: 0.5,
+            margin_start: 3.5,
+            padding_start: 2.5,
+            border_start: 1,
+            border_color: border,
+        },
+        trigger: { width: 7, height: 7 },
+    }
+}
+
 fn render_item(
     item: SidebarItem,
     item_id: ElementId,
@@ -205,38 +266,21 @@ fn render_item(
     let default_open = item.default_open;
     let open_state = use_keyed_state(child_id(&item_id, "open"), window, cx, || default_open);
     let is_open = has_sub_items && open_state.get(cx);
-    let theme = cx.theme();
-    let colors = theme.colors.clone();
-    let ring_color = colors.ring;
+    let colors = &cx.theme().colors;
+    let (foreground, muted_foreground) = (colors.foreground, colors.muted_foreground);
     let on_click = item.on_click.clone();
     let label = item.label.clone();
 
     let row = div()
         .id(item_id.clone())
-        .flex_dir()
-        .items_center()
-        .gap(px(8.))
-        .h(if depth > 0 { px(28.) } else { px(32.) })
-        .px(px(8.))
-        .rounded(theme.radius_medium())
-        .text_sm()
-        .cursor(CursorStyle::PointingHand)
         .tab_index(0)
-        .border_1()
-        .border_color(gpui::transparent_black())
-        .focus(move |style| style.border_color(ring_color))
-        .hover(|style| style.bg(colors.accent).text_color(colors.accent_foreground))
-        .when(item.active, |row| {
-            row.bg(colors.accent)
-                .text_color(colors.accent_foreground)
-                .font_weight(FontWeight::MEDIUM)
-        })
-        .when(collapsed, |row| {
-            row.w(px(32.))
-                .justify_center()
-                .px(px(0.))
-                .tooltip(Tooltip::text(label.clone()))
-        })
+        .sx((
+            &SIDEBAR.item,
+            (depth > 0).then_some(&SIDEBAR.nested_item),
+            item.active.then_some(&SIDEBAR.active),
+            collapsed.then_some(&SIDEBAR.collapsed_item),
+        ))
+        .when(collapsed, |row| row.tooltip(Tooltip::text(label.clone())))
         .on_click(move |_, window, cx| {
             if has_sub_items {
                 open_state.update(cx, |open| *open = !*open);
@@ -246,12 +290,12 @@ fn render_item(
             }
         })
         .when_some(item.icon, |row, icon| {
-            row.child(Icon::new(icon).size(px(16.)).color(colors.foreground))
+            row.child(Icon::new(icon).size(px(16.)).color(foreground))
         })
         .when(!collapsed, |row| {
-            row.child(div().flex_1().truncate().child(item.label))
+            row.child(div().sx(&SIDEBAR.item_label).child(item.label))
                 .when_some(item.badge, |row, badge| {
-                    row.child(div().text_xs().font_weight(FontWeight::MEDIUM).child(badge))
+                    row.child(div().sx(&SIDEBAR.badge).child(badge))
                 })
                 .when(has_sub_items, |row| {
                     row.child(
@@ -261,7 +305,7 @@ fn render_item(
                             IconName::ChevronRight.for_direction()
                         })
                         .size(px(14.))
-                        .color(colors.muted_foreground),
+                        .color(muted_foreground),
                     )
                 })
         });
@@ -279,21 +323,9 @@ fn render_item(
         })
         .collect();
     div()
-        .flex_dir()
-        .flex_col()
-        .gap(px(2.))
+        .sx(&SIDEBAR.item_with_children)
         .child(row)
-        .child(
-            div()
-                .flex_dir()
-                .flex_col()
-                .gap(px(2.))
-                .ms(px(14.))
-                .ps(px(10.))
-                .border_s_1()
-                .border_color(cx.theme().colors.border)
-                .children(sub_rows),
-        )
+        .child(div().sx(&SIDEBAR.children).children(sub_rows))
         .into_any_element()
 }
 
@@ -310,7 +342,6 @@ impl RenderOnce for Sidebar {
             .into_iter()
             .enumerate()
             .map(|(group_index, group)| {
-                let muted_foreground = cx.theme().colors.muted_foreground;
                 let rows: Vec<AnyElement> = group
                     .items
                     .into_iter()
@@ -324,73 +355,37 @@ impl RenderOnce for Sidebar {
                     })
                     .collect();
                 div()
-                    .flex_dir()
-                    .flex_col()
-                    .gap(px(2.))
-                    .p(px(8.))
+                    .sx(&SIDEBAR.group)
                     .when_some(group.label.filter(|_| !collapsed), |group, label| {
-                        group.child(
-                            div()
-                                .h(px(32.))
-                                .px(px(8.))
-                                .flex_dir()
-                                .items_center()
-                                .text_xs()
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(muted_foreground)
-                                .child(label),
-                        )
+                        group.child(div().sx(&SIDEBAR.group_label).child(label))
                     })
                     .children(rows)
                     .into_any_element()
             })
             .collect();
 
-        let colors = cx.theme().colors.clone();
         div()
             .id(self.id)
-            .flex_dir()
-            .flex_col()
-            .flex_none()
-            .h_full()
-            .w(if collapsed { px(48.) } else { px(256.) })
-            .bg(colors.muted.opacity(0.4))
-            .border_color(colors.border)
-            .map(|sidebar| match side {
-                SidebarSide::Left => sidebar.border_r_1(),
-                SidebarSide::Right => sidebar.border_l_1(),
-            })
+            .sx((
+                &SIDEBAR.root,
+                collapsed.then_some(&SIDEBAR.collapsed),
+                SIDEBAR.side(side),
+                &self.sx,
+            ))
             .when(!self.header.is_empty(), |sidebar| {
-                sidebar.child(
-                    div()
-                        .flex_dir()
-                        .flex_col()
-                        .gap(px(8.))
-                        .p(px(8.))
-                        .children(self.header),
-                )
+                sidebar.child(div().sx(&SIDEBAR.section).children(self.header))
             })
             .child(
                 div()
+                    .sx(&SIDEBAR.content)
                     .id("sidebar-content")
-                    .flex_dir()
-                    .flex_col()
-                    .flex_1()
                     .overflow_y_scroll()
                     .children(groups)
                     .children(self.children),
             )
             .when(!self.footer.is_empty(), |sidebar| {
-                sidebar.child(
-                    div()
-                        .flex_dir()
-                        .flex_col()
-                        .gap(px(8.))
-                        .p(px(8.))
-                        .children(self.footer),
-                )
+                sidebar.child(div().sx(&SIDEBAR.section).children(self.footer))
             })
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }
@@ -422,8 +417,7 @@ impl RenderOnce for SidebarTrigger {
         Button::new(self.id)
             .ghost()
             .icon_only(IconName::PanelLeft)
-            .w(px(28.))
-            .h(px(28.))
+            .sx(&SIDEBAR.trigger)
             .tooltip("Toggle sidebar")
             .on_click(move |_, window, cx| {
                 if let Some(handler) = on_toggle.as_ref() {

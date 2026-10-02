@@ -1,13 +1,10 @@
 //! Message: one turn in a conversation, with avatar, header and footer.
 
-use gpui::{
-    div, prelude::*, px, AnyElement, App, FontWeight, SharedString, StyleRefinement, Window,
-};
+use gpui::{div, prelude::*, AnyElement, App, SharedString, StyleRefinement, Window};
 
 use super::bubble::BubbleAlign;
-use super::direction::DirectionalStyled;
 use crate::sx::SxStyled;
-use crate::{styles::ApplyStyleOverrides, theme::ActiveTheme};
+use crate::{styles, styles::ApplyStyleOverrides};
 
 /// ```ignore
 /// Message::new()
@@ -99,84 +96,60 @@ impl ParentElement for Message {
     }
 }
 
+styles! {
+    MESSAGE = {
+        row: { display: flex, align: start, gap: 3, width: full },
+        // End-aligned turns mirror the row that already flows in the reading direction.
+        flipped: { direction: row_reverse },
+        avatar: { flex: none },
+        column: { display: flex, direction: column, flex: 1, min_width: 0, gap: 1 },
+        // Physical sides: end-aligned turns sit on the right in LTR and the left in RTL.
+        column_left: { align: start },
+        column_right: { align: end },
+        header: { display: flex, align: center, gap: 2 },
+        name: { text: sm, font: semibold },
+        timestamp: { text: xs, color: muted_foreground },
+        footer: { display: flex, align: center, gap: 2, text: xs, color: muted_foreground },
+    }
+}
+
 impl RenderOnce for Message {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let colors = cx.theme().colors.clone();
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         let is_end = self.align == BubbleAlign::End;
+        let flipped = is_end.then_some(&MESSAGE.flipped);
         let has_header = self.name.is_some() || self.timestamp.is_some() || !self.header.is_empty();
 
         let header = has_header.then(|| {
             div()
-                .flex_dir()
-                .items_center()
-                .gap(px(8.))
-                .when(is_end, flip_row)
+                .sx((&MESSAGE.header, flipped))
                 .when_some(self.name, |header, name| {
-                    header.child(
-                        div()
-                            .text_sm()
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child(name),
-                    )
+                    header.child(div().sx(&MESSAGE.name).child(name))
                 })
                 .when_some(self.timestamp, |header, timestamp| {
-                    header.child(
-                        div()
-                            .text_xs()
-                            .text_color(colors.muted_foreground)
-                            .child(timestamp),
-                    )
+                    header.child(div().sx(&MESSAGE.timestamp).child(timestamp))
                 })
                 .children(self.header)
         });
-        let footer = (!self.footer.is_empty()).then(|| {
-            div()
-                .flex_dir()
-                .items_center()
-                .gap(px(8.))
-                .text_xs()
-                .text_color(colors.muted_foreground)
-                .children(self.footer)
-        });
+        let footer =
+            (!self.footer.is_empty()).then(|| div().sx(&MESSAGE.footer).children(self.footer));
 
+        let column_side = if is_end ^ super::direction::is_rtl() {
+            &MESSAGE.column_right
+        } else {
+            &MESSAGE.column_left
+        };
         div()
-            .flex_dir()
-            .items_start()
-            .gap(px(12.))
-            .w_full()
-            .when(is_end, flip_row)
+            .sx((&MESSAGE.row, flipped, &self.sx))
             .when_some(self.avatar, |message, avatar| {
-                message.child(div().flex_none().child(avatar))
+                message.child(div().sx(&MESSAGE.avatar).child(avatar))
             })
             .child(
                 div()
-                    .flex_dir()
-                    .flex_col()
-                    .flex_1()
-                    .min_w_0()
-                    .gap(px(4.))
-                    .map(|column| {
-                        // End-aligned turns sit on the right in LTR and the left in RTL.
-                        if is_end ^ super::direction::is_rtl() {
-                            column.items_end()
-                        } else {
-                            column.items_start()
-                        }
-                    })
+                    .sx((&MESSAGE.column, column_side))
                     .children(header)
                     .children(self.children)
                     .children(footer),
             )
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
-    }
-}
-
-/// Reverse a row that already flows in the reading direction.
-fn flip_row(row: gpui::Div) -> gpui::Div {
-    if super::direction::is_rtl() {
-        row.flex_row()
-    } else {
-        row.flex_row_reverse()
     }
 }

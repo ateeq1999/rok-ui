@@ -2,11 +2,8 @@
 
 use std::rc::Rc;
 
-use gpui::{
-    div, prelude::*, px, App, CursorStyle, ElementId, SharedString, StyleRefinement, Window,
-};
+use gpui::{div, prelude::*, px, App, ElementId, SharedString, StyleRefinement, Window};
 
-use super::direction::DirectionalStyled;
 use super::{
     focus_ring_outline,
     menu::{close_handler, render_menu_panel, Menu, MenuItem},
@@ -16,6 +13,7 @@ use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -192,60 +190,75 @@ impl Select {
     }
 }
 
+styles! {
+    SELECT = {
+        wrapper: { display: flex, direction: column },
+        native: { width: full },
+        // No shadows, like `Input`: GPUI paints them under the transparent trigger.
+        trigger: {
+            position: relative,
+            display: flex,
+            align: center,
+            justify: between,
+            gap: 2,
+            height: 9,
+            padding_x: 3,
+            radius: md,
+            border: 1,
+            border_color: input,
+            text: sm,
+            whitespace: nowrap,
+        },
+        small: { height: 8 },
+        open: { border_color: ring },
+        invalid: { border_color: destructive_text },
+        interactive: { cursor: pointer, focus: { border_color: ring } },
+        invalid_interactive: { focus: { border_color: destructive_text } },
+        inert: { opacity: 0.5 },
+        value: { truncate: true },
+        placeholder: { truncate: true, color: muted_foreground },
+    }
+}
+
 impl RenderOnce for Select {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let open_state = use_open_state(&self.id, None, None, window, cx);
         let is_open = open_state.is_open(cx);
         let trigger_width = open_state.trigger_width(cx);
         let theme = cx.theme();
-        let radius = theme.radius_medium();
-        let colors = theme.colors.clone();
         let ring_color = if self.invalid {
-            colors.destructive_text
+            theme.colors.destructive_text
         } else {
-            colors.ring
+            theme.colors.ring
         };
+        let ring_radius = theme.radius_medium();
+        let muted_foreground = theme.colors.muted_foreground;
         let selected_label = self.selected_label();
         let menu = self.build_menu();
+        let is_interactive = !self.disabled;
 
         let trigger = div()
             .id("select-trigger")
-            .flex_dir()
-            .items_center()
-            .justify_between()
-            .gap(px(8.))
-            .h(if self.small { px(32.) } else { px(36.) })
-            .px(px(12.))
-            .rounded(theme.radius_medium())
-            .border_1()
-            .border_color(if self.invalid {
-                colors.destructive_text
-            } else if is_open {
-                colors.ring
-            } else {
-                colors.input
-            })
-            .text_sm()
-            .whitespace_nowrap()
-            // No shadows, like `Input`: GPUI paints them under the transparent trigger.
-            .relative()
+            .sx((
+                &SELECT.trigger,
+                self.small.then_some(&SELECT.small),
+                is_open.then_some(&SELECT.open),
+                self.invalid.then_some(&SELECT.invalid),
+                self.native.then_some(&SELECT.native),
+                if is_interactive {
+                    &SELECT.interactive
+                } else {
+                    &SELECT.inert
+                },
+                (is_interactive && self.invalid).then_some(&SELECT.invalid_interactive),
+            ))
             .when(is_open, |trigger| {
-                trigger.child(focus_ring_outline(ring_color, radius))
+                trigger.child(focus_ring_outline(ring_color, ring_radius))
             })
-            .when(self.native, |trigger| trigger.w_full())
-            .when(!self.disabled, |trigger| {
-                trigger
-                    .tab_index(0)
-                    .cursor(CursorStyle::PointingHand)
-                    .focus(move |style| style.border_color(ring_color))
-            })
-            .when(self.disabled, |trigger| trigger.opacity(0.5))
+            .when(is_interactive, |trigger| trigger.tab_index(0))
             .child(match selected_label {
-                Some(label) => div().truncate().child(label),
-                None => div()
-                    .truncate()
-                    .text_color(colors.muted_foreground)
-                    .child(self.placeholder),
+                Some(label) => div().sx(&SELECT.value).child(label),
+                None => div().sx(&SELECT.placeholder).child(self.placeholder),
             })
             .child(
                 Icon::new(if self.native {
@@ -254,16 +267,17 @@ impl RenderOnce for Select {
                     IconName::ChevronsUpDown
                 })
                 .size(px(16.))
-                .color(colors.muted_foreground),
+                .color(muted_foreground),
             )
             .child(measure_width(trigger_width.clone()));
 
         let wrapper = trigger_wrapper(self.id.clone(), &open_state, self.disabled, cx)
-            .flex_dir()
-            .flex_col()
-            .when(self.native, |wrapper| wrapper.w_full())
+            .sx((
+                &SELECT.wrapper,
+                self.native.then_some(&SELECT.native),
+                &self.sx,
+            ))
             .child(trigger)
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides);
         if !is_open {
             return wrapper;

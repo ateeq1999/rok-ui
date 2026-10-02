@@ -2,7 +2,6 @@
 
 use gpui::{div, prelude::*, px, AnyElement, App, Entity, SharedString, StyleRefinement, Window};
 
-use super::direction::DirectionalStyled;
 use super::{
     focus_ring_outline,
     input::{Input, InputState, Textarea},
@@ -10,6 +9,7 @@ use super::{
 use crate::sx::SxStyled;
 use crate::{
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -125,93 +125,105 @@ impl RenderOnce for AddonIcon {
 struct AddonText(SharedString);
 
 impl RenderOnce for AddonText {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        div()
-            .text_sm()
-            .text_color(cx.theme().colors.muted_foreground)
-            .whitespace_nowrap()
-            .child(self.0)
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
+        div().sx(&INPUT_GROUP.addon_text).child(self.0)
+    }
+}
+
+styles! {
+    INPUT_GROUP = {
+        group: {
+            position: relative,
+            display: flex,
+            direction: column,
+            width: full,
+            radius: md,
+            border: 1,
+            border_color: input,
+        },
+        focused: { border_color: ring },
+        invalid: { border_color: destructive_text },
+        disabled: { opacity: 0.5 },
+        // The field drops its own frame and sits flush against the addons.
+        control: { border: 0, radius: none },
+        input: { flex: 1 },
+        input_after_leading: { padding_start: 0 },
+        input_before_trailing: { padding_end: 0 },
+        main_row: { display: flex, align: center, width: full },
+        control_slot: { flex: 1, min_width: 0 },
+        addons: { display: flex, align: center, gap: 2, padding_x: 3 },
+        leading: { padding_end: 2 },
+        trailing: { padding_start: 2 },
+        block_start: { padding_top: 2 },
+        block_end: { padding_bottom: 2 },
+        addon_text: { text: sm, color: muted_foreground, whitespace: nowrap },
     }
 }
 
 impl RenderOnce for InputGroup {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = cx.theme();
-        let colors = theme.colors.clone();
         let state = self.state.read(cx);
         let is_focused = state.focus_handle_ref().contains_focused(window, cx);
         let is_multiline = state.is_multiline();
         let accent = if self.invalid {
-            colors.destructive_text
+            theme.colors.destructive_text
         } else {
-            colors.ring
+            theme.colors.ring
         };
+        let has_leading = !self.leading.is_empty();
+        let has_trailing = !self.trailing.is_empty();
 
         let control = if is_multiline {
             Textarea::new(&self.state)
                 .disabled(self.disabled)
                 .without_focus_ring()
-                .border_0()
-                .rounded_none()
+                .sx(&INPUT_GROUP.control)
                 .into_any_element()
         } else {
             Input::new(&self.state)
                 .disabled(self.disabled)
                 .without_focus_ring()
-                .border_0()
-                .rounded_none()
-                .flex_1()
-                .when(!self.leading.is_empty(), |input| input.ps(px(0.)))
-                .when(!self.trailing.is_empty(), |input| input.pe(px(0.)))
+                .sx((
+                    &INPUT_GROUP.control,
+                    &INPUT_GROUP.input,
+                    has_leading.then_some(&INPUT_GROUP.input_after_leading),
+                    has_trailing.then_some(&INPUT_GROUP.input_before_trailing),
+                ))
                 .into_any_element()
         };
 
-        let addon_row = |children: Vec<AnyElement>| {
-            div()
-                .flex_dir()
-                .items_center()
-                .gap(px(8.))
-                .px(px(12.))
-                .children(children)
+        let addon_row = |children: Vec<AnyElement>, edge: &crate::sx::Sx| {
+            div().sx((&INPUT_GROUP.addons, edge)).children(children)
         };
-        let has_leading = !self.leading.is_empty();
-        let has_trailing = !self.trailing.is_empty();
         let main_row = div()
-            .flex_dir()
-            .items_center()
-            .w_full()
+            .sx(&INPUT_GROUP.main_row)
             .when(has_leading, |row| {
-                row.child(addon_row(self.leading).pe(px(8.)))
+                row.child(addon_row(self.leading, &INPUT_GROUP.leading))
             })
-            .child(div().flex_1().min_w_0().child(control))
+            .child(div().sx(&INPUT_GROUP.control_slot).child(control))
             .when(has_trailing, |row| {
-                row.child(addon_row(self.trailing).ps(px(8.)))
+                row.child(addon_row(self.trailing, &INPUT_GROUP.trailing))
             });
 
         div()
-            .flex_dir()
-            .flex_col()
-            .w_full()
-            .rounded(theme.radius_medium())
-            .border_1()
-            .border_color(if self.invalid || is_focused {
-                accent
-            } else {
-                colors.input
-            })
-            .relative()
+            .sx((
+                &INPUT_GROUP.group,
+                is_focused.then_some(&INPUT_GROUP.focused),
+                self.invalid.then_some(&INPUT_GROUP.invalid),
+                self.disabled.then_some(&INPUT_GROUP.disabled),
+                &self.sx,
+            ))
             .when(is_focused, |group| {
                 group.child(focus_ring_outline(accent, theme.radius_medium()))
             })
-            .when(self.disabled, |group| group.opacity(0.5))
             .when(!self.block_start.is_empty(), |group| {
-                group.child(addon_row(self.block_start).pt(px(8.)))
+                group.child(addon_row(self.block_start, &INPUT_GROUP.block_start))
             })
             .child(main_row)
             .when(!self.block_end.is_empty(), |group| {
-                group.child(addon_row(self.block_end).pb(px(8.)))
+                group.child(addon_row(self.block_end, &INPUT_GROUP.block_end))
             })
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

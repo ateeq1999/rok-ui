@@ -11,25 +11,54 @@
 //!     .child(InlineCode::new("@radix-ui/react-alert-dialog"))
 //! ```
 
-use gpui::{div, prelude::*, px, App, FontWeight, SharedString, StyleRefinement};
+use gpui::{div, prelude::*, px, App, SharedString, StyleRefinement};
 
-use super::direction::DirectionalStyled;
-use crate::sx::SxStyled;
-use crate::{component, styles::ApplyStyleOverrides, theme::ActiveTheme};
+use crate::sx::{Sx, SxStyled};
+use crate::{component, styles, styles::ApplyStyleOverrides, theme::ActiveTheme};
+
+styles! {
+    TYPOGRAPHY = {
+        h1: { text: 36.0, line_height: 10, font: extrabold },
+        h2: {
+            padding_bottom: 2,
+            border_bottom: 1,
+            border_color: border,
+            text: 30.0,
+            line_height: 9,
+            font: semibold,
+        },
+        h3: { text: 24.0, line_height: 8, font: semibold },
+        h4: { text: 20.0, line_height: 7, font: semibold },
+        p: { text: base, line_height: 7 },
+        blockquote: { padding_start: 6, border_start: 2, border_color: border, italic: true },
+        list: { display: flex, direction: column, gap: 2, padding_start: 6 },
+        list_item: { display: flex, gap: 2 },
+        list_marker: { flex: none, min_width: 3 },
+        inline_code: {
+            padding_x: 1.25,
+            padding_y: 0.5,
+            background: muted,
+            font_family: mono,
+            text: sm,
+            font: semibold,
+        },
+        lead: { text: xl, color: muted_foreground },
+        large: { text: lg, font: semibold },
+        small: { text: sm, font: medium, line_height: 3.5 },
+        muted: { text: sm, color: muted_foreground },
+    }
+}
 
 /// Page title: 36px extra-bold.
 #[component]
 pub fn H1(
     text: SharedString,
     #[style] style_overrides: StyleRefinement,
-    #[sx] sx: crate::sx::Sx,
+    #[sx] sx: Sx,
 ) -> impl IntoElement {
     div()
-        .text_size(px(36.))
-        .line_height(px(40.))
-        .font_weight(FontWeight::EXTRA_BOLD)
+        .sx((&TYPOGRAPHY.h1, &sx))
         .child(text)
-        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
@@ -38,18 +67,11 @@ pub fn H1(
 pub fn H2(
     text: SharedString,
     #[style] style_overrides: StyleRefinement,
-    #[sx] sx: crate::sx::Sx,
-    cx: &mut App,
+    #[sx] sx: Sx,
 ) -> impl IntoElement {
     div()
-        .pb(px(8.))
-        .border_b_1()
-        .border_color(cx.theme().colors.border)
-        .text_size(px(30.))
-        .line_height(px(36.))
-        .font_weight(FontWeight::SEMIBOLD)
+        .sx((&TYPOGRAPHY.h2, &sx))
         .child(text)
-        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
@@ -58,14 +80,11 @@ pub fn H2(
 pub fn H3(
     text: SharedString,
     #[style] style_overrides: StyleRefinement,
-    #[sx] sx: crate::sx::Sx,
+    #[sx] sx: Sx,
 ) -> impl IntoElement {
     div()
-        .text_size(px(24.))
-        .line_height(px(32.))
-        .font_weight(FontWeight::SEMIBOLD)
+        .sx((&TYPOGRAPHY.h3, &sx))
         .child(text)
-        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
@@ -74,14 +93,11 @@ pub fn H3(
 pub fn H4(
     text: SharedString,
     #[style] style_overrides: StyleRefinement,
-    #[sx] sx: crate::sx::Sx,
+    #[sx] sx: Sx,
 ) -> impl IntoElement {
     div()
-        .text_size(px(20.))
-        .line_height(px(28.))
-        .font_weight(FontWeight::SEMIBOLD)
+        .sx((&TYPOGRAPHY.h4, &sx))
         .child(text)
-        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
@@ -90,37 +106,24 @@ pub fn H4(
 pub fn P(
     text: SharedString,
     #[style] style_overrides: StyleRefinement,
-    #[sx] sx: crate::sx::Sx,
+    #[sx] sx: Sx,
 ) -> impl IntoElement {
     div()
-        .text_base()
-        .line_height(px(28.))
+        .sx((&TYPOGRAPHY.p, &sx))
         .child(text)
-        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
-/// Indented italic quote with a left rule.
+/// Indented italic quote with a rule on the starting side.
 #[component]
 pub fn Blockquote(
     text: SharedString,
     #[style] style_overrides: StyleRefinement,
-    #[sx] sx: crate::sx::Sx,
-    cx: &mut App,
+    #[sx] sx: Sx,
 ) -> impl IntoElement {
     div()
-        .ps(px(24.))
-        .map(|quote| {
-            if super::direction::is_rtl() {
-                quote.border_r_2()
-            } else {
-                quote.border_l_2()
-            }
-        })
-        .border_color(cx.theme().colors.border)
-        .italic()
+        .sx((&TYPOGRAPHY.blockquote, &sx))
         .child(text)
-        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
@@ -130,13 +133,10 @@ pub fn List(
     items: Vec<SharedString>,
     #[prop(optional)] ordered: bool,
     #[style] style_overrides: StyleRefinement,
-    #[sx] sx: crate::sx::Sx,
+    #[sx] sx: Sx,
 ) -> impl IntoElement {
     div()
-        .flex_dir()
-        .flex_col()
-        .gap(px(8.))
-        .ps(px(24.))
+        .sx((&TYPOGRAPHY.list, &sx))
         .children(items.into_iter().enumerate().map(move |(index, item)| {
             let marker: SharedString = if ordered {
                 format!("{}.", index + 1).into()
@@ -144,78 +144,44 @@ pub fn List(
                 "•".into()
             };
             div()
-                .flex_dir()
-                .gap(px(8.))
-                .child(div().flex_none().min_w(px(12.)).child(marker))
+                .sx(&TYPOGRAPHY.list_item)
+                .child(div().sx(&TYPOGRAPHY.list_marker).child(marker))
                 .child(item)
         }))
-        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
 /// Monospace code inside running text.
 #[component]
-pub fn InlineCode(text: SharedString, cx: &mut App, #[sx] sx: crate::sx::Sx) -> impl IntoElement {
-    let element = {
-        let theme = cx.theme();
-        div()
-            .px(px(5.))
-            .py(px(2.))
-            .rounded(theme.radius_small().max(px(3.)))
-            .bg(theme.colors.muted)
-            .font_family(theme.monospace_font_family.clone())
-            .text_sm()
-            .font_weight(FontWeight::SEMIBOLD)
-            .child(text)
-    };
-    element.sx(&sx)
+pub fn InlineCode(text: SharedString, cx: &mut App, #[sx] sx: Sx) -> impl IntoElement {
+    // Keeps a little rounding even in square themes.
+    let radius = cx.theme().radius_small().max(px(3.));
+    div()
+        .rounded(radius)
+        .sx((&TYPOGRAPHY.inline_code, &sx))
+        .child(text)
 }
 
 /// Large muted intro text.
 #[component]
-pub fn Lead(text: SharedString, cx: &mut App, #[sx] sx: crate::sx::Sx) -> impl IntoElement {
-    let element = {
-        div()
-            .text_xl()
-            .text_color(cx.theme().colors.muted_foreground)
-            .child(text)
-    };
-    element.sx(&sx)
+pub fn Lead(text: SharedString, #[sx] sx: Sx) -> impl IntoElement {
+    div().sx((&TYPOGRAPHY.lead, &sx)).child(text)
 }
 
 /// 18px semibold.
 #[component]
-pub fn Large(text: SharedString, #[sx] sx: crate::sx::Sx) -> impl IntoElement {
-    let element = {
-        div()
-            .text_lg()
-            .font_weight(FontWeight::SEMIBOLD)
-            .child(text)
-    };
-    element.sx(&sx)
+pub fn Large(text: SharedString, #[sx] sx: Sx) -> impl IntoElement {
+    div().sx((&TYPOGRAPHY.large, &sx)).child(text)
 }
 
 /// 14px medium, tight line height.
 #[component]
-pub fn Small(text: SharedString, #[sx] sx: crate::sx::Sx) -> impl IntoElement {
-    let element = {
-        div()
-            .text_sm()
-            .font_weight(FontWeight::MEDIUM)
-            .line_height(px(14.))
-            .child(text)
-    };
-    element.sx(&sx)
+pub fn Small(text: SharedString, #[sx] sx: Sx) -> impl IntoElement {
+    div().sx((&TYPOGRAPHY.small, &sx)).child(text)
 }
 
 /// 14px muted text.
 #[component]
-pub fn Muted(text: SharedString, cx: &mut App, #[sx] sx: crate::sx::Sx) -> impl IntoElement {
-    let element = {
-        div()
-            .text_sm()
-            .text_color(cx.theme().colors.muted_foreground)
-            .child(text)
-    };
-    element.sx(&sx)
+pub fn Muted(text: SharedString, #[sx] sx: Sx) -> impl IntoElement {
+    div().sx((&TYPOGRAPHY.muted, &sx)).child(text)
 }

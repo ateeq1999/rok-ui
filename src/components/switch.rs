@@ -2,13 +2,10 @@
 
 use std::rc::Rc;
 
-use gpui::{
-    div, prelude::*, px, App, CursorStyle, ElementId, SharedString, StyleRefinement, Window,
-};
+use gpui::{div, prelude::*, App, ElementId, SharedString, StyleRefinement, Window};
 
-use super::direction::DirectionalStyled;
 use crate::sx::SxStyled;
-use crate::{hooks::EventHandler, styles::ApplyStyleOverrides, theme::ActiveTheme};
+use crate::{hooks::EventHandler, styles, styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// Controlled like [`super::Checkbox`]: pass `checked`, update it in `on_change`.
 ///
@@ -66,67 +63,63 @@ impl Switch {
     }
 }
 
+styles! {
+    SWITCH = {
+        row: { display: flex, align: center, gap: 2, text: sm, radius: full },
+        interactive: { cursor: pointer, focus: { shadow: ring } },
+        inert: { opacity: 0.5 },
+        track: {
+            display: flex,
+            flex: none,
+            align: center,
+            width: 8,
+            height: 4.5,
+            padding_x: 0.25,
+            radius: full,
+            border: 1,
+            border_color: transparent,
+            background: input,
+        },
+        track_checked: { background: primary, justify: end },
+        thumb: { size: 3.5, radius: full },
+    }
+}
+
 impl RenderOnce for Switch {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        // The component's own interaction styles, merged with the caller's `sx` in one
-        // call (GPUI allows a single hover / focus style per element).
-        let own_states = if self.disabled {
-            crate::sx::Sx::new()
-        } else {
-            crate::sx::Sx::new().focus(|state| state.shadow(crate::sx::SxShadow::Ring))
-        };
         let theme = cx.theme();
-        let colors = &theme.colors;
         let checked = self.checked;
         let is_interactive = !self.disabled;
-
-        let track_width = px(32.);
-        let track_height = px(18.);
-        let thumb_size = px(14.);
-        let thumb_inset = px(1.);
-
         let thumb_color = if theme.mode.is_dark() && !checked {
-            colors.foreground
+            theme.colors.foreground
         } else {
-            colors.background
+            theme.colors.background
         };
 
         let track = div()
-            .flex_dir()
-            .flex_none()
-            .items_center()
-            .w(track_width)
-            .h(track_height)
-            .px(thumb_inset)
-            .rounded_full()
-            .border_1()
-            .border_color(gpui::transparent_black())
-            .bg(if checked {
-                colors.primary
-            } else {
-                colors.input
-            })
-            .when(checked, |track| track.justify_end())
-            .child(div().size(thumb_size).rounded_full().bg(thumb_color));
+            .sx((&SWITCH.track, checked.then_some(&SWITCH.track_checked)))
+            .child(div().sx(&SWITCH.thumb).bg(thumb_color));
 
         div()
             .id(self.id)
-            .flex_dir()
-            .items_center()
-            .gap(px(8.))
-            .text_sm()
             .child(track)
             .when_some(self.label, |row, label| row.child(label))
             .when(is_interactive, |row| {
-                row.tab_index(0)
-                    .cursor(CursorStyle::PointingHand)
-                    .when_some(self.on_change, |row, handler| {
-                        row.on_click(move |_, window, cx| handler(&!checked, window, cx))
-                    })
+                row.tab_index(0).when_some(self.on_change, |row, handler| {
+                    row.on_click(move |_, window, cx| handler(&!checked, window, cx))
+                })
             })
-            .when(!is_interactive, |row| row.opacity(0.5))
-            .rounded_full()
-            .sx((&own_states, &self.sx))
+            // The caller's `sx` is merged into the same call: GPUI allows a single
+            // hover / focus style per element.
+            .sx((
+                &SWITCH.row,
+                if is_interactive {
+                    &SWITCH.interactive
+                } else {
+                    &SWITCH.inert
+                },
+                &self.sx,
+            ))
             .apply_style_overrides(&self.style_overrides)
     }
 }

@@ -3,12 +3,8 @@
 
 use std::{cmp::Ordering, collections::BTreeSet, rc::Rc};
 
-use gpui::{
-    div, prelude::*, px, AnyElement, App, CursorStyle, ElementId, FontWeight, SharedString,
-    StyleRefinement, Window,
-};
+use gpui::{div, prelude::*, AnyElement, App, ElementId, SharedString, StyleRefinement, Window};
 
-use super::direction::DirectionalStyled;
 use super::{
     button::{Button, IconPosition},
     checkbox::Checkbox,
@@ -20,8 +16,8 @@ use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler, State},
     icon::IconName,
+    styles,
     styles::ApplyStyleOverrides,
-    theme::ActiveTheme,
 };
 
 /// Horizontal alignment of a column's cells.
@@ -253,6 +249,60 @@ fn report_selection(
     }
 }
 
+styles! {
+    DATA_TABLE = {
+        root: { display: flex, direction: column, gap: 4, width: full },
+        toolbar: { display: flex, align: center, gap: 2 },
+        filter: { max_width: 96 },
+        spacer: { flex: 1 },
+        table: {
+            display: flex,
+            direction: column,
+            radius: md,
+            border: 1,
+            border_color: border,
+            overflow: hidden,
+            text: sm,
+            cursor: default,
+        },
+        header: {
+            display: flex,
+            align: center,
+            height: 10,
+            border_bottom: 1,
+            border_color: border,
+            font: medium,
+        },
+        row: {
+            display: flex,
+            align: center,
+            min_height: 12,
+            border_bottom: 1,
+            border_color: border,
+            hover: { background: muted/50 },
+        },
+        row_selected: { background: muted },
+        cell: { min_width: 0, padding_x: 2, display: flex, align: center },
+        cell_end: { justify: end },
+        body_cell: { padding_y: 2 },
+        text: { truncate: true },
+        select_cell: { width: 10, flex: none, display: flex, justify: center },
+        actions_cell: { width: 12, flex: none },
+        centered: { display: flex, justify: center },
+        // Lines the sort button's label up with the cells below it.
+        sort_button: { margin_start: -2 },
+        actions_button: { width: 8, height: 8 },
+        empty: {
+            height: 24,
+            display: flex,
+            align: center,
+            justify: center,
+            color: muted_foreground,
+        },
+        footer: { display: flex, align: center, gap: 2, text: sm, color: muted_foreground },
+    }
+}
+
 impl RenderOnce for DataTable {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let memory: State<DataTableMemory> =
@@ -297,8 +347,6 @@ impl RenderOnce for DataTable {
             .copied()
             .collect();
 
-        let theme = cx.theme();
-        let colors = theme.colors.clone();
         let visible_columns: Vec<(usize, DataColumn)> = self
             .columns
             .iter()
@@ -310,53 +358,41 @@ impl RenderOnce for DataTable {
 
         let cell = |column: &DataColumn| {
             div()
-                .min_w_0()
-                .px(px(8.))
-                .flex_dir()
-                .items_center()
+                .sx((
+                    &DATA_TABLE.cell,
+                    (column.align == ColumnAlign::End).then_some(&DATA_TABLE.cell_end),
+                ))
                 .map(|cell| match column.width {
                     Some(width) => cell.w(width).flex_none(),
                     None => cell.flex_1(),
                 })
-                .when(column.align == ColumnAlign::End, |cell| cell.justify_end())
         };
 
         // Header.
         let all_on_page_selected =
             !page_rows.is_empty() && page_rows.iter().all(|row| selected.contains(row));
-        let mut header = div()
-            .flex_dir()
-            .items_center()
-            .h(px(40.))
-            .border_b_1()
-            .border_color(colors.border)
-            .font_weight(FontWeight::MEDIUM);
+        let mut header = div().sx(&DATA_TABLE.header);
         if self.selectable {
             let memory = memory.clone();
             let page_rows = page_rows.clone();
             let on_selection_change = on_selection_change.clone();
             header = header.child(
-                div()
-                    .w(px(40.))
-                    .flex_none()
-                    .flex_dir()
-                    .justify_center()
-                    .child(
-                        Checkbox::new("data-table-select-all")
-                            .checked(all_on_page_selected)
-                            .on_change(move |checked, window, cx| {
-                                memory.update(cx, |memory| {
-                                    for row in &page_rows {
-                                        if *checked {
-                                            memory.selected.insert(*row);
-                                        } else {
-                                            memory.selected.remove(row);
-                                        }
+                div().sx(&DATA_TABLE.select_cell).child(
+                    Checkbox::new("data-table-select-all")
+                        .checked(all_on_page_selected)
+                        .on_change(move |checked, window, cx| {
+                            memory.update(cx, |memory| {
+                                for row in &page_rows {
+                                    if *checked {
+                                        memory.selected.insert(*row);
+                                    } else {
+                                        memory.selected.remove(row);
                                     }
-                                });
-                                report_selection(&memory, on_selection_change.as_ref(), window, cx);
-                            }),
-                    ),
+                                }
+                            });
+                            report_selection(&memory, on_selection_change.as_ref(), window, cx);
+                        }),
+                ),
             );
         }
         for (column_index, column) in &visible_columns {
@@ -379,7 +415,7 @@ impl RenderOnce for DataTable {
                     .label(title)
                     .icon(icon)
                     .icon_position(IconPosition::End)
-                    .ms(px(-8.))
+                    .sx(&DATA_TABLE.sort_button)
                     .on_click(move |_, _, cx| {
                         memory.update(cx, |memory| {
                             memory.sort = match memory.sort {
@@ -404,7 +440,7 @@ impl RenderOnce for DataTable {
             header = header.child(cell(column).child(head));
         }
         if self.row_actions.is_some() {
-            header = header.child(div().w(px(48.)).flex_none());
+            header = header.child(div().sx(&DATA_TABLE.actions_cell));
         }
 
         // Body.
@@ -413,43 +449,33 @@ impl RenderOnce for DataTable {
             .map(|row_index| {
                 let row_index = *row_index;
                 let is_selected = selected.contains(&row_index);
-                let mut row = div()
-                    .id(("data-table-row", row_index))
-                    .flex_dir()
-                    .items_center()
-                    .min_h(px(48.))
-                    .border_b_1()
-                    .border_color(colors.border)
-                    .hover(|style| style.bg(colors.muted.opacity(0.5)))
-                    .when(is_selected, |row| row.bg(colors.muted));
+                let mut row = div().id(("data-table-row", row_index)).sx((
+                    &DATA_TABLE.row,
+                    is_selected.then_some(&DATA_TABLE.row_selected),
+                ));
                 if self.selectable {
                     let memory = memory.clone();
                     let on_selection_change = on_selection_change.clone();
                     row = row.child(
-                        div()
-                            .w(px(40.))
-                            .flex_none()
-                            .flex_dir()
-                            .justify_center()
-                            .child(
-                                Checkbox::new(("data-table-select", row_index))
-                                    .checked(is_selected)
-                                    .on_change(move |checked, window, cx| {
-                                        memory.update(cx, |memory| {
-                                            if *checked {
-                                                memory.selected.insert(row_index);
-                                            } else {
-                                                memory.selected.remove(&row_index);
-                                            }
-                                        });
-                                        report_selection(
-                                            &memory,
-                                            on_selection_change.as_ref(),
-                                            window,
-                                            cx,
-                                        );
-                                    }),
-                            ),
+                        div().sx(&DATA_TABLE.select_cell).child(
+                            Checkbox::new(("data-table-select", row_index))
+                                .checked(is_selected)
+                                .on_change(move |checked, window, cx| {
+                                    memory.update(cx, |memory| {
+                                        if *checked {
+                                            memory.selected.insert(row_index);
+                                        } else {
+                                            memory.selected.remove(&row_index);
+                                        }
+                                    });
+                                    report_selection(
+                                        &memory,
+                                        on_selection_change.as_ref(),
+                                        window,
+                                        cx,
+                                    );
+                                }),
+                        ),
                     );
                 }
                 for (column_index, column) in &visible_columns {
@@ -457,15 +483,16 @@ impl RenderOnce for DataTable {
                         .get(*column_index)
                         .cloned()
                         .unwrap_or_default();
-                    row = row.child(cell(column).py(px(8.)).child(div().truncate().child(text)));
+                    row = row.child(
+                        cell(column)
+                            .sx(&DATA_TABLE.body_cell)
+                            .child(div().sx(&DATA_TABLE.text).child(text)),
+                    );
                 }
                 if let Some(row_actions) = self.row_actions.as_ref() {
                     row = row.child(
                         div()
-                            .w(px(48.))
-                            .flex_none()
-                            .flex_dir()
-                            .justify_center()
+                            .sx((&DATA_TABLE.actions_cell, &DATA_TABLE.centered))
                             .child(
                                 DropdownMenu::new(("data-table-actions", row_index))
                                     .align(Align::End)
@@ -473,8 +500,7 @@ impl RenderOnce for DataTable {
                                         Button::new(("data-table-actions-trigger", row_index))
                                             .ghost()
                                             .icon_only(IconName::Ellipsis)
-                                            .w(px(32.))
-                                            .h(px(32.))
+                                            .sx(&DATA_TABLE.actions_button)
                                             .tooltip("Open menu"),
                                     )
                                     .menu(row_actions(row_index)),
@@ -486,11 +512,7 @@ impl RenderOnce for DataTable {
             .collect();
         let body = if body_rows.is_empty() {
             vec![div()
-                .h(px(96.))
-                .flex_dir()
-                .items_center()
-                .justify_center()
-                .text_color(colors.muted_foreground)
+                .sx(&DATA_TABLE.empty)
                 .child("No results.")
                 .into_any_element()]
         } else {
@@ -533,25 +555,19 @@ impl RenderOnce for DataTable {
                 .menu(menu)
         });
         let toolbar = div()
-            .flex_dir()
-            .items_center()
-            .gap(px(8.))
+            .sx(&DATA_TABLE.toolbar)
             .when(self.filter.is_some(), |toolbar| {
-                toolbar.child(Input::new(&filter_input).max_w(px(384.)))
+                toolbar.child(Input::new(&filter_input).sx(&DATA_TABLE.filter))
             })
-            .child(div().flex_1())
+            .child(div().sx(&DATA_TABLE.spacer))
             .children(columns_menu);
 
         // Footer.
         let previous_memory = memory.clone();
         let next_memory = memory.clone();
         let footer = div()
-            .flex_dir()
-            .items_center()
-            .gap(px(8.))
-            .text_sm()
-            .text_color(colors.muted_foreground)
-            .child(div().flex_1().child(if self.selectable {
+            .sx(&DATA_TABLE.footer)
+            .child(div().sx(&DATA_TABLE.spacer).child(if self.selectable {
                 format!("{} of {} row(s) selected.", selected.len(), self.rows.len())
             } else {
                 format!("Page {} of {}", page + 1, page_count)
@@ -579,26 +595,10 @@ impl RenderOnce for DataTable {
 
         div()
             .id(self.id)
-            .flex_dir()
-            .flex_col()
-            .gap(px(16.))
-            .w_full()
+            .sx((&DATA_TABLE.root, &self.sx))
             .child(toolbar)
-            .child(
-                div()
-                    .flex_dir()
-                    .flex_col()
-                    .rounded(theme.radius_medium())
-                    .border_1()
-                    .border_color(colors.border)
-                    .overflow_hidden()
-                    .text_sm()
-                    .cursor(CursorStyle::Arrow)
-                    .child(header)
-                    .children(body),
-            )
+            .child(div().sx(&DATA_TABLE.table).child(header).children(body))
             .child(footer)
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

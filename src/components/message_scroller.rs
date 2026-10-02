@@ -14,9 +14,24 @@ use gpui::{
 };
 
 use super::button::{Button, IconPosition};
-use super::direction::DirectionalStyled;
 use crate::sx::SxStyled;
-use crate::{icon::IconName, styles::ApplyStyleOverrides};
+use crate::{icon::IconName, styles, styles::ApplyStyleOverrides};
+
+styles! {
+    MESSAGE_SCROLLER = {
+        root: { position: relative, display: flex, direction: column },
+        row: { width: full, padding_x: 4, padding_y: 1.5 },
+        jump_bar: {
+            position: absolute,
+            bottom: 3,
+            left: 0,
+            width: full,
+            display: flex,
+            justify: center,
+        },
+        jump: { radius: full, shadow: md },
+    }
+}
 
 /// Scroll position and message count of a [`MessageScroller`]. Keep it in your
 /// view and tell it when messages change. Cheap to clone; clones share state.
@@ -159,15 +174,11 @@ impl RenderOnce for MessageScroller {
         let jump_state = self.state.clone();
 
         div()
-            .relative()
-            .flex_dir()
-            .flex_col()
+            .sx((&MESSAGE_SCROLLER.root, &self.sx))
             .child(
                 list(list_state, move |index, window, cx| {
                     div()
-                        .w_full()
-                        .px(px(16.))
-                        .py(px(6.))
+                        .sx(&MESSAGE_SCROLLER.row)
                         .child(render_message(index, window, cx))
                         .into_any_element()
                 })
@@ -175,30 +186,21 @@ impl RenderOnce for MessageScroller {
             )
             .when(show_jump, |scroller| {
                 scroller.child(
-                    div()
-                        .absolute()
-                        .bottom(px(12.))
-                        .left_0()
-                        .w_full()
-                        .flex_dir()
-                        .justify_center()
-                        .child(
-                            Button::new("message-scroller-jump")
-                                .outline()
-                                .small()
-                                .rounded_full()
-                                .shadow_md()
-                                .label(self.jump_label)
-                                .icon(IconName::ArrowDown)
-                                .icon_position(IconPosition::End)
-                                .on_click(move |_, window, _| {
-                                    jump_state.scroll_to_bottom();
-                                    window.refresh();
-                                }),
-                        ),
+                    div().sx(&MESSAGE_SCROLLER.jump_bar).child(
+                        Button::new("message-scroller-jump")
+                            .outline()
+                            .small()
+                            .sx(&MESSAGE_SCROLLER.jump)
+                            .label(self.jump_label)
+                            .icon(IconName::ArrowDown)
+                            .icon_position(IconPosition::End)
+                            .on_click(move |_, window, _| {
+                                jump_state.scroll_to_bottom();
+                                window.refresh();
+                            }),
+                    ),
                 )
             })
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

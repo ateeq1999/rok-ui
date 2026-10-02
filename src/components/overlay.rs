@@ -15,12 +15,13 @@ use gpui::{
     div, prelude::*, px, relative, App, Corner, Div, ElementId, FocusHandle, Pixels, Window,
 };
 
-use super::direction::DirectionalStyled;
 use super::layer::layer_at_marker;
 use crate::motion::{presets, Motion, MotionExt, MotionSide};
 
+use crate::sx::SxStyled;
 use crate::{
     hooks::{EventHandler, State},
+    styles,
     theme::Theme,
 };
 
@@ -182,22 +183,28 @@ pub(crate) fn floating(side: Side, align: Align, content: impl IntoElement, cx: 
     marker.child(layer)
 }
 
+styles! {
+    OVERLAY = {
+        // Layers lay out apart from the window root, so text alignment is set here.
+        surface: {
+            text_align: start,
+            display: flex,
+            direction: column,
+            radius: md,
+            border: 1,
+            border_color: border,
+            background: popover,
+            color: popover_foreground,
+            font_family: sans,
+            shadow: md,
+        },
+    }
+}
+
 /// The panel style shared by popovers, menus and hover cards (`bg-popover`,
 /// border, `rounded-md`, `shadow-md`).
 pub(crate) fn popover_surface(theme: &Theme) -> Div {
-    div()
-        // Layers lay out apart from the window root, so set RTL alignment here.
-        .when(super::direction::is_rtl(), |surface| surface.text_right())
-        .flex_dir()
-        .flex_col()
-        .rounded(theme.radius_medium())
-        .border_1()
-        .border_color(theme.colors.border)
-        .bg(theme.colors.popover)
-        .text_color(theme.colors.popover_foreground)
-        .font_family(theme.font_family.clone())
-        .text_size(theme.font_size)
-        .shadow_md()
+    div().sx(&OVERLAY.surface).text_size(theme.font_size)
 }
 
 /// Records the width of the element it is placed in (absolutely, full size) into `width`.

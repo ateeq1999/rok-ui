@@ -2,13 +2,13 @@
 
 use std::rc::Rc;
 
-use gpui::{prelude::*, px, AnyElement, App, ElementId, StyleRefinement, Window};
+use gpui::{prelude::*, AnyElement, App, ElementId, StyleRefinement, Window};
 
 use super::overlay::{
     dismissable, floating, popover_surface, trigger_wrapper, use_open_state, Align, Side,
 };
 use crate::sx::SxStyled;
-use crate::{hooks::EventHandler, styles::ApplyStyleOverrides, theme::ActiveTheme};
+use crate::{hooks::EventHandler, styles, styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// Uncontrolled by default: clicking the trigger opens it, Escape or a click
 /// outside closes it. Pass `.open(..)` with `.on_open_change(..)` to control it.
@@ -88,6 +88,10 @@ impl ParentElement for Popover {
     }
 }
 
+styles! {
+    POPOVER = { panel: { width: 72, padding: 4, gap: 3 } }
+}
+
 impl RenderOnce for Popover {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let open_state = use_open_state(&self.id, self.open, self.on_open_change, window, cx);
@@ -97,11 +101,8 @@ impl RenderOnce for Popover {
             return wrapper;
         }
         let panel = popover_surface(cx.theme())
-            .w(px(288.))
-            .p(px(16.))
-            .gap(px(12.))
+            .sx((&POPOVER.panel, &self.sx))
             .children(self.children)
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides);
         let panel = dismissable(panel, &open_state, window, cx);
         wrapper.child(floating(self.side, self.align, panel, cx))

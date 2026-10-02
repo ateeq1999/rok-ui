@@ -1,13 +1,11 @@
 //! Empty: the placeholder shown when there is nothing to display yet.
 
-use gpui::{
-    div, prelude::*, px, AnyElement, App, FontWeight, SharedString, StyleRefinement, Window,
-};
+use gpui::{div, prelude::*, px, AnyElement, App, SharedString, StyleRefinement, Window};
 
-use super::direction::DirectionalStyled;
 use crate::sx::SxStyled;
 use crate::{
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -88,68 +86,69 @@ impl ParentElement for Empty {
     }
 }
 
+styles! {
+    EMPTY = {
+        root: {
+            display: flex,
+            direction: column,
+            align: center,
+            justify: center,
+            gap: 6,
+            width: full,
+            padding: 12,
+            radius: lg,
+        },
+        bordered: { border: 1, border_color: border },
+        header: { display: flex, direction: column, align: center, gap: 2, max_width: 96 },
+        icon_tile: {
+            margin_bottom: 2,
+            size: 10,
+            display: flex,
+            align: center,
+            justify: center,
+            radius: lg,
+            background: muted,
+        },
+        media: { margin_bottom: 2 },
+        title: { text: lg, font: medium },
+        description: { text: sm, text_align: center, color: muted_foreground },
+        actions: { display: flex, align: center, gap: 2 },
+    }
+}
+
 impl RenderOnce for Empty {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = cx.theme();
-        let colors = theme.colors.clone();
+        let foreground = cx.theme().colors.foreground;
         div()
-            .flex_dir()
-            .flex_col()
-            .items_center()
-            .justify_center()
-            .gap(px(24.))
-            .w_full()
-            .p(px(48.))
-            .rounded(theme.radius_large())
-            .when(self.bordered, |empty| {
-                empty.border_1().border_dashed().border_color(colors.border)
-            })
+            .sx((
+                &EMPTY.root,
+                self.bordered.then_some(&EMPTY.bordered),
+                &self.sx,
+            ))
+            .when(self.bordered, |empty| empty.border_dashed())
             .child(
                 div()
-                    .flex_dir()
-                    .flex_col()
-                    .items_center()
-                    .gap(px(8.))
-                    .max_w(px(384.))
+                    .sx(&EMPTY.header)
                     .when_some(self.icon, |header, icon| {
                         header.child(
                             div()
-                                .mb(px(8.))
-                                .size(px(40.))
-                                .flex_dir()
-                                .items_center()
-                                .justify_center()
-                                .rounded(theme.radius_large())
-                                .bg(colors.muted)
-                                .child(Icon::new(icon).size(px(24.)).color(colors.foreground)),
+                                .sx(&EMPTY.icon_tile)
+                                .child(Icon::new(icon).size(px(24.)).color(foreground)),
                         )
                     })
                     .when_some(self.media, |header, media| {
-                        header.child(div().mb(px(8.)).child(media))
+                        header.child(div().sx(&EMPTY.media).child(media))
                     })
                     .when_some(self.title, |header, title| {
-                        header.child(div().text_lg().font_weight(FontWeight::MEDIUM).child(title))
+                        header.child(div().sx(&EMPTY.title).child(title))
                     })
                     .when_some(self.description, |header, description| {
-                        header.child(
-                            div()
-                                .text_sm()
-                                .text_center()
-                                .text_color(colors.muted_foreground)
-                                .child(description),
-                        )
+                        header.child(div().sx(&EMPTY.description).child(description))
                     }),
             )
             .when(!self.children.is_empty(), |empty| {
-                empty.child(
-                    div()
-                        .flex_dir()
-                        .items_center()
-                        .gap(px(8.))
-                        .children(self.children),
-                )
+                empty.child(div().sx(&EMPTY.actions).children(self.children))
             })
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

@@ -1,9 +1,16 @@
 //! Label: the caption for a form control.
 
-use gpui::{div, prelude::*, App, FontWeight, SharedString, StyleRefinement};
+use gpui::{div, prelude::*, SharedString, StyleRefinement};
 
-use crate::sx::SxStyled;
-use crate::{component, styles::ApplyStyleOverrides, theme::ActiveTheme};
+use crate::sx::{Sx, SxStyled};
+use crate::{component, styles, styles::ApplyStyleOverrides};
+
+styles! {
+    LABEL = {
+        root: { text: sm, font: medium, line_height: 3.5, color: foreground },
+        disabled: { opacity: 0.5 },
+    }
+}
 
 /// `Label::new("Email")`. Use `.disabled(true)` to dim it with its control.
 #[component]
@@ -11,16 +18,10 @@ pub fn Label(
     text: SharedString,
     #[prop(optional)] disabled: bool,
     #[style] style_overrides: StyleRefinement,
-    #[sx] sx: crate::sx::Sx,
-    cx: &mut App,
+    #[sx] sx: Sx,
 ) -> impl IntoElement {
     div()
-        .text_sm()
-        .font_weight(FontWeight::MEDIUM)
-        .line_height(gpui::px(14.))
-        .text_color(cx.theme().colors.foreground)
-        .when(disabled, |label| label.opacity(0.5))
+        .sx((&LABEL.root, disabled.then_some(&LABEL.disabled), &sx))
         .child(text)
-        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }

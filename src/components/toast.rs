@@ -12,14 +12,15 @@
 
 use std::{rc::Rc, time::Duration};
 
-use gpui::{div, point, prelude::*, px, App, Corner, FontWeight, Global, SharedString, Window};
+use gpui::{div, point, prelude::*, px, App, Corner, Global, SharedString, Window};
 
-use super::direction::DirectionalStyled;
 use super::layer::layer_at;
 use super::{button::Button, spinner::Spinner};
 use crate::{
     icon::{Icon, IconName},
     motion::{presets, Easing, MotionExt, MotionSide},
+    styles,
+    sx::SxStyled,
     theme::ActiveTheme,
 };
 
@@ -187,6 +188,38 @@ impl Toaster {
     }
 }
 
+styles! {
+    TOAST = {
+        // Layers lay out apart from the window root, so text alignment is set here.
+        stack: {
+            display: flex,
+            direction: column,
+            gap: 2,
+            font_family: sans,
+            text_align: start,
+        },
+        card: {
+            position: relative,
+            display: flex,
+            align: center,
+            gap: 2.5,
+            padding: 4,
+            padding_end: 8,
+            radius: lg,
+            border: 1,
+            border_color: border,
+            background: popover,
+            color: popover_foreground,
+            shadow: lg,
+        },
+        text: { display: flex, direction: column, flex: 1, gap: 0.5 },
+        title: { text: sm, font: medium },
+        description: { text: sm, color: muted_foreground },
+        close_slot: { position: absolute, top: 1.5, inset_end: 1.5 },
+        close: { width: 5, height: 5 },
+    }
+}
+
 impl RenderOnce for Toaster {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let toasts: Vec<(ToastId, Toast)> = cx
@@ -197,8 +230,7 @@ impl RenderOnce for Toaster {
             return div().into_any_element();
         }
         let theme = cx.theme();
-        let colors = theme.colors.clone();
-        let radius = theme.radius_large();
+        let destructive_text = theme.colors.destructive_text;
         let viewport_size = window.viewport_size();
         let width = px(356.).min(viewport_size.width - px(32.));
 
@@ -212,7 +244,7 @@ impl RenderOnce for Toaster {
                 }
                 ToastVariant::Error => Some(
                     Icon::new(IconName::CircleX)
-                        .color(colors.destructive_text)
+                        .color(destructive_text)
                         .into_any_element(),
                 ),
                 ToastVariant::Loading => Some(Spinner::new().into_any_element()),
@@ -229,49 +261,24 @@ impl RenderOnce for Toaster {
             div()
                 .id(("toast", id.0))
                 .occlude()
-                .relative()
-                .flex_dir()
-                .items_center()
-                .gap(px(10.))
+                .sx(&TOAST.card)
                 .w(width)
-                .p(px(16.))
-                .pe(px(32.))
-                .rounded(radius)
-                .border_1()
-                .border_color(colors.border)
-                .bg(colors.popover)
-                .text_color(colors.popover_foreground)
-                .shadow_lg()
                 .children(icon)
                 .child(
                     div()
-                        .flex_dir()
-                        .flex_col()
-                        .flex_1()
-                        .gap(px(2.))
-                        .child(
-                            div()
-                                .text_sm()
-                                .font_weight(FontWeight::MEDIUM)
-                                .child(toast.title.clone()),
-                        )
+                        .sx(&TOAST.text)
+                        .child(div().sx(&TOAST.title).child(toast.title.clone()))
                         .when_some(toast.description.clone(), |text, description| {
-                            text.child(
-                                div()
-                                    .text_sm()
-                                    .text_color(colors.muted_foreground)
-                                    .child(description),
-                            )
+                            text.child(div().sx(&TOAST.description).child(description))
                         }),
                 )
                 .children(action)
                 .child(
-                    div().absolute().top(px(6.)).inset_end(px(6.)).child(
+                    div().sx(&TOAST.close_slot).child(
                         Button::new(("toast-close", id.0))
                             .ghost()
                             .icon_only(IconName::Close)
-                            .w(px(20.))
-                            .h(px(20.))
+                            .sx(&TOAST.close)
                             .tooltip("Dismiss")
                             .on_click(move |_, _, cx| dismiss_toast(id, cx)),
                     ),
@@ -285,12 +292,8 @@ impl RenderOnce for Toaster {
         });
 
         let stack = div()
-            .flex_dir()
-            .flex_col()
-            .gap(px(8.))
-            .font_family(theme.font_family.clone())
+            .sx(&TOAST.stack)
             .text_size(theme.font_size)
-            .when(super::direction::is_rtl(), |layer| layer.text_right())
             .children(cards);
         // The ending corner: bottom-right in LTR, bottom-left in RTL.
         let (x, corner) = if super::direction::is_rtl() {

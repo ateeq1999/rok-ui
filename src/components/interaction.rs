@@ -15,8 +15,10 @@ use gpui::{
 use super::direction::DirectionalStyled;
 use super::layer::layer_at;
 use super::overlay::child_id;
+use crate::sx::SxStyled;
 use crate::{
     motion::{use_presence, Presence, Transition},
+    styles,
     theme::ActiveTheme,
 };
 
@@ -80,6 +82,20 @@ pub(crate) fn on_activate(element: Stateful<Div>, handler: Callback) -> Stateful
                 key_handler(window, cx);
             }
         })
+}
+
+styles! {
+    MODAL = {
+        // Layers lay out apart from the window root, so text alignment is set here.
+        scrim: { color: foreground, font_family: sans, text_align: start },
+        placement(ModalPlacement): {
+            Center: { align: center, justify: center, padding: 4 },
+            Top: { direction: column, justify: start },
+            Bottom: { direction: column, justify: end },
+            Left: { justify: start },
+            Right: { justify: end },
+        },
+    }
 }
 
 /// Where a modal panel sits in the window.
@@ -172,19 +188,11 @@ pub(crate) fn render_modal(
         .occlude()
         .w(viewport_size.width)
         .h(viewport_size.height)
+        // Panels slide from physical edges (sheets already swap sides for RTL).
         .flex_ltr()
+        .sx((&MODAL.scrim, MODAL.placement(placement)))
         .bg(theme.colors.overlay.opacity(progress))
-        .font_family(theme.font_family.clone())
         .text_size(theme.font_size)
-        .text_color(theme.colors.foreground)
-        .when(super::direction::is_rtl(), |scrim| scrim.text_right())
-        .map(|scrim| match placement {
-            ModalPlacement::Center => scrim.items_center().justify_center().p(px(16.)),
-            ModalPlacement::Top => scrim.flex_col().justify_start(),
-            ModalPlacement::Bottom => scrim.flex_col().justify_end(),
-            ModalPlacement::Left => scrim.justify_start(),
-            ModalPlacement::Right => scrim.justify_end(),
-        })
         .when_some(on_backdrop, |scrim, on_backdrop| {
             scrim.on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
                 on_backdrop(window, cx)

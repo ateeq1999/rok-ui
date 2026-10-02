@@ -4,11 +4,10 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, point, prelude::*, px, AnyElement, App, Corner, CursorStyle, Div, ElementId, Entity,
-    FontWeight, SharedString, StyleRefinement, Window,
+    div, point, prelude::*, px, AnyElement, App, Corner, Div, ElementId, Entity, SharedString,
+    StyleRefinement, Window,
 };
 
-use super::direction::DirectionalStyled;
 use super::layer::layer_at;
 use super::{
     input::{use_input_state, Input, InputState, Submit},
@@ -19,6 +18,7 @@ use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler},
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -122,6 +122,65 @@ struct CommandHighlight {
     index: usize,
 }
 
+styles! {
+    COMMAND = {
+        root: { display: flex, direction: column },
+        // The search field sits flush on top, divided from the list by its bottom border.
+        search: { height: 10, border: 0, radius: none, border_bottom: 1, border_color: border },
+        list: {
+            display: flex,
+            direction: column,
+            max_height: 75,
+            padding_x: 1,
+            padding_bottom: 1,
+        },
+        empty: { padding_y: 6, text_align: center, text: sm, color: muted_foreground },
+        separator: { height: 0.25, margin_x: -1, background: border },
+        group: { display: flex, direction: column, padding_y: 1 },
+        heading: {
+            padding_x: 2,
+            padding_y: 1.5,
+            text: xs,
+            font: medium,
+            color: muted_foreground,
+        },
+        item: {
+            display: flex,
+            align: center,
+            gap: 2,
+            padding_x: 2,
+            padding_y: 1.5,
+            radius: sm,
+            text: sm,
+        },
+        highlighted: { background: accent, color: accent_foreground },
+        interactive: { cursor: pointer },
+        inert: { opacity: 0.5 },
+        item_label: { flex: 1 },
+        shortcut: { text: xs, color: muted_foreground },
+        check_slot: { size: 4 },
+        frame: {
+            width: full,
+            overflow: hidden,
+            radius: md,
+            border: 1,
+            border_color: border,
+            background: popover,
+            color: popover_foreground,
+        },
+        // Layers lay out apart from the window root, so text alignment is set here.
+        dialog_scrim: {
+            display: flex,
+            direction: column,
+            align: center,
+            padding_x: 4,
+            font_family: sans,
+            text_align: start,
+        },
+        dialog_panel: { width: full, max_width: 128, shadow: lg },
+    }
+}
+
 /// Render the search field and the filtered list. `after_select` runs after an
 /// item's own handler (Combobox uses it to close its popover).
 pub(crate) fn render_command(
@@ -145,9 +204,7 @@ pub(crate) fn render_command(
         });
     }
     let highlighted_index = highlight.read(cx).index;
-    let theme = cx.theme();
-    let colors = theme.colors.clone();
-    let item_radius = theme.radius_small();
+    let muted_foreground = cx.theme().colors.muted_foreground;
 
     // Flatten the visible items so keyboard navigation can step across groups.
     let mut visible_items: Vec<CommandItem> = Vec::new();
@@ -163,25 +220,11 @@ pub(crate) fn render_command(
             continue;
         }
         if !sections.is_empty() {
-            sections.push(
-                div()
-                    .h(px(1.))
-                    .mx(px(-4.))
-                    .bg(colors.border)
-                    .into_any_element(),
-            );
+            sections.push(div().sx(&COMMAND.separator).into_any_element());
         }
-        let mut section = div().flex_dir().flex_col().py(px(4.));
+        let mut section = div().sx(&COMMAND.group);
         if let Some(heading) = group.heading.clone() {
-            section = section.child(
-                div()
-                    .px(px(8.))
-                    .py(px(6.))
-                    .text_xs()
-                    .font_weight(FontWeight::MEDIUM)
-                    .text_color(colors.muted_foreground)
-                    .child(heading),
-            );
+            section = section.child(div().sx(&COMMAND.heading).child(heading));
         }
         for item in matching {
             let flat_index = visible_items.len();
@@ -192,43 +235,35 @@ pub(crate) fn render_command(
             section = section.child(
                 div()
                     .id(("command-item", flat_index))
-                    .flex_dir()
-                    .items_center()
-                    .gap(px(8.))
-                    .px(px(8.))
-                    .py(px(6.))
-                    .rounded(item_radius)
-                    .text_sm()
-                    .when(is_highlighted, |row| {
-                        row.bg(colors.accent).text_color(colors.accent_foreground)
-                    })
-                    .when(item.disabled, |row| row.opacity(0.5))
+                    .sx((
+                        &COMMAND.item,
+                        is_highlighted.then_some(&COMMAND.highlighted),
+                        if item.disabled {
+                            &COMMAND.inert
+                        } else {
+                            &COMMAND.interactive
+                        },
+                    ))
                     .when(!item.disabled, |row| {
-                        row.cursor(CursorStyle::PointingHand)
-                            .on_hover(move |hovered, _, cx| {
-                                if *hovered {
-                                    hover_highlight
-                                        .update(cx, |highlight| highlight.index = flat_index);
-                                }
-                            })
-                            .on_click(move |_, window, cx| {
-                                select_item(&selected_item, after_select.as_ref(), window, cx)
-                            })
+                        row.on_hover(move |hovered, _, cx| {
+                            if *hovered {
+                                hover_highlight
+                                    .update(cx, |highlight| highlight.index = flat_index);
+                            }
+                        })
+                        .on_click(move |_, window, cx| {
+                            select_item(&selected_item, after_select.as_ref(), window, cx)
+                        })
                     })
                     .when_some(item.icon, |row, icon| {
-                        row.child(Icon::new(icon).size(px(16.)).color(colors.muted_foreground))
+                        row.child(Icon::new(icon).size(px(16.)).color(muted_foreground))
                     })
-                    .child(div().flex_1().child(item.label.clone()))
+                    .child(div().sx(&COMMAND.item_label).child(item.label.clone()))
                     .when_some(item.shortcut.clone(), |row, shortcut| {
-                        row.child(
-                            div()
-                                .text_xs()
-                                .text_color(colors.muted_foreground)
-                                .child(shortcut),
-                        )
+                        row.child(div().sx(&COMMAND.shortcut).child(shortcut))
                     })
                     .when_some(item.checked, |row, checked| {
-                        row.child(div().size(px(16.)).when(checked, |slot| {
+                        row.child(div().sx(&COMMAND.check_slot).when(checked, |slot| {
                             slot.child(Icon::new(IconName::Check).size(px(16.)))
                         }))
                     }),
@@ -239,21 +274,11 @@ pub(crate) fn render_command(
     }
 
     let list = div()
+        .sx(&COMMAND.list)
         .id(child_id(id, "list"))
-        .flex_dir()
-        .flex_col()
-        .max_h(px(300.))
         .overflow_y_scroll()
-        .px(px(4.))
         .when(visible_items.is_empty(), |list| {
-            list.child(
-                div()
-                    .py(px(24.))
-                    .text_center()
-                    .text_sm()
-                    .text_color(colors.muted_foreground)
-                    .child(empty_text),
-            )
+            list.child(div().sx(&COMMAND.empty).child(empty_text))
         })
         .children(sections);
 
@@ -262,8 +287,7 @@ pub(crate) fn render_command(
     let key_items = visible_items.clone();
     let submit_after_select = after_select.clone();
     div()
-        .flex_dir()
-        .flex_col()
+        .sx(&COMMAND.root)
         .on_key_down(move |event, _, cx| {
             let count = key_items.len();
             if count == 0 {
@@ -290,14 +314,10 @@ pub(crate) fn render_command(
         .child(
             Input::new(search)
                 .leading_icon(IconName::Search)
-                .h(px(40.))
-                .border_0()
-                .rounded_none()
                 .without_focus_ring()
-                .border_b_1()
-                .border_color(colors.border),
+                .sx(&COMMAND.search),
         )
-        .child(list.pb(px(4.)))
+        .child(list)
 }
 
 fn select_item(
@@ -388,13 +408,6 @@ impl Command {
         let search = use_input_state(child_id(&self.id, "search"), window, cx, |state| {
             state.with_placeholder(placeholder)
         });
-        let theme = cx.theme();
-        let (radius, popover, popover_foreground, border) = (
-            theme.radius_medium(),
-            theme.colors.popover,
-            theme.colors.popover_foreground,
-            theme.colors.border,
-        );
         render_command(
             &self.id,
             &search,
@@ -404,14 +417,7 @@ impl Command {
             window,
             cx,
         )
-        .w_full()
-        .overflow_hidden()
-        .rounded(radius)
-        .border_1()
-        .border_color(border)
-        .bg(popover)
-        .text_color(popover_foreground)
-        .sx(&self.sx)
+        .sx((&COMMAND.frame, &self.sx))
         .apply_style_overrides(&self.style_overrides)
     }
 }
@@ -499,19 +505,13 @@ impl RenderOnce for CommandDialog {
         }
 
         let theme = cx.theme();
-        let (overlay, font_family, font_size) = (
-            theme.colors.overlay,
-            theme.font_family.clone(),
-            theme.font_size,
-        );
+        let (overlay, font_size) = (theme.colors.overlay, theme.font_size);
         let viewport_size = window.viewport_size();
         let escape_close = close.clone();
         let backdrop_close = close.clone();
         let panel = div()
             .track_focus(&focus_container)
-            .w_full()
-            .max_w(px(512.))
-            .shadow_lg()
+            .sx(&COMMAND.dialog_panel)
             .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
             .on_key_down(move |event, window, cx| {
                 if event.keystroke.key == "escape" {
@@ -526,15 +526,10 @@ impl RenderOnce for CommandDialog {
             .occlude()
             .w(viewport_size.width)
             .h(viewport_size.height)
-            .flex_dir()
-            .flex_col()
-            .items_center()
+            .sx(&COMMAND.dialog_scrim)
             .pt(viewport_size.height * 0.2)
-            .px(px(16.))
             .bg(overlay.opacity(progress))
-            .font_family(font_family)
             .text_size(font_size)
-            .when(super::direction::is_rtl(), |layer| layer.text_right())
             .on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
                 backdrop_close(window, cx)
             })

@@ -17,11 +17,10 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, prelude::*, px, AnyElement, App, Corner, CursorStyle, Div, ElementId, FontWeight,
-    MouseButton, Pixels, Point, SharedString, StyleRefinement, Window,
+    div, prelude::*, px, AnyElement, App, Corner, Div, ElementId, MouseButton, Pixels, Point,
+    SharedString, StyleRefinement, Window,
 };
 
-use super::direction::DirectionalStyled;
 use super::layer::layer_at;
 use super::overlay::{
     child_id, dismissable, floating, popover_surface, trigger_wrapper, use_open_state, Align,
@@ -32,6 +31,7 @@ use crate::{
     hooks::{use_keyed_state, EventHandler},
     icon::{Icon, IconName},
     motion::{presets, MotionExt},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -197,6 +197,46 @@ fn choose(item: &MenuItem, close_menu: &CloseMenu, window: &mut Window, cx: &mut
     close_menu(window, cx);
 }
 
+styles! {
+    MENU = {
+        panel: { max_height: 96, padding: 1 },
+        separator: { height: 0.25, margin_x: -1, margin_y: 1, background: border },
+        label: { padding_x: 2, padding_y: 1.5, text: sm, font: medium },
+        // Leaves room for the check or radio indicator.
+        inset: { padding_start: 8 },
+        item: {
+            position: relative,
+            display: flex,
+            align: center,
+            gap: 2,
+            padding_x: 2,
+            padding_y: 1.5,
+            radius: sm,
+            text: sm,
+            color: popover_foreground,
+        },
+        highlighted: { background: accent, color: accent_foreground },
+        destructive: { color: destructive_text },
+        destructive_highlighted: { background: destructive/10 },
+        interactive: { cursor: pointer },
+        inert: { opacity: 0.5 },
+        indicator: {
+            position: absolute,
+            inset_start: 2,
+            size: 4,
+            display: flex,
+            align: center,
+            justify: center,
+        },
+        radio_dot: { size: 2, radius: full },
+        icon_slot: { size: 4 },
+        // The label takes the free space; an auto margin on the trailing slot
+        // would also swallow the row's gap in GPUI's layout.
+        item_label: { flex: 1 },
+        shortcut: { padding_start: 4, text: xs, color: muted_foreground },
+    }
+}
+
 /// Render `menu` as a panel. `id` keys the highlighted row. Keyboard handling is
 /// attached when `keyboard` is true (the panel must hold focus for it to work).
 pub(crate) fn render_menu_panel(
@@ -210,9 +250,7 @@ pub(crate) fn render_menu_panel(
 ) -> Div {
     let highlighted = use_keyed_state(child_id(&id, "highlighted"), window, cx, || None::<usize>);
     let highlighted_index = highlighted.get(cx);
-    let theme = cx.theme();
-    let colors = theme.colors.clone();
-    let item_radius = theme.radius_small();
+    let colors = cx.theme().colors.clone();
     let has_indicators = menu.entries.iter().any(|entry| {
         matches!(
             entry,
@@ -226,21 +264,10 @@ pub(crate) fn render_menu_panel(
     let mut rows: Vec<AnyElement> = Vec::with_capacity(menu.entries.len());
     for (index, entry) in menu.entries.iter().cloned().enumerate() {
         match entry {
-            MenuEntry::Separator => rows.push(
-                div()
-                    .h(px(1.))
-                    .mx(px(-4.))
-                    .my(px(4.))
-                    .bg(colors.border)
-                    .into_any_element(),
-            ),
+            MenuEntry::Separator => rows.push(div().sx(&MENU.separator).into_any_element()),
             MenuEntry::Label(label) => rows.push(
                 div()
-                    .px(px(8.))
-                    .py(px(6.))
-                    .when(has_indicators, |row| row.ps(px(32.)))
-                    .text_sm()
-                    .font_weight(FontWeight::MEDIUM)
+                    .sx((&MENU.label, has_indicators.then_some(&MENU.inset)))
                     .child(label)
                     .into_any_element(),
             ),
@@ -265,13 +292,9 @@ pub(crate) fn render_menu_panel(
                             .color(text_color)
                             .into_any_element(),
                     ),
-                    MenuItemKind::Radio(true) => Some(
-                        div()
-                            .size(px(8.))
-                            .rounded_full()
-                            .bg(text_color)
-                            .into_any_element(),
-                    ),
+                    MenuItemKind::Radio(true) => {
+                        Some(div().sx(&MENU.radio_dot).bg(text_color).into_any_element())
+                    }
                     _ => None,
                 };
                 let trailing: Option<AnyElement> = match &item.kind {
@@ -283,7 +306,7 @@ pub(crate) fn render_menu_panel(
                     ),
                     MenuItemKind::SelectOption(selected) => Some(
                         div()
-                            .size(px(16.))
+                            .sx(&MENU.icon_slot)
                             .when(*selected, |slot| {
                                 slot.child(
                                     Icon::new(IconName::Check).size(px(16.)).color(text_color),
@@ -292,12 +315,7 @@ pub(crate) fn render_menu_panel(
                             .into_any_element(),
                     ),
                     _ => item.shortcut.clone().map(|shortcut| {
-                        div()
-                            .ps(px(16.))
-                            .text_xs()
-                            .text_color(colors.muted_foreground)
-                            .child(shortcut)
-                            .into_any_element()
+                        div().sx(&MENU.shortcut).child(shortcut).into_any_element()
                     }),
                 };
 
@@ -324,59 +342,42 @@ pub(crate) fn render_menu_panel(
                 let item_disabled = item.disabled;
                 let row = div()
                     .id(index)
-                    .relative()
-                    .flex_dir()
-                    .items_center()
-                    .gap(px(8.))
-                    .px(px(8.))
-                    .py(px(6.))
-                    .rounded(item_radius)
-                    .text_sm()
-                    .text_color(text_color)
-                    .when(has_indicators || item.inset, |row| row.ps(px(32.)))
-                    .when(is_highlighted, |row| {
-                        row.bg(if item.destructive {
-                            colors.destructive.opacity(0.1)
+                    .sx((
+                        &MENU.item,
+                        (has_indicators || item.inset).then_some(&MENU.inset),
+                        is_highlighted.then_some(&MENU.highlighted),
+                        item.destructive.then_some(&MENU.destructive),
+                        (item.destructive && is_highlighted)
+                            .then_some(&MENU.destructive_highlighted),
+                        if item_disabled {
+                            &MENU.inert
                         } else {
-                            colors.accent
+                            &MENU.interactive
+                        },
+                    ))
+                    .when(!item_disabled, |row| {
+                        row.on_hover(move |hovered, _, cx| {
+                            if *hovered {
+                                hover_state.set(Some(index), cx)
+                            }
+                        })
+                        .when(!is_submenu, |row| {
+                            let item = item.clone();
+                            // Mouse down, not click: a click outside the root panel
+                            // (inside a submenu) closes the menu before mouse up.
+                            row.on_mouse_down(MouseButton::Left, move |_, window, cx| {
+                                cx.stop_propagation();
+                                choose(&item, &close_menu, window, cx)
+                            })
                         })
                     })
-                    .when(item_disabled, |row| row.opacity(0.5))
-                    .when(!item_disabled, |row| {
-                        row.cursor(CursorStyle::PointingHand)
-                            .on_hover(move |hovered, _, cx| {
-                                if *hovered {
-                                    hover_state.set(Some(index), cx)
-                                }
-                            })
-                            .when(!is_submenu, |row| {
-                                let item = item.clone();
-                                // Mouse down, not click: a click outside the root panel
-                                // (inside a submenu) closes the menu before mouse up.
-                                row.on_mouse_down(MouseButton::Left, move |_, window, cx| {
-                                    cx.stop_propagation();
-                                    choose(&item, &close_menu, window, cx)
-                                })
-                            })
-                    })
                     .when_some(indicator, |row, indicator| {
-                        row.child(
-                            div()
-                                .absolute()
-                                .inset_start(px(8.))
-                                .size(px(16.))
-                                .flex_dir()
-                                .items_center()
-                                .justify_center()
-                                .child(indicator),
-                        )
+                        row.child(div().sx(&MENU.indicator).child(indicator))
                     })
                     .when_some(item.icon, |row, icon| {
                         row.child(Icon::new(icon).size(px(16.)).color(icon_color))
                     })
-                    // The label takes the free space; an auto margin on the trailing slot
-                    // would also swallow the row's gap in GPUI's layout.
-                    .child(div().flex_1().child(item.label.clone()))
+                    .child(div().sx(&MENU.item_label).child(item.label.clone()))
                     .children(trailing)
                     .children(submenu_panel);
                 rows.push(row.into_any_element());
@@ -386,11 +387,10 @@ pub(crate) fn render_menu_panel(
 
     let selectable = menu.selectable_indices();
     let panel = popover_surface(cx.theme())
+        .sx(&MENU.panel)
         .id(child_id(&id, "panel"))
         .min_w(min_width)
-        .max_h(px(384.))
         .overflow_y_scroll()
-        .p(px(4.))
         .children(rows);
 
     let panel = div().child(panel);

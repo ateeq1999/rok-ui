@@ -2,16 +2,14 @@
 
 use std::rc::Rc;
 
-use gpui::{
-    div, prelude::*, px, AnyElement, App, Div, ElementId, FontWeight, SharedString, Window,
-};
+use gpui::{div, prelude::*, px, AnyElement, App, Div, ElementId, SharedString, Window};
 
-use super::direction::DirectionalStyled;
 use super::{
     button::Button,
     interaction::{modal_presence, render_modal, Callback, ModalPlacement},
 };
-use crate::{hooks::EventHandler, icon::IconName, theme::ActiveTheme};
+use crate::sx::SxStyled;
+use crate::{hooks::EventHandler, icon::IconName, styles};
 
 /// The edge a [`Sheet`] is attached to.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -21,6 +19,53 @@ pub enum SheetSide {
     Right,
     Bottom,
     Left,
+}
+
+styles! {
+    SHEET = {
+        panel: {
+            position: relative,
+            display: flex,
+            direction: column,
+            gap: 4,
+            background: background,
+            border_color: border,
+            shadow: lg,
+        },
+        // Physical sides: `Left` and `Right` are already swapped for RTL.
+        side(SheetSide): {
+            Top: { width: full, border_bottom: 1 },
+            Right: { height: full, border_left: 1 },
+            Bottom: { width: full, border_top: 1 },
+            Left: { height: full, border_right: 1 },
+        },
+        header: { display: flex, direction: column, gap: 1.5, padding: 4 },
+        header_centered: { align: center },
+        title: { text: base, font: semibold },
+        description: { text: sm, color: muted_foreground },
+        body: { display: flex, direction: column, flex: 1, gap: 4, padding_x: 4 },
+        footer: { display: flex, direction: column, gap: 2, padding: 4 },
+        close_slot: { position: absolute, top: 3, inset_end: 3 },
+        close: { width: 7, height: 7 },
+    }
+}
+
+styles! {
+    DRAWER = {
+        panel: {
+            display: flex,
+            direction: column,
+            align: center,
+            width: full,
+            radius_top: lg,
+            border_top: 1,
+            border_color: border,
+            background: background,
+            shadow: lg,
+        },
+        handle: { margin_top: 4, height: 2, width: 25, radius: full, background: muted },
+        body: { display: flex, direction: column, width: full, max_width: 96 },
+    }
 }
 
 /// Header, body and footer shared by [`Sheet`] and [`Drawer`].
@@ -41,56 +86,33 @@ impl PanelContent {
         }
     }
 
-    fn render_into(self, panel: Div, centered_header: bool, cx: &App) -> Div {
-        let muted_foreground = cx.theme().colors.muted_foreground;
+    fn render_into(self, panel: Div, centered_header: bool) -> Div {
         let has_header = self.title.is_some() || self.description.is_some();
         panel
             .when(has_header, |panel| {
                 panel.child(
                     div()
-                        .flex_dir()
-                        .flex_col()
-                        .gap(px(6.))
-                        .p(px(16.))
-                        .when(centered_header, |header| header.items_center())
+                        .sx((
+                            &SHEET.header,
+                            centered_header.then_some(&SHEET.header_centered),
+                        ))
                         .when_some(self.title, |header, title| {
-                            header.child(
-                                div()
-                                    .text_base()
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .child(title),
-                            )
+                            header.child(div().sx(&SHEET.title).child(title))
                         })
                         .when_some(self.description, |header, description| {
-                            header.child(
-                                div()
-                                    .text_sm()
-                                    .text_color(muted_foreground)
-                                    .child(description),
-                            )
+                            header.child(div().sx(&SHEET.description).child(description))
                         }),
                 )
             })
             .child(
                 div()
+                    .sx(&SHEET.body)
                     .id("sheet-body")
-                    .flex_dir()
-                    .flex_col()
-                    .flex_1()
-                    .gap(px(16.))
-                    .px(px(16.))
                     .overflow_y_scroll()
                     .children(self.children),
             )
             .when(!self.footer.is_empty(), |panel| {
-                panel.child(
-                    div()
-                        .flex_dir()
-                        .flex_col()
-                        .gap(px(8.))
-                        .p(px(16.))
-                        .children(self.footer),
-                )
+                panel.child(div().sx(&SHEET.footer).children(self.footer))
             })
     }
 }
@@ -187,40 +209,21 @@ impl RenderOnce for Sheet {
         if !presence.is_mounted() {
             return div().into_any_element();
         }
-        let theme = cx.theme();
-        let colors = theme.colors.clone();
         let close = to_callback(self.on_close);
         let close_from_button = close.clone();
         let viewport_size = window.viewport_size();
 
-        let panel = div()
-            .relative()
-            .flex_dir()
-            .flex_col()
-            .gap(px(16.))
-            .bg(colors.background)
-            .border_color(colors.border)
-            .shadow_lg()
-            .map(|panel| match side {
-                SheetSide::Right => panel
-                    .h_full()
-                    .w(px(384.).min(viewport_size.width * 0.75))
-                    .border_l_1(),
-                SheetSide::Left => panel
-                    .h_full()
-                    .w(px(384.).min(viewport_size.width * 0.75))
-                    .border_r_1(),
-                SheetSide::Top => panel.w_full().border_b_1(),
-                SheetSide::Bottom => panel.w_full().border_t_1(),
-            });
-        let panel = self.content.render_into(panel, false, cx).child(
-            div().absolute().top(px(12.)).inset_end(px(12.)).child(
+        let panel = div().sx((&SHEET.panel, SHEET.side(side))).when(
+            matches!(side, SheetSide::Left | SheetSide::Right),
+            |panel| panel.w(px(384.).min(viewport_size.width * 0.75)),
+        );
+        let panel = self.content.render_into(panel, false).child(
+            div().sx(&SHEET.close_slot).child(
                 Button::new("sheet-close")
                     .ghost()
                     .small()
                     .icon_only(IconName::Close)
-                    .w(px(28.))
-                    .h(px(28.))
+                    .sx(&SHEET.close)
                     .tooltip("Close")
                     .on_click(move |_, window, cx| close_from_button(window, cx)),
             ),
@@ -314,36 +317,14 @@ impl RenderOnce for Drawer {
         if !presence.is_mounted() {
             return div().into_any_element();
         }
-        let theme = cx.theme();
-        let colors = theme.colors.clone();
         let close = to_callback(self.on_close);
         let viewport_size = window.viewport_size();
-        let radius = theme.radius_large();
 
         let panel = div()
-            .flex_dir()
-            .flex_col()
-            .items_center()
-            .w_full()
+            .sx(&DRAWER.panel)
             .max_h(viewport_size.height * 0.8)
-            .rounded_t(radius)
-            .border_t_1()
-            .border_color(colors.border)
-            .bg(colors.background)
-            .shadow_lg()
-            .child(
-                div()
-                    .mt(px(16.))
-                    .h(px(8.))
-                    .w(px(100.))
-                    .rounded_full()
-                    .bg(colors.muted),
-            );
-        let body = self.content.render_into(
-            div().flex_dir().flex_col().w_full().max_w(px(384.)),
-            true,
-            cx,
-        );
+            .child(div().sx(&DRAWER.handle));
+        let body = self.content.render_into(div().sx(&DRAWER.body), true);
 
         render_modal(
             self.id,

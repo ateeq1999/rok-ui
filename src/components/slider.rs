@@ -3,22 +3,50 @@
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{
-    div, prelude::*, px, relative, App, Bounds, CursorStyle, ElementId, MouseButton, Pixels, Point,
+    div, prelude::*, px, relative, App, Bounds, ElementId, MouseButton, Pixels, Point,
     StyleRefinement, Window,
 };
 
 use super::direction::DirectionalStyled;
 use super::{
-    focus_ring_shadow,
     interaction::{measure_bounds, track_drag},
     overlay::child_id,
 };
 use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler, State},
+    styles,
     styles::ApplyStyleOverrides,
-    theme::ActiveTheme,
 };
+
+styles! {
+    SLIDER = {
+        root: { position: relative, display: flex, align: center, width: full, height: 4 },
+        interactive: { cursor: pointer },
+        inert: { opacity: 0.5 },
+        track: {
+            position: relative,
+            width: full,
+            height: 1.5,
+            radius: full,
+            overflow: hidden,
+            background: muted,
+        },
+        range: { position: absolute, top: 0, height: full, background: primary },
+        // Centered on its value: half its width before the point.
+        thumb: {
+            position: absolute,
+            margin_start: -2,
+            size: 4,
+            radius: full,
+            border: 1,
+            border_color: primary,
+            background: background,
+            shadow: sm,
+        },
+        thumb_interactive: { cursor: pointer, focus: { shadow: ring } },
+    }
+}
 
 /// Controlled: pass the value(s), update them in `on_change`. One value makes a
 /// single slider; two (`.range(..)`) make a range with two thumbs.
@@ -208,8 +236,6 @@ impl RenderOnce for Slider {
             step: self.step,
             on_change: self.on_change,
         };
-        let colors = cx.theme().colors.clone();
-        let ring_color = colors.ring;
         let is_interactive = !self.disabled;
 
         let (fill_start, fill_end) = match model.values.as_slice() {
@@ -223,39 +249,31 @@ impl RenderOnce for Slider {
             let value = *value;
             div()
                 .id(("slider-thumb", index))
-                .absolute()
+                .sx((
+                    &SLIDER.thumb,
+                    is_interactive.then_some(&SLIDER.thumb_interactive),
+                ))
                 .inset_start(relative(model.fraction(value)))
-                .ms(px(-8.))
-                .size(px(16.))
-                .rounded_full()
-                .border_1()
-                .border_color(colors.primary)
-                .bg(colors.background)
-                .shadow_sm()
                 .when(is_interactive, |thumb| {
-                    thumb
-                        .tab_index(0)
-                        .cursor(CursorStyle::PointingHand)
-                        .focus(move |style| style.shadow(focus_ring_shadow(ring_color)))
-                        .on_key_down(move |event, window, cx| {
-                            let target = match event.keystroke.key.as_str() {
-                                "up" => value + key_model.step,
-                                "down" => value - key_model.step,
-                                // The track runs right to left in RTL.
-                                "right" if key_model.rtl => value - key_model.step,
-                                "left" if key_model.rtl => value + key_model.step,
-                                "right" => value + key_model.step,
-                                "left" => value - key_model.step,
-                                "pageup" => value + key_model.step * 10.,
-                                "pagedown" => value - key_model.step * 10.,
-                                "home" => key_model.min,
-                                "end" => key_model.max,
-                                _ => return,
-                            };
-                            cx.stop_propagation();
-                            let target = snap(target, key_model.min, key_model.max, key_model.step);
-                            key_model.set(index, target, window, cx);
-                        })
+                    thumb.tab_index(0).on_key_down(move |event, window, cx| {
+                        let target = match event.keystroke.key.as_str() {
+                            "up" => value + key_model.step,
+                            "down" => value - key_model.step,
+                            // The track runs right to left in RTL.
+                            "right" if key_model.rtl => value - key_model.step,
+                            "left" if key_model.rtl => value + key_model.step,
+                            "right" => value + key_model.step,
+                            "left" => value - key_model.step,
+                            "pageup" => value + key_model.step * 10.,
+                            "pagedown" => value - key_model.step * 10.,
+                            "home" => key_model.min,
+                            "end" => key_model.max,
+                            _ => return,
+                        };
+                        cx.stop_propagation();
+                        let target = snap(target, key_model.min, key_model.max, key_model.step);
+                        key_model.set(index, target, window, cx);
+                    })
                 })
         });
 
@@ -268,35 +286,26 @@ impl RenderOnce for Slider {
 
         div()
             .id(self.id)
-            .relative()
-            .flex_dir()
-            .items_center()
-            .w_full()
-            .h(px(16.))
-            .when(!is_interactive, |slider| slider.opacity(0.5))
+            .sx((
+                &SLIDER.root,
+                if is_interactive {
+                    &SLIDER.interactive
+                } else {
+                    &SLIDER.inert
+                },
+                &self.sx,
+            ))
             .child(
-                div()
-                    .relative()
-                    .w_full()
-                    .h(px(6.))
-                    .rounded_full()
-                    .overflow_hidden()
-                    .bg(colors.muted)
-                    .child(measure_bounds(bounds))
-                    .child(
-                        div()
-                            .absolute()
-                            .top_0()
-                            .h_full()
-                            .inset_start(relative(fill_start))
-                            .w(relative(fill_end - fill_start))
-                            .bg(colors.primary),
-                    ),
+                div().sx(&SLIDER.track).child(measure_bounds(bounds)).child(
+                    div()
+                        .sx(&SLIDER.range)
+                        .inset_start(relative(fill_start))
+                        .w(relative(fill_end - fill_start)),
+                ),
             )
             .children(thumbs)
             .when(is_interactive, |slider| {
                 slider
-                    .cursor(CursorStyle::PointingHand)
                     .on_mouse_down(MouseButton::Left, move |event, window, cx| {
                         let value = press_model.value_at(event.position, press_bounds.get());
                         let thumb = press_model.nearest_thumb(value);
@@ -316,7 +325,6 @@ impl RenderOnce for Slider {
                         }),
                     ))
             })
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

@@ -4,7 +4,6 @@ use std::rc::Rc;
 
 use gpui::{div, prelude::*, px, AnyElement, App, ElementId, StyleRefinement, Window};
 
-use super::direction::DirectionalStyled;
 use super::{
     button::{Button, IconPosition},
     direction::ActiveDirection,
@@ -13,6 +12,7 @@ use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -106,6 +106,14 @@ impl Pagination {
     }
 }
 
+styles! {
+    PAGINATION = {
+        nav: { display: flex, align: center, justify: center, gap: 1 },
+        page: { width: 9, padding_x: 0 },
+        ellipsis: { size: 9, display: flex, align: center, justify: center },
+    }
+}
+
 impl RenderOnce for Pagination {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
         let muted_foreground = cx.theme().colors.muted_foreground;
@@ -150,8 +158,7 @@ impl RenderOnce for Pagination {
                 PageSlot::Page(page) => {
                     let button = Button::new(("pagination-page", page))
                         .label(page.to_string())
-                        .w(px(36.))
-                        .px(px(0.))
+                        .sx(&PAGINATION.page)
                         .on_click(go_to(page));
                     if page == current_page {
                         button.outline().into_any_element()
@@ -161,10 +168,7 @@ impl RenderOnce for Pagination {
                 }
                 PageSlot::Ellipsis => div()
                     .id(("pagination-ellipsis", slot_index))
-                    .size(px(36.))
-                    .flex_dir()
-                    .items_center()
-                    .justify_center()
+                    .sx(&PAGINATION.ellipsis)
                     .child(
                         Icon::new(IconName::Ellipsis)
                             .size(px(16.))
@@ -176,14 +180,10 @@ impl RenderOnce for Pagination {
 
         div()
             .id(self.id)
-            .flex_dir()
-            .items_center()
-            .justify_center()
-            .gap(px(4.))
+            .sx((&PAGINATION.nav, &self.sx))
             .child(previous)
             .children(pages)
             .child(next)
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

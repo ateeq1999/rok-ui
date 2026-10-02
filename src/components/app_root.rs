@@ -3,9 +3,22 @@
 
 use gpui::{actions, div, prelude::*, AnyElement, App, KeyBinding, StyleRefinement, Window};
 
-use super::direction::DirectionalStyled;
 use crate::sx::SxStyled;
-use crate::{styles::ApplyStyleOverrides, theme::ActiveTheme};
+use crate::{styles, styles::ApplyStyleOverrides, theme::ActiveTheme};
+
+styles! {
+    APP_ROOT = {
+        root: {
+            size: full,
+            display: flex,
+            direction: column,
+            background: background,
+            color: foreground,
+            font_family: sans,
+            text_align: start,
+        },
+    }
+}
 
 actions!(rok_ui, [FocusNextElement, FocusPreviousElement]);
 
@@ -75,19 +88,12 @@ impl RenderOnce for AppRoot {
         div()
             .id("rok-ui-app-root")
             .track_focus(&root_focus_handle)
-            .size_full()
-            .flex_dir()
-            .flex_col()
-            .bg(theme.colors.background)
-            .text_color(theme.colors.foreground)
-            .font_family(theme.font_family.clone())
+            .sx((&APP_ROOT.root, &self.sx))
             .text_size(theme.font_size)
-            .when(super::direction::is_rtl(), |root| root.text_right())
             .on_action(|_: &FocusNextElement, window, _| window.focus_next())
             .on_action(|_: &FocusPreviousElement, window, _| window.focus_prev())
             .children(self.children)
             .children(toaster())
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

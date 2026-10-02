@@ -3,18 +3,36 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, point, prelude::*, px, AnyElement, App, CursorStyle, ElementId, MouseButton, Pixels,
-    ScrollHandle, StyleRefinement, Window,
+    div, point, prelude::*, px, AnyElement, App, ElementId, MouseButton, Pixels, ScrollHandle,
+    StyleRefinement, Window,
 };
 
-use super::direction::DirectionalStyled;
 use super::{interaction::track_drag, overlay::child_id};
 use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, State},
+    styles,
     styles::ApplyStyleOverrides,
-    theme::ActiveTheme,
 };
+
+styles! {
+    SCROLL_AREA = {
+        root: { position: relative, overflow: hidden },
+        content: { display: flex },
+        content_column: { direction: column },
+        track: { position: absolute, padding: 0.25 },
+        track_vertical: { top: 0.5, inset_end: 0.25, width: 2.5 },
+        track_horizontal: { left: 0.5, bottom: 0.25, height: 2.5 },
+        thumb_frame: { position: relative, size: full },
+        thumb: {
+            position: absolute,
+            radius: full,
+            background: border,
+            cursor: default,
+            hover: { background: muted_foreground/50 },
+        },
+    }
+}
 
 /// Which way a [`ScrollArea`] scrolls.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -102,8 +120,6 @@ impl RenderOnce for ScrollArea {
             });
         let handle = memory.read(cx).handle.clone();
         let drag = memory.read(cx).drag;
-        let colors = cx.theme().colors.clone();
-        let thumb_color = colors.border;
         let viewport = handle.bounds().size;
         let max_offset = handle.max_offset();
         let offset = handle.offset();
@@ -129,11 +145,7 @@ impl RenderOnce for ScrollArea {
                 } else {
                     "scroll-thumb-x"
                 })
-                .absolute()
-                .rounded_full()
-                .bg(thumb_color)
-                .hover(|style| style.bg(colors.muted_foreground.opacity(0.5)))
-                .cursor(CursorStyle::Arrow)
+                .sx(&SCROLL_AREA.thumb)
                 .map(|thumb| {
                     if vertical {
                         thumb.top(thumb_offset).h(thumb_length).w_full()
@@ -154,20 +166,18 @@ impl RenderOnce for ScrollArea {
                 });
             Some(
                 div()
-                    .absolute()
-                    .p(px(1.))
                     .map(|track| {
                         if vertical {
                             track
-                                .top(px(2.))
-                                .inset_end(px(1.))
-                                .w(px(10.))
+                                .sx((&SCROLL_AREA.track, &SCROLL_AREA.track_vertical))
                                 .h(track_length)
                         } else {
-                            track.left(px(2.)).bottom(px(1.)).h(px(10.)).w(track_length)
+                            track
+                                .sx((&SCROLL_AREA.track, &SCROLL_AREA.track_horizontal))
+                                .w(track_length)
                         }
                     })
-                    .child(div().relative().size_full().child(thumb))
+                    .child(div().sx(&SCROLL_AREA.thumb_frame).child(thumb))
                     .into_any_element(),
             )
         };
@@ -187,17 +197,17 @@ impl RenderOnce for ScrollArea {
             })
             .child(
                 div()
-                    .flex_dir()
-                    .when(scrolls_vertically && !scrolls_horizontally, |inner| {
-                        inner.flex_col()
-                    })
+                    .sx((
+                        &SCROLL_AREA.content,
+                        (scrolls_vertically && !scrolls_horizontally)
+                            .then_some(&SCROLL_AREA.content_column),
+                    ))
                     .children(self.children),
             );
 
         div()
             .id(self.id)
-            .relative()
-            .overflow_hidden()
+            .sx((&SCROLL_AREA.root, &self.sx))
             .child(content)
             .children(vertical_bar)
             .children(horizontal_bar)
@@ -231,7 +241,6 @@ impl RenderOnce for ScrollArea {
                 }),
                 Rc::new(move |_, cx| end_memory.update(cx, |memory| memory.drag = None)),
             ))
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

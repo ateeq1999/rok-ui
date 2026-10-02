@@ -3,13 +3,11 @@
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{
-    div, prelude::*, px, relative, AnyElement, App, Bounds, CursorStyle, ElementId, MouseButton,
-    Pixels, StyleRefinement, Window,
+    div, prelude::*, px, relative, AnyElement, App, Bounds, ElementId, MouseButton, Pixels,
+    StyleRefinement, Window,
 };
 
-use super::direction::DirectionalStyled;
 use super::{
-    focus_ring_shadow,
     interaction::{measure_bounds, track_drag},
     overlay::child_id,
 };
@@ -17,9 +15,62 @@ use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, State},
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
-    theme::ActiveTheme,
 };
+
+styles! {
+    RESIZABLE = {
+        group: { position: relative, display: flex, size: full },
+        group_direction(ResizableDirection): {
+            Horizontal: {},
+            Vertical: { direction: column },
+        },
+        panel: {
+            display: flex,
+            direction: column,
+            grow: 1,
+            shrink: 1,
+            min_width: 0,
+            min_height: 0,
+            overflow: hidden,
+        },
+        handle: {
+            position: relative,
+            display: flex,
+            flex: none,
+            align: center,
+            justify: center,
+            background: border,
+            focus: { shadow: ring },
+        },
+        handle_direction(ResizableDirection): {
+            Horizontal: { width: 0.25, height: full, cursor: ew_resize },
+            Vertical: { height: 0.25, width: full, cursor: ns_resize },
+        },
+        handle_dragging: { background: ring },
+        // A wider invisible strip makes the 1px line easy to grab.
+        hit_area: { position: absolute },
+        hit_area_direction(ResizableDirection): {
+            Horizontal: { top: 0, height: full, width: 2.25, left: -1, cursor: ew_resize },
+            Vertical: { left: 0, width: full, height: 2.25, top: -1, cursor: ns_resize },
+        },
+        grip: {
+            position: absolute,
+            display: flex,
+            align: center,
+            justify: center,
+            radius: 0.5,
+            border: 1,
+            border_color: border,
+            background: border,
+        },
+        grip_direction(ResizableDirection): {
+            Horizontal: { height: 4, width: 3, left: -1.5 },
+            Vertical: { width: 4, height: 3, top: -1.5 },
+        },
+    }
+}
 
 /// Which way the panels are laid out.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -191,8 +242,7 @@ impl RenderOnce for ResizablePanelGroup {
         let is_horizontal = self.direction == ResizableDirection::Horizontal;
         // Captured while rendering: handlers run outside the `Direction` scope.
         let rtl = is_horizontal && super::direction::is_rtl();
-        let colors = cx.theme().colors.clone();
-        let ring_color = colors.ring;
+        let direction = self.direction;
         let panel_count = self.panels.len();
 
         let mut children: Vec<AnyElement> = Vec::new();
@@ -200,14 +250,8 @@ impl RenderOnce for ResizablePanelGroup {
             let basis = relative(sizes[index] / 100.);
             children.push(
                 div()
-                    .flex_dir()
-                    .flex_col()
-                    .flex_grow()
-                    .flex_shrink()
+                    .sx(&RESIZABLE.panel)
                     .flex_basis(basis)
-                    .min_w_0()
-                    .min_h_0()
-                    .overflow_hidden()
                     .children(panel.children)
                     .into_any_element(),
             );
@@ -219,68 +263,23 @@ impl RenderOnce for ResizablePanelGroup {
             let key_limits = limits.clone();
             let grip = self.with_handle.then(|| {
                 div()
-                    .absolute()
-                    .flex_dir()
-                    .items_center()
-                    .justify_center()
-                    .rounded(px(2.))
-                    .border_1()
-                    .border_color(colors.border)
-                    .bg(colors.border)
-                    .map(|grip| {
-                        if is_horizontal {
-                            grip.h(px(16.)).w(px(12.)).left(px(-6.))
-                        } else {
-                            grip.w(px(16.)).h(px(12.)).top(px(-6.))
-                        }
-                    })
+                    .sx((&RESIZABLE.grip, RESIZABLE.grip_direction(direction)))
                     .child(Icon::new(IconName::GripVertical).size(px(10.)))
             });
             children.push(
                 div()
                     .id(("resizable-handle", index))
-                    .relative()
-                    .flex_dir()
-                    .flex_none()
-                    .items_center()
-                    .justify_center()
-                    .bg(if dragging_handle == Some(index) {
-                        colors.ring
-                    } else {
-                        colors.border
-                    })
-                    .map(|handle| {
-                        if is_horizontal {
-                            handle
-                                .w(px(1.))
-                                .h_full()
-                                .cursor(CursorStyle::ResizeLeftRight)
-                        } else {
-                            handle.h(px(1.)).w_full().cursor(CursorStyle::ResizeUpDown)
-                        }
-                    })
+                    .sx((
+                        &RESIZABLE.handle,
+                        RESIZABLE.handle_direction(direction),
+                        (dragging_handle == Some(index)).then_some(&RESIZABLE.handle_dragging),
+                    ))
                     .tab_index(0)
-                    .focus(move |style| style.shadow(focus_ring_shadow(ring_color)))
                     // A wider invisible strip makes the 1px line easy to grab.
                     .child(
                         div()
                             .id(("resizable-hit-area", index))
-                            .absolute()
-                            .map(|area| {
-                                if is_horizontal {
-                                    area.top_0()
-                                        .h_full()
-                                        .w(px(9.))
-                                        .left(px(-4.))
-                                        .cursor(CursorStyle::ResizeLeftRight)
-                                } else {
-                                    area.left_0()
-                                        .w_full()
-                                        .h(px(9.))
-                                        .top(px(-4.))
-                                        .cursor(CursorStyle::ResizeUpDown)
-                                }
-                            })
+                            .sx((&RESIZABLE.hit_area, RESIZABLE.hit_area_direction(direction)))
                             .on_mouse_down(MouseButton::Left, move |_, _, cx| {
                                 cx.stop_propagation();
                                 press_memory
@@ -311,10 +310,11 @@ impl RenderOnce for ResizablePanelGroup {
         let end_memory = memory.clone();
         div()
             .id(self.id)
-            .relative()
-            .flex_dir()
-            .size_full()
-            .when(!is_horizontal, |group| group.flex_col())
+            .sx((
+                &RESIZABLE.group,
+                RESIZABLE.group_direction(direction),
+                &self.sx,
+            ))
             .child(measure_bounds(bounds))
             .children(children)
             .child(track_drag(
@@ -346,7 +346,6 @@ impl RenderOnce for ResizablePanelGroup {
                 }),
                 Rc::new(move |_, cx| end_memory.update(cx, |memory| memory.dragging_handle = None)),
             ))
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

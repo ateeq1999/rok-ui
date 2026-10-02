@@ -1,11 +1,11 @@
 //! Badge: a small status label.
 
-use gpui::{div, prelude::*, px, App, FontWeight, SharedString, StyleRefinement, Window};
+use gpui::{div, prelude::*, px, App, SharedString, StyleRefinement, Window};
 
-use super::direction::DirectionalStyled;
 use crate::sx::SxStyled;
 use crate::{
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -54,44 +54,54 @@ impl Badge {
     }
 }
 
+styles! {
+    BADGE = {
+        root: {
+            display: flex,
+            flex: none,
+            align: center,
+            gap: 1,
+            padding_x: 2,
+            padding_y: 0.5,
+            radius: md,
+            border: 1,
+            text: xs,
+            font: medium,
+            whitespace: nowrap,
+        },
+        variant(BadgeVariant): {
+            Primary: { background: primary, color: primary_foreground, border_color: primary },
+            Secondary: {
+                background: secondary,
+                color: secondary_foreground,
+                border_color: secondary,
+            },
+            Destructive: {
+                background: destructive,
+                color: destructive_foreground,
+                border_color: destructive,
+            },
+            Outline: { background: transparent, color: foreground, border_color: border },
+        },
+    }
+}
+
 impl RenderOnce for Badge {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = cx.theme();
-        let colors = &theme.colors;
-        let (background, text, border) = match self.variant {
-            BadgeVariant::Primary => (colors.primary, colors.primary_foreground, colors.primary),
-            BadgeVariant::Secondary => (
-                colors.secondary,
-                colors.secondary_foreground,
-                colors.secondary,
-            ),
-            BadgeVariant::Destructive => (
-                colors.destructive,
-                colors.destructive_foreground,
-                colors.destructive,
-            ),
-            BadgeVariant::Outline => (gpui::transparent_black(), colors.foreground, colors.border),
+        // Icons do not inherit text color in GPUI.
+        let colors = &cx.theme().colors;
+        let icon_color = match self.variant {
+            BadgeVariant::Primary => colors.primary_foreground,
+            BadgeVariant::Secondary => colors.secondary_foreground,
+            BadgeVariant::Destructive => colors.destructive_foreground,
+            BadgeVariant::Outline => colors.foreground,
         };
         div()
-            .flex_dir()
-            .flex_none()
-            .items_center()
-            .gap(px(4.))
-            .px(px(8.))
-            .py(px(2.))
-            .rounded(theme.radius_medium())
-            .border_1()
-            .border_color(border)
-            .bg(background)
-            .text_color(text)
-            .text_xs()
-            .font_weight(FontWeight::MEDIUM)
-            .whitespace_nowrap()
+            .sx((&BADGE.root, BADGE.variant(self.variant), &self.sx))
             .when_some(self.icon, |badge, icon| {
-                badge.child(Icon::new(icon).size(px(12.)).color(text))
+                badge.child(Icon::new(icon).size(px(12.)).color(icon_color))
             })
             .child(self.label)
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

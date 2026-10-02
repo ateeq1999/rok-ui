@@ -3,16 +3,15 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, prelude::*, px, AnyElement, App, CursorStyle, ElementId, FontWeight, SharedString,
-    StyleRefinement, Window,
+    div, prelude::*, px, AnyElement, App, ElementId, SharedString, StyleRefinement, Window,
 };
 
-use super::direction::DirectionalStyled;
 use super::{interaction::on_activate, overlay::child_id};
 use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler},
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -116,13 +115,40 @@ impl Accordion {
     }
 }
 
+styles! {
+    ACCORDION = {
+        root: { display: flex, direction: column, width: full },
+        item: { display: flex, direction: column },
+        divided: { border_bottom: 1, border_color: border },
+        trigger: {
+            display: flex,
+            align: start,
+            justify: between,
+            gap: 4,
+            padding_y: 4,
+            radius: md,
+            text: sm,
+            font: medium,
+        },
+        trigger_interactive: {
+            cursor: pointer,
+            border: 1,
+            border_color: transparent,
+            hover: { underline: true },
+            focus: { border_color: ring },
+        },
+        trigger_inert: { opacity: 0.5 },
+        title: { flex: 1 },
+        panel: { display: flex, direction: column, gap: 2, padding_bottom: 4, text: sm },
+    }
+}
+
 impl RenderOnce for Accordion {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let default_open = self.default_open.clone();
         let internal = use_keyed_state(child_id(&self.id, "open"), window, cx, || default_open);
         let open_items = self.open_items.clone().unwrap_or_else(|| internal.get(cx));
-        let theme = cx.theme();
-        let colors = theme.colors.clone();
+        let muted_foreground = cx.theme().colors.muted_foreground;
         let item_count = self.items.len();
         let multiple = self.multiple;
 
@@ -149,18 +175,17 @@ impl RenderOnce for Accordion {
                     }
                 })
             };
-            let ring_color = colors.ring;
             let trigger = div()
                 .id(("accordion-trigger", index))
-                .flex_dir()
-                .items_start()
-                .justify_between()
-                .gap(px(16.))
-                .py(px(16.))
-                .rounded(theme.radius_medium())
-                .text_sm()
-                .font_weight(FontWeight::MEDIUM)
-                .child(div().flex_1().child(item.title))
+                .sx((
+                    &ACCORDION.trigger,
+                    if item.disabled {
+                        &ACCORDION.trigger_inert
+                    } else {
+                        &ACCORDION.trigger_interactive
+                    },
+                ))
+                .child(div().sx(&ACCORDION.title).child(item.title))
                 .child(
                     Icon::new(if is_open {
                         IconName::ChevronUp
@@ -168,50 +193,29 @@ impl RenderOnce for Accordion {
                         IconName::ChevronDown
                     })
                     .size(px(16.))
-                    .color(colors.muted_foreground)
+                    .color(muted_foreground)
                     .mt(px(2.)),
                 );
             let trigger = if item.disabled {
-                trigger.opacity(0.5)
+                trigger
             } else {
-                on_activate(
-                    trigger
-                        .tab_index(0)
-                        .cursor(CursorStyle::PointingHand)
-                        .hover(|style| style.underline())
-                        .border_1()
-                        .border_color(gpui::transparent_black())
-                        .focus(move |style| style.border_color(ring_color)),
-                    toggle,
-                )
+                on_activate(trigger.tab_index(0), toggle)
             };
             div()
-                .flex_dir()
-                .flex_col()
-                .when(index + 1 < item_count, |item_row| {
-                    item_row.border_b_1().border_color(colors.border)
-                })
+                .sx((
+                    &ACCORDION.item,
+                    (index + 1 < item_count).then_some(&ACCORDION.divided),
+                ))
                 .child(trigger)
                 .when(is_open, |item_row| {
-                    item_row.child(
-                        div()
-                            .flex_dir()
-                            .flex_col()
-                            .gap(px(8.))
-                            .pb(px(16.))
-                            .text_sm()
-                            .children(item.children),
-                    )
+                    item_row.child(div().sx(&ACCORDION.panel).children(item.children))
                 })
         });
 
         div()
             .id(self.id)
-            .flex_dir()
-            .flex_col()
-            .w_full()
+            .sx((&ACCORDION.root, &self.sx))
             .children(items)
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

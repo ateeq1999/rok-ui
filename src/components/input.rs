@@ -13,22 +13,21 @@ use std::ops::Range;
 
 use gpui::{
     actions, div, fill, point, prelude::*, px, relative, size, App, Bounds, ClipboardItem, Context,
-    CursorStyle, ElementId, ElementInputHandler, Entity, EntityInputHandler, EventEmitter,
-    FocusHandle, Focusable, GlobalElementId, Hsla, KeyBinding, LayoutId, MouseButton,
-    MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point, ShapedLine,
-    SharedString, Style, StyleRefinement, TextRun, UTF16Selection, UnderlineStyle, Window,
-    WrappedLine,
+    ElementId, ElementInputHandler, Entity, EntityInputHandler, EventEmitter, FocusHandle,
+    Focusable, GlobalElementId, Hsla, KeyBinding, LayoutId, MouseButton, MouseDownEvent,
+    MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point, ShapedLine, SharedString, Style,
+    StyleRefinement, TextRun, UTF16Selection, UnderlineStyle, Window, WrappedLine,
 };
 use unicode_segmentation::UnicodeSegmentation;
 
 mod textarea;
 pub use textarea::{use_textarea_state, Textarea};
 
-use super::direction::DirectionalStyled;
 use super::focus_ring_outline;
 use crate::sx::SxStyled;
 use crate::{
     icon::{Icon, IconName},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -109,6 +108,8 @@ pub struct InputState {
     last_bounds: Option<Bounds<Pixels>>,
     /// Wrapped paragraphs from the last paint of a multi-line field.
     last_wrapped_lines: Vec<WrappedLine>,
+    /// Per paragraph, per visual row: the RTL right-alignment shift (empty in LTR).
+    last_row_offsets: Vec<Vec<Pixels>>,
     last_line_height: Pixels,
     is_selecting: bool,
 }
@@ -136,6 +137,7 @@ impl InputState {
             last_layout: None,
             last_bounds: None,
             last_wrapped_lines: Vec::new(),
+            last_row_offsets: Vec::new(),
             last_line_height: px(20.),
             is_selecting: false,
         }
@@ -397,8 +399,13 @@ impl InputState {
                 let y_in_line = (local.y - line_top)
                     .max(px(0.))
                     .min(line_bottom - line_top - px(1.));
+                // Undo this row's RTL alignment shift before hit testing.
+                let shift = self.row_offset(index, y_in_line);
                 let index_in_line = line
-                    .closest_index_for_position(point(local.x.max(px(0.)), y_in_line), line_height)
+                    .closest_index_for_position(
+                        point((local.x - shift).max(px(0.)), y_in_line),
+                        line_height,
+                    )
                     .unwrap_or_else(|index| index);
                 return (paragraph_start + index_in_line).min(self.content.len());
             }
@@ -413,16 +420,45 @@ impl InputState {
         let line_height = self.last_line_height;
         let mut paragraph_start = 0;
         let mut line_top = px(0.);
-        for line in &self.last_wrapped_lines {
+        for (index, line) in self.last_wrapped_lines.iter().enumerate() {
             if offset <= paragraph_start + line.len() {
                 return line
                     .position_for_index(offset - paragraph_start, line_height)
-                    .map(|position| point(position.x, position.y + line_top));
+                    .map(|position| {
+                        let shift = self.row_offset(index, position.y);
+                        point(position.x + shift, position.y + line_top)
+                    });
             }
             paragraph_start += line.len() + 1;
             line_top += line.size(line_height).height;
         }
         None
+    }
+
+    /// Left edge of the text on the visual row at `y` (relative to the text's top).
+    /// Zero in LTR; the right-alignment shift in RTL.
+    pub(crate) fn multiline_row_left(&self, y: Pixels) -> Pixels {
+        let line_height = self.last_line_height;
+        let mut line_top = px(0.);
+        for (index, line) in self.last_wrapped_lines.iter().enumerate() {
+            let height = line.size(line_height).height;
+            if y < line_top + height {
+                return self.row_offset(index, y - line_top);
+            }
+            line_top += height;
+        }
+        px(0.)
+    }
+
+    /// How far visual row `y` (within paragraph `paragraph`) is shifted right by
+    /// RTL alignment. Zero in LTR.
+    fn row_offset(&self, paragraph: usize, y: Pixels) -> Pixels {
+        let row = (y / self.last_line_height).floor().max(0.) as usize;
+        self.last_row_offsets
+            .get(paragraph)
+            .and_then(|rows| rows.get(row))
+            .copied()
+            .unwrap_or(px(0.))
     }
 
     /// Offset one visual row above (`rows = -1`) or below (`rows = 1`) the cursor.
@@ -721,19 +757,40 @@ impl Input {
     }
 }
 
+styles! {
+    INPUT = {
+        // No shadows: GPUI paints them under the element, so they would tint the
+        // transparent field. The focus ring is an outline instead.
+        field: {
+            position: relative,
+            display: flex,
+            align: center,
+            gap: 2,
+            width: full,
+            height: 9,
+            padding_x: 3,
+            radius: md,
+            border: 1,
+            border_color: input,
+            background: transparent,
+            color: foreground,
+            text: sm,
+            line_height: 5,
+        },
+        focused: { border_color: ring },
+        invalid: { border_color: destructive_text },
+        enabled: { cursor: text },
+        disabled: { opacity: 0.5 },
+        text: { flex: 1, overflow: hidden },
+    }
+}
+
 impl RenderOnce for Input {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = cx.theme();
         let colors = theme.colors.clone();
         let focus_handle = self.state.read(cx).focus_handle.clone();
         let is_focused = focus_handle.is_focused(window);
-        let border_color = if self.invalid {
-            colors.destructive_text
-        } else if is_focused {
-            colors.ring
-        } else {
-            colors.input
-        };
         let ring_color = if self.invalid {
             colors.destructive_text
         } else {
@@ -746,26 +803,20 @@ impl RenderOnce for Input {
                 "rok-ui-input".into(),
                 self.state.entity_id().as_u64(),
             ))
-            .flex_dir()
-            .items_center()
-            .gap(px(8.))
-            .w_full()
-            .h(px(36.))
-            .px(px(12.))
-            .rounded(theme.radius_medium())
-            .border_1()
-            .border_color(border_color)
-            .bg(gpui::transparent_black())
-            .text_color(colors.foreground)
-            .text_sm()
-            .line_height(px(20.))
-            // No shadows: GPUI paints them under the element, so they would tint the
-            // transparent field. The focus ring is an outline instead.
-            .relative()
+            .sx((
+                &INPUT.field,
+                is_focused.then_some(&INPUT.focused),
+                self.invalid.then_some(&INPUT.invalid),
+                if self.disabled {
+                    &INPUT.disabled
+                } else {
+                    &INPUT.enabled
+                },
+                &self.sx,
+            ))
             .when(is_focused && self.focus_ring, |field| {
                 field.child(focus_ring_outline(ring_color, theme.radius_medium()))
             })
-            .when(self.disabled, |field| field.opacity(0.5))
             .when_some(self.leading_icon, |field, icon| {
                 field.child(Icon::new(icon).size(px(16.)).color(colors.muted_foreground))
             })
@@ -773,7 +824,6 @@ impl RenderOnce for Input {
                 field
                     .key_context(INPUT_KEY_CONTEXT)
                     .track_focus(&focus_handle)
-                    .cursor(CursorStyle::IBeam)
                     .on_action(forward_to_state(&state, InputState::delete_backward))
                     .on_action(forward_to_state(&state, InputState::delete_forward))
                     .on_action(forward_to_state(&state, InputState::move_left))
@@ -801,13 +851,12 @@ impl RenderOnce for Input {
                     )
                     .on_mouse_move(forward_to_state(&state, InputState::on_mouse_move))
             })
-            .child(div().flex_1().overflow_hidden().child(InputTextElement {
+            .child(div().sx(&INPUT.text).child(InputTextElement {
                 state: self.state,
                 placeholder_color: colors.muted_foreground,
                 cursor_color: colors.foreground,
                 selection_color: colors.ring.opacity(0.3),
             }))
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }
@@ -1043,6 +1092,48 @@ fn shift_bounds(bounds: Bounds<Pixels>, offset: Pixels) -> Bounds<Pixels> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct RtlTextareaView(Entity<InputState>);
+
+    impl Render for RtlTextareaView {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            crate::components::Direction::new(crate::components::TextDirection::Rtl).child(
+                gpui::div()
+                    .w(px(300.))
+                    .child(crate::components::Textarea::new(&self.0)),
+            )
+        }
+    }
+
+    #[gpui::test]
+    fn rtl_textarea_right_aligns_rows(cx: &mut gpui::TestAppContext) {
+        cx.update(crate::init);
+        let state = cx.new(|cx| {
+            InputState::new(cx)
+                .with_multiline(true)
+                .with_text("ab\nlonger line")
+        });
+        let view_state = state.clone();
+        let (_view, window_context) =
+            cx.add_window_view(move |_, _| RtlTextareaView(view_state.clone()));
+        window_context.run_until_parked();
+        state.read_with(window_context, |state, _| {
+            let bounds = state.last_bounds.expect("textarea was laid out");
+            let short = state.multiline_position_for_offset(0).unwrap();
+            let long = state.multiline_position_for_offset(3).unwrap();
+            // Both rows end at the right edge, so the shorter one starts further right.
+            assert!(short.x > long.x, "{short:?} vs {long:?}");
+            assert!(long.x > px(0.));
+            let short_end = state.multiline_position_for_offset(2).unwrap();
+            assert!((bounds.size.width - short_end.x).abs() < px(1.));
+            // Hit-testing undoes the shift: clicking where offset 0 is drawn lands on it.
+            assert_eq!(
+                state.multiline_index_for_point(point(short.x + px(0.5), short.y + px(1.))),
+                0
+            );
+            assert_eq!(state.multiline_row_left(px(1.)), short.x);
+        });
+    }
 
     #[gpui::test]
     fn typing_emits_changed_and_masks_offsets(cx: &mut gpui::TestAppContext) {

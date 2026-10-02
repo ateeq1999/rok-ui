@@ -281,7 +281,7 @@ In RTL, every component mirrors the way CSS `dir="rtl"` mirrors a page:
   toasts appear bottom-left.
 - **Values and keys:** sliders, progress bars and resizable panels run right to left, and arrow
   keys follow.
-- **Text inputs:** single-line inputs right-align their text.
+- **Text inputs:** inputs and textareas right-align their text, including each wrapped row.
 
 In your own code:
 
@@ -504,8 +504,7 @@ cargo publish -p rok-ui
 - Dialogs move focus into the panel, but they do not trap Tab yet. Focus does not jump to the
   first field automatically.
 - GPUI shapes each line of text left to right. RTL mirrors layouts, icons and alignment but
-  does not reorder mixed-direction (bidirectional) text. Multi-line `Textarea` text stays
-  left-aligned in RTL.
+  does not reorder mixed-direction (bidirectional) text.
 - `CalendarDate::today()` is the UTC date; rok-ui has no time-zone database.
 - Floating surfaces (popovers, menus, selects) dismiss on a click outside themselves, so a popover
   nested inside another popover closes its parent when clicked.

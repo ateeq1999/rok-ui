@@ -3,16 +3,14 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, prelude::*, px, AnyElement, App, CursorStyle, ElementId, FontWeight, Pixels, SharedString,
-    StyleRefinement, Window,
+    div, prelude::*, px, AnyElement, App, ElementId, SharedString, StyleRefinement, Window,
 };
 
-use super::direction::DirectionalStyled;
-use super::extra_small_shadow;
 use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
+    styles,
     styles::{ApplyStyleOverrides, ComponentSize},
     theme::ActiveTheme,
 };
@@ -25,14 +23,6 @@ pub enum ToggleVariant {
     Default,
     /// Bordered.
     Outline,
-}
-
-fn toggle_height(size: ComponentSize) -> Pixels {
-    match size {
-        ComponentSize::Small => px(32.),
-        ComponentSize::Medium => px(36.),
-        ComponentSize::Large => px(40.),
-    }
 }
 
 /// A two-state button. Controlled: pass `pressed`, update it in `on_change`.
@@ -122,73 +112,85 @@ impl Toggle {
     }
 }
 
+styles! {
+    TOGGLE = {
+        base: {
+            display: flex,
+            flex: none,
+            align: center,
+            justify: center,
+            gap: 2,
+            padding_x: 2.5,
+            radius: md,
+            border: 1,
+            border_color: transparent,
+            color: foreground,
+            text: sm,
+            font: medium,
+            whitespace: nowrap,
+        },
+        icon_only: { padding_x: 0 },
+        size(ComponentSize): {
+            Small: { height: 8, min_width: 8 },
+            Medium: { height: 9, min_width: 9 },
+            Large: { height: 10, min_width: 10 },
+        },
+        variant(ToggleVariant): {
+            Default: {},
+            Outline: { border_color: input, shadow: xs },
+        },
+        pressed: { background: accent, color: accent_foreground },
+        interactive: {
+            cursor: pointer,
+            hover: { background: muted, color: muted_foreground },
+            focus: { border_color: ring },
+        },
+        inert: { opacity: 0.5 },
+    }
+}
+
 impl RenderOnce for Toggle {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        // The component's own interaction styles, merged with the caller's `sx` in one
-        // call (GPUI allows a single hover / focus style per element).
-        let own_states = if self.disabled {
-            crate::sx::Sx::new()
-        } else {
-            crate::sx::Sx::new()
-                .hover(|state| {
-                    state
-                        .bg(crate::sx::ColorToken::Muted)
-                        .text_color(crate::sx::ColorToken::MutedForeground)
-                })
-                .focus(|state| state.border_color(crate::sx::ColorToken::Ring))
-        };
-        let theme = cx.theme();
-        let colors = theme.colors.clone();
-        let height = toggle_height(self.size);
+        let colors = &cx.theme().colors;
         let pressed = self.pressed;
-        let text_color = if pressed {
+        // Icons do not inherit text color in GPUI.
+        let icon_color = if pressed {
             colors.accent_foreground
         } else {
             colors.foreground
         };
-        let icon_only = self.label.is_none();
 
         div()
             .id(self.id)
-            .flex_dir()
-            .flex_none()
-            .items_center()
-            .justify_center()
-            .gap(px(8.))
-            .h(height)
-            .min_w(height)
-            .px(if icon_only { px(0.) } else { px(10.) })
-            .rounded(theme.radius_medium())
-            .border_1()
-            .border_color(match self.variant {
-                ToggleVariant::Default => gpui::transparent_black(),
-                ToggleVariant::Outline => colors.input,
-            })
-            .when(self.variant == ToggleVariant::Outline, |toggle| {
-                toggle.shadow(extra_small_shadow())
-            })
-            .when(pressed, |toggle| toggle.bg(colors.accent))
-            .text_color(text_color)
-            .text_sm()
-            .font_weight(FontWeight::MEDIUM)
-            .whitespace_nowrap()
+            // The caller's `sx` is merged into the same call: GPUI allows a single
+            // hover / focus style per element.
+            .sx((
+                &TOGGLE.base,
+                self.label.is_none().then_some(&TOGGLE.icon_only),
+                TOGGLE.size(self.size),
+                TOGGLE.variant(self.variant),
+                pressed.then_some(&TOGGLE.pressed),
+                if self.disabled {
+                    &TOGGLE.inert
+                } else {
+                    &TOGGLE.interactive
+                },
+                &self.sx,
+            ))
             .when(!self.disabled, |toggle| {
                 toggle
                     .tab_index(0)
-                    .cursor(CursorStyle::PointingHand)
                     .when_some(self.on_change, |toggle, handler| {
                         toggle.on_click(move |_, window, cx| handler(&!pressed, window, cx))
                     })
             })
-            .when(self.disabled, |toggle| toggle.opacity(0.5))
             .when_some(self.tooltip_text, |toggle, text| {
                 toggle.tooltip(super::Tooltip::text(text))
             })
             .when_some(self.icon, |toggle, icon| {
-                toggle.child(Icon::new(icon).size(px(16.)).color(text_color))
+                toggle.child(Icon::new(icon).size(px(16.)).color(icon_color))
             })
             .when_some(self.label, |toggle, label| toggle.child(label))
-            .sx((&own_states, &self.sx))
             .apply_style_overrides(&self.style_overrides)
     }
 }
@@ -318,10 +320,21 @@ impl ToggleGroup {
     }
 }
 
+styles! {
+    TOGGLE_GROUP = {
+        group: { display: flex, align: center },
+        plain: { gap: 1 },
+        outline: { radius: md, shadow: xs },
+        // Outlined groups join into one bordered strip.
+        joined: { shadow: none },
+        first: { radius_end: none },
+        middle: { radius: none, margin_start: -0.25 },
+        last: { radius_start: none, margin_start: -0.25 },
+    }
+}
+
 impl RenderOnce for ToggleGroup {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = cx.theme();
-        let radius = theme.radius_medium();
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         let is_outline = self.variant == ToggleVariant::Outline;
         let count = self.items.len();
         let value = self.value;
@@ -336,7 +349,17 @@ impl RenderOnce for ToggleGroup {
                 let on_change = self.on_change.clone();
                 let current = value.clone();
                 let item_value = item.value.clone();
-                let toggle = Toggle::new(index)
+                let joined = (is_outline && count > 1).then(|| {
+                    let position = if index == 0 {
+                        &TOGGLE_GROUP.first
+                    } else if index + 1 == count {
+                        &TOGGLE_GROUP.last
+                    } else {
+                        &TOGGLE_GROUP.middle
+                    };
+                    (&TOGGLE_GROUP.joined, position)
+                });
+                Toggle::new(index)
                     .pressed(is_pressed)
                     .variant(self.variant)
                     .size(self.size)
@@ -344,6 +367,7 @@ impl RenderOnce for ToggleGroup {
                     .when_some(item.icon, |toggle, icon| toggle.icon(icon))
                     .when_some(item.label, |toggle, label| toggle.label(label))
                     .when_some(item.tooltip, |toggle, tooltip| toggle.tooltip(tooltip))
+                    .sx(joined)
                     .on_change(move |pressed, window, cx| {
                         let next: Vec<SharedString> = match (multiple, *pressed) {
                             (true, true) => current
@@ -362,34 +386,23 @@ impl RenderOnce for ToggleGroup {
                         if let Some(handler) = on_change.as_ref() {
                             handler(&next, window, cx);
                         }
-                    });
-                // Outlined groups join into one bordered strip.
-                let toggle = if is_outline && count > 1 {
-                    let toggle = if index == 0 {
-                        toggle.rounded_e_none()
-                    } else if index + 1 == count {
-                        toggle.rounded_s_none().ms(px(-1.))
-                    } else {
-                        toggle.rounded_none().ms(px(-1.))
-                    };
-                    toggle.shadow(Vec::new())
-                } else {
-                    toggle
-                };
-                toggle.into_any_element()
+                    })
+                    .into_any_element()
             })
             .collect();
 
         div()
             .id(self.id)
-            .flex_dir()
-            .items_center()
-            .when(!is_outline, |group| group.gap(px(4.)))
-            .when(is_outline, |group| {
-                group.rounded(radius).shadow(extra_small_shadow())
-            })
+            .sx((
+                &TOGGLE_GROUP.group,
+                if is_outline {
+                    &TOGGLE_GROUP.outline
+                } else {
+                    &TOGGLE_GROUP.plain
+                },
+                &self.sx,
+            ))
             .children(toggles)
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

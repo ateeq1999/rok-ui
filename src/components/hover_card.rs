@@ -2,12 +2,13 @@
 
 use std::time::Duration;
 
-use gpui::{div, prelude::*, px, AnyElement, App, ElementId, StyleRefinement, Task, Window};
+use gpui::{div, prelude::*, AnyElement, App, ElementId, StyleRefinement, Task, Window};
 
 use super::overlay::{child_id, floating, popover_surface, Align, Side};
 use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, State},
+    styles,
     styles::ApplyStyleOverrides,
     theme::ActiveTheme,
 };
@@ -117,6 +118,10 @@ fn schedule(memory: &State<HoverMemory>, delay: Duration, cx: &mut App) {
     memory.update(cx, |memory| memory.pending = Some(task));
 }
 
+styles! {
+    HOVER_CARD = { card: { width: 64, padding: 4, gap: 2 } }
+}
+
 impl RenderOnce for HoverCard {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let memory: State<HoverMemory> =
@@ -151,15 +156,12 @@ impl RenderOnce for HoverCard {
         let card = popover_surface(cx.theme())
             .id(child_id(&self.id, "card"))
             .occlude()
-            .w(px(256.))
-            .p(px(16.))
-            .gap(px(8.))
+            .sx((&HOVER_CARD.card, &self.sx))
             .on_hover(move |hovered, _, cx| {
                 card_memory.update(cx, |memory| memory.over_card = *hovered);
                 schedule(&card_memory, close_delay, cx);
             })
             .children(self.children)
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides);
         wrapper.child(floating(self.side, self.align, card, cx))
     }

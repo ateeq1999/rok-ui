@@ -1,16 +1,16 @@
 //! Textarea: a multi-line text field that grows with its content.
 
 use gpui::{
-    div, fill, point, prelude::*, px, relative, size, App, AvailableSpace, Bounds, CursorStyle,
-    ElementId, ElementInputHandler, Entity, GlobalElementId, Hsla, LayoutId, MouseButton,
-    PaintQuad, Pixels, SharedString, Size, Style, StyleRefinement, TextAlign, TextRun, Window,
-    WrappedLine,
+    div, fill, point, prelude::*, px, relative, size, App, AvailableSpace, Bounds, ElementId,
+    ElementInputHandler, Entity, GlobalElementId, Hsla, LayoutId, MouseButton, PaintQuad, Pixels,
+    SharedString, Size, Style, StyleRefinement, TextAlign, TextRun, Window, WrappedLine,
 };
 
-use super::{forward_to_state, InputState, INPUT_KEY_CONTEXT, TEXTAREA_KEY_CONTEXT};
-use crate::components::direction::DirectionalStyled;
+use super::{forward_to_state, InputState, INPUT, INPUT_KEY_CONTEXT, TEXTAREA_KEY_CONTEXT};
 use crate::sx::SxStyled;
-use crate::{components::focus_ring_outline, styles::ApplyStyleOverrides, theme::ActiveTheme};
+use crate::{
+    components::focus_ring_outline, styles, styles::ApplyStyleOverrides, theme::ActiveTheme,
+};
 
 /// `useRef`-style hook for a multi-line [`InputState`].
 pub fn use_textarea_state(
@@ -78,6 +78,26 @@ impl Textarea {
     }
 }
 
+styles! {
+    TEXTAREA = {
+        outer: { width: full },
+        field: {
+            position: relative,
+            display: flex,
+            width: full,
+            min_height: 16,
+            padding_x: 3,
+            padding_y: 2,
+            radius: md,
+            border: 1,
+            border_color: input,
+            color: foreground,
+            text: sm,
+            line_height: 5,
+        },
+    }
+}
+
 impl RenderOnce for Textarea {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = cx.theme();
@@ -96,31 +116,24 @@ impl RenderOnce for Textarea {
                 "rok-ui-textarea".into(),
                 self.state.entity_id().as_u64(),
             ))
-            .flex_dir()
-            .w_full()
-            .min_h(px(64.))
-            .px(px(12.))
-            .py(px(8.))
-            .rounded(theme.radius_medium())
-            .border_1()
-            .border_color(if self.invalid || is_focused {
-                accent
-            } else {
-                colors.input
-            })
-            .text_color(colors.foreground)
-            .text_sm()
-            .line_height(px(20.))
-            .relative()
+            .sx((
+                &TEXTAREA.field,
+                is_focused.then_some(&INPUT.focused),
+                self.invalid.then_some(&INPUT.invalid),
+                if self.disabled {
+                    &INPUT.disabled
+                } else {
+                    &INPUT.enabled
+                },
+                &self.sx,
+            ))
             .when(is_focused && self.focus_ring, |field| {
                 field.child(focus_ring_outline(accent, theme.radius_medium()))
             })
-            .when(self.disabled, |field| field.opacity(0.5))
             .when(!self.disabled, |field| {
                 field
                     .key_context(INPUT_KEY_CONTEXT)
                     .track_focus(&focus_handle)
-                    .cursor(CursorStyle::IBeam)
                     .on_action(forward_to_state(&state, InputState::delete_backward))
                     .on_action(forward_to_state(&state, InputState::delete_forward))
                     .on_action(forward_to_state(&state, InputState::move_left))
@@ -158,13 +171,12 @@ impl RenderOnce for Textarea {
                 cursor_color: colors.foreground,
                 selection_color: colors.ring.opacity(0.3),
             })
-            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides);
 
         // Up / Down bindings live in this outer context so plain inputs keep them free.
         div()
             .key_context(TEXTAREA_KEY_CONTEXT)
-            .w_full()
+            .sx(&TEXTAREA.outer)
             .child(field)
     }
 }
@@ -182,6 +194,23 @@ struct TextareaPrepaint {
     line_height: Pixels,
     selection: Vec<PaintQuad>,
     cursor: Option<PaintQuad>,
+    rtl: bool,
+}
+
+/// How far each visual row of `line` is pushed right when right-aligned to `width`
+/// (mirrors gpui's `TextAlign::Right` placement).
+fn right_aligned_row_offsets(line: &WrappedLine, width: Pixels) -> Vec<Pixels> {
+    let layout = &line.unwrapped_layout;
+    let boundary_x = |b: &gpui::WrapBoundary| layout.runs[b.run_ix].glyphs[b.glyph_ix].position.x;
+    let mut starts = vec![px(0.)];
+    starts.extend(line.wrap_boundaries.iter().map(boundary_x));
+    let mut ends: Vec<Pixels> = starts.iter().skip(1).copied().collect();
+    ends.push(layout.width);
+    starts
+        .iter()
+        .zip(ends)
+        .map(|(start, end)| (width - (end - *start)).max(px(0.)))
+        .collect()
 }
 
 impl IntoElement for TextareaTextElement {
@@ -287,6 +316,7 @@ impl Element for TextareaTextElement {
         let line_height = window.line_height();
         let lines = shape(text, &runs, Some(bounds.size.width), window);
         let content_is_empty = self.state.read(cx).content.is_empty();
+        let rtl = crate::components::direction::is_rtl();
 
         // Store the layout first so offset <-> position lookups use this frame's wrapping.
         self.state.update(cx, |state, _| {
@@ -294,6 +324,14 @@ impl Element for TextareaTextElement {
                 Vec::new()
             } else {
                 lines.clone()
+            };
+            state.last_row_offsets = if rtl && !content_is_empty {
+                lines
+                    .iter()
+                    .map(|line| right_aligned_row_offsets(line, bounds.size.width))
+                    .collect()
+            } else {
+                Vec::new()
             };
             state.last_line_height = line_height;
             state.last_bounds = Some(bounds);
@@ -321,7 +359,13 @@ impl Element for TextareaTextElement {
         let mut cursor = None;
         if range.is_empty() || content_is_empty {
             let at = if content_is_empty {
-                size(px(0.), px(0.))
+                // An empty RTL field starts typing from the right edge.
+                let x = if rtl {
+                    bounds.size.width - px(1.5)
+                } else {
+                    px(0.)
+                };
+                size(x, px(0.))
             } else {
                 position(state.cursor_offset())
             };
@@ -344,7 +388,8 @@ impl Element for TextareaTextElement {
                     selection.push(to_quad(px(0.), row, bounds.size.width));
                     row += line_height;
                 }
-                selection.push(to_quad(px(0.), end.height, end.width));
+                let last_left = state.multiline_row_left(end.height + line_height / 2.);
+                selection.push(to_quad(last_left.min(end.width), end.height, end.width));
             }
         }
 
@@ -353,6 +398,7 @@ impl Element for TextareaTextElement {
             line_height,
             selection,
             cursor,
+            rtl,
         }
     }
 
@@ -380,8 +426,12 @@ impl Element for TextareaTextElement {
             line.paint(
                 point(bounds.left(), line_top),
                 prepaint.line_height,
-                TextAlign::Left,
-                None,
+                if prepaint.rtl {
+                    TextAlign::Right
+                } else {
+                    TextAlign::Left
+                },
+                Some(bounds),
                 window,
                 cx,
             )

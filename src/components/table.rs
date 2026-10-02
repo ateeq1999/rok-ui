@@ -17,76 +17,76 @@
 //!         .child(TableCell::new().text_right().child("$250.00"))))
 //! ```
 
-use gpui::{div, prelude::*, px, AnyElement, App, FontWeight, SharedString, StyleRefinement};
+use gpui::{div, prelude::*, AnyElement, SharedString, StyleRefinement};
 
-use super::direction::DirectionalStyled;
-use crate::sx::SxStyled;
-use crate::{component, styles::ApplyStyleOverrides, theme::ActiveTheme};
+use crate::sx::{Sx, SxStyled};
+use crate::{component, styles, styles::ApplyStyleOverrides};
+
+styles! {
+    TABLE = {
+        table: { display: flex, direction: column, width: full, text: sm },
+        header: { display: flex, direction: column, border_bottom: 1, border_color: border },
+        body: { display: flex, direction: column },
+        footer: {
+            display: flex,
+            direction: column,
+            border_top: 1,
+            border_color: border,
+            background: muted/50,
+            font: medium,
+        },
+        row: {
+            display: flex,
+            align: center,
+            width: full,
+            border_bottom: 1,
+            border_color: border,
+        },
+        selected: { background: muted },
+        head: {
+            min_width: 0,
+            height: 10,
+            padding_x: 2,
+            display: flex,
+            align: center,
+            font: medium,
+            color: foreground,
+            whitespace: nowrap,
+        },
+        cell: { min_width: 0, padding: 2, whitespace: nowrap, overflow: hidden },
+        caption: { margin_top: 4, text_align: center, text: sm, color: muted_foreground },
+    }
+}
 
 /// The table container.
 #[component]
 pub fn Table(
     #[children] children: Vec<AnyElement>,
     #[style] style_overrides: StyleRefinement,
-    #[sx] sx: crate::sx::Sx,
+    #[sx] sx: Sx,
 ) -> impl IntoElement {
     div()
-        .flex_dir()
-        .flex_col()
-        .w_full()
-        .text_sm()
+        .sx((&TABLE.table, &sx))
         .children(children)
-        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
 /// The header rows.
 #[component]
-pub fn TableHeader(
-    #[children] children: Vec<AnyElement>,
-    cx: &mut App,
-    #[sx] sx: crate::sx::Sx,
-) -> impl IntoElement {
-    let element = {
-        div()
-            .flex_dir()
-            .flex_col()
-            .border_b_1()
-            .border_color(cx.theme().colors.border)
-            .children(children)
-    };
-    element.sx(&sx)
+pub fn TableHeader(#[children] children: Vec<AnyElement>, #[sx] sx: Sx) -> impl IntoElement {
+    div().sx((&TABLE.header, &sx)).children(children)
 }
 
 /// The body rows. Each row but the last draws a bottom border.
 #[component]
-pub fn TableBody(
-    #[children] children: Vec<AnyElement>,
-    #[sx] sx: crate::sx::Sx,
-) -> impl IntoElement {
-    let element = { div().flex_dir().flex_col().children(children) };
-    element.sx(&sx)
+pub fn TableBody(#[children] children: Vec<AnyElement>, #[sx] sx: Sx) -> impl IntoElement {
+    div().sx((&TABLE.body, &sx)).children(children)
 }
 
 /// Summary rows under the body, on a muted background.
 #[component]
-pub fn TableFooter(
-    #[children] children: Vec<AnyElement>,
-    cx: &mut App,
-    #[sx] sx: crate::sx::Sx,
-) -> impl IntoElement {
-    let element = {
-        let colors = &cx.theme().colors;
-        div()
-            .flex_dir()
-            .flex_col()
-            .border_t_1()
-            .border_color(colors.border)
-            .bg(colors.muted.opacity(0.5))
-            .font_weight(FontWeight::MEDIUM)
-            .children(children)
-    };
-    element.sx(&sx)
+pub fn TableFooter(#[children] children: Vec<AnyElement>, #[sx] sx: Sx) -> impl IntoElement {
+    div().sx((&TABLE.footer, &sx)).children(children)
 }
 
 /// One row. `selected(true)` highlights it.
@@ -95,20 +95,11 @@ pub fn TableRow(
     #[prop(optional)] selected: bool,
     #[children] children: Vec<AnyElement>,
     #[style] style_overrides: StyleRefinement,
-    #[sx] sx: crate::sx::Sx,
-    cx: &mut App,
+    #[sx] sx: Sx,
 ) -> impl IntoElement {
-    let colors = &cx.theme().colors;
-    let muted = colors.muted;
     div()
-        .flex_dir()
-        .items_center()
-        .w_full()
-        .border_b_1()
-        .border_color(colors.border)
-        .when(selected, |row| row.bg(muted))
+        .sx((&TABLE.row, selected.then_some(&TABLE.selected), &sx))
         .children(children)
-        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
@@ -117,21 +108,12 @@ pub fn TableRow(
 pub fn TableHead(
     text: SharedString,
     #[style] style_overrides: StyleRefinement,
-    #[sx] sx: crate::sx::Sx,
-    cx: &mut App,
+    #[sx] sx: Sx,
 ) -> impl IntoElement {
     div()
         .map(|head| column_sizing(head, &style_overrides))
-        .min_w_0()
-        .h(px(40.))
-        .px(px(8.))
-        .flex_dir()
-        .items_center()
-        .font_weight(FontWeight::MEDIUM)
-        .text_color(cx.theme().colors.foreground)
-        .whitespace_nowrap()
+        .sx((&TABLE.head, &sx))
         .child(text)
-        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
@@ -140,31 +122,19 @@ pub fn TableHead(
 pub fn TableCell(
     #[children] children: Vec<AnyElement>,
     #[style] style_overrides: StyleRefinement,
-    #[sx] sx: crate::sx::Sx,
+    #[sx] sx: Sx,
 ) -> impl IntoElement {
     div()
         .map(|cell| column_sizing(cell, &style_overrides))
-        .min_w_0()
-        .p(px(8.))
-        .whitespace_nowrap()
-        .overflow_hidden()
+        .sx((&TABLE.cell, &sx))
         .children(children)
-        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
 /// Muted caption under the table.
 #[component]
-pub fn TableCaption(text: SharedString, cx: &mut App, #[sx] sx: crate::sx::Sx) -> impl IntoElement {
-    let element = {
-        div()
-            .mt(px(16.))
-            .text_center()
-            .text_sm()
-            .text_color(cx.theme().colors.muted_foreground)
-            .child(text)
-    };
-    element.sx(&sx)
+pub fn TableCaption(text: SharedString, #[sx] sx: Sx) -> impl IntoElement {
+    div().sx((&TABLE.caption, &sx)).child(text)
 }
 
 /// Cells share the row equally unless the caller gives them a width. `flex_1`
