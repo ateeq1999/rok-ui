@@ -7,6 +7,7 @@ use gpui::{
     ElementId, StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::{button::Button, direction::ActiveDirection, overlay::child_id};
 use crate::{
     hooks::{use_keyed_state, EventHandler, State},
@@ -197,10 +198,9 @@ impl RenderOnce for Carousel {
         let (from, to) = (offset_for(previous_index), offset_for(index));
         let track = div()
             .relative()
-            .flex()
+            .flex_dir()
             .size_full()
             .when(!is_horizontal, |track| track.flex_col())
-            .when(is_rtl, |track| track.flex_row_reverse())
             .children(items)
             .with_animation(
                 ElementId::NamedInteger("carousel-slide".into(), generation as u64),
@@ -254,7 +254,7 @@ impl RenderOnce for Carousel {
             .absolute()
             .map(|slot| {
                 if is_horizontal {
-                    slot.left(px(-16.)).top(relative(0.5)).mt(px(-16.))
+                    slot.inset_start(px(-16.)).top(relative(0.5)).mt(px(-16.))
                 } else {
                     slot.top(px(-16.)).left(relative(0.5)).ml(px(-16.))
                 }
@@ -264,7 +264,7 @@ impl RenderOnce for Carousel {
             .absolute()
             .map(|slot| {
                 if is_horizontal {
-                    slot.right(px(-16.)).top(relative(0.5)).mt(px(-16.))
+                    slot.inset_end(px(-16.)).top(relative(0.5)).mt(px(-16.))
                 } else {
                     slot.bottom(px(-16.)).left(relative(0.5)).ml(px(-16.))
                 }
@@ -273,7 +273,7 @@ impl RenderOnce for Carousel {
 
         let dots = (self.show_dots && last_index > 0).then(|| {
             div()
-                .flex()
+                .flex_dir()
                 .justify_center()
                 .gap(px(6.))
                 .pt(px(12.))
@@ -301,7 +301,7 @@ impl RenderOnce for Carousel {
         let key_on_change = self.on_index_change.clone();
         div()
             .id(self.id)
-            .flex()
+            .flex_dir()
             .flex_col()
             .w_full()
             .tab_index(0)

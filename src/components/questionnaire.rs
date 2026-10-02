@@ -8,6 +8,7 @@ use gpui::{
     StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::{
     button::Button,
     input::{use_textarea_state, Textarea},
@@ -252,7 +253,7 @@ impl RenderOnce for Questionnaire {
 
         let container = div()
             .id(self.id.clone())
-            .flex()
+            .flex_dir()
             .flex_col()
             .gap(px(20.))
             .w_full()
@@ -269,7 +270,7 @@ impl RenderOnce for Questionnaire {
             let restart_memory = memory.clone();
             let summary = questions.iter().zip(answers).map(|(question, answer)| {
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .gap(px(2.))
                     .child(
@@ -287,7 +288,7 @@ impl RenderOnce for Questionnaire {
             return container
                 .child(
                     div()
-                        .flex()
+                        .flex_dir()
                         .items_center()
                         .gap(px(12.))
                         .child(Icon::new(IconName::CircleCheck).size(px(24.)))
@@ -298,9 +299,9 @@ impl RenderOnce for Questionnaire {
                                 .child("All done"),
                         ),
                 )
-                .child(div().flex().flex_col().gap(px(12.)).children(summary))
+                .child(div().flex_dir().flex_col().gap(px(12.)).children(summary))
                 .child(
-                    div().flex().justify_end().child(
+                    div().flex_dir().justify_end().child(
                         Button::new("questionnaire-restart")
                             .outline()
                             .label("Start over")
@@ -335,7 +336,7 @@ impl RenderOnce for Questionnaire {
                           multiple: bool,
                           on_pick: Callback| {
             let indicator = div()
-                .flex()
+                .flex_dir()
                 .flex_none()
                 .items_center()
                 .justify_center()
@@ -363,7 +364,7 @@ impl RenderOnce for Questionnaire {
                 });
             div()
                 .id(("questionnaire-option", index))
-                .flex()
+                .flex_dir()
                 .items_center()
                 .gap(px(12.))
                 .px(px(14.))
@@ -389,7 +390,7 @@ impl RenderOnce for Questionnaire {
 
         let body: AnyElement = match &question.kind {
             QuestionKind::Single(options) => div()
-                .flex()
+                .flex_dir()
                 .flex_col()
                 .gap(px(8.))
                 .children(options.iter().enumerate().map(|(index, option)| {
@@ -415,7 +416,7 @@ impl RenderOnce for Questionnaire {
                     _ => Vec::new(),
                 };
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .gap(px(8.))
                     .children(options.iter().enumerate().map(|(index, option)| {
@@ -509,7 +510,7 @@ impl RenderOnce for Questionnaire {
         container
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .gap(px(8.))
                     .child(
@@ -522,7 +523,7 @@ impl RenderOnce for Questionnaire {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .gap(px(6.))
                     .child(
@@ -543,13 +544,13 @@ impl RenderOnce for Questionnaire {
             .child(body)
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .items_center()
                     .gap(px(8.))
                     .child(
                         Button::new("questionnaire-back")
                             .ghost()
-                            .icon(IconName::ArrowLeft)
+                            .icon(IconName::ArrowLeft.for_direction())
                             .label("Back")
                             .disabled(step == 0)
                             .on_click(move |_, _, cx| {

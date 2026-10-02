@@ -21,6 +21,7 @@ use gpui::{
     MouseButton, Pixels, Point, SharedString, StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::layer::layer_at;
 use super::overlay::{
     child_id, dismissable, floating, popover_surface, trigger_wrapper, use_open_state, Align,
@@ -236,7 +237,7 @@ pub(crate) fn render_menu_panel(
                 div()
                     .px(px(8.))
                     .py(px(6.))
-                    .when(has_indicators, |row| row.pl(px(32.)))
+                    .when(has_indicators, |row| row.ps(px(32.)))
                     .text_sm()
                     .font_weight(FontWeight::MEDIUM)
                     .child(label)
@@ -274,7 +275,7 @@ pub(crate) fn render_menu_panel(
                 };
                 let trailing: Option<AnyElement> = match &item.kind {
                     MenuItemKind::Submenu(_) => Some(
-                        Icon::new(IconName::ChevronRight)
+                        Icon::new(IconName::ChevronRight.for_direction())
                             .size(px(16.))
                             .color(icon_color)
                             .into_any_element(),
@@ -291,7 +292,7 @@ pub(crate) fn render_menu_panel(
                     ),
                     _ => item.shortcut.clone().map(|shortcut| {
                         div()
-                            .pl(px(16.))
+                            .ps(px(16.))
                             .text_xs()
                             .text_color(colors.muted_foreground)
                             .child(shortcut)
@@ -323,7 +324,7 @@ pub(crate) fn render_menu_panel(
                 let row = div()
                     .id(index)
                     .relative()
-                    .flex()
+                    .flex_dir()
                     .items_center()
                     .gap(px(8.))
                     .px(px(8.))
@@ -331,7 +332,7 @@ pub(crate) fn render_menu_panel(
                     .rounded(item_radius)
                     .text_sm()
                     .text_color(text_color)
-                    .when(has_indicators || item.inset, |row| row.pl(px(32.)))
+                    .when(has_indicators || item.inset, |row| row.ps(px(32.)))
                     .when(is_highlighted, |row| {
                         row.bg(if item.destructive {
                             colors.destructive.opacity(0.1)
@@ -361,9 +362,9 @@ pub(crate) fn render_menu_panel(
                         row.child(
                             div()
                                 .absolute()
-                                .left(px(8.))
+                                .inset_start(px(8.))
                                 .size(px(16.))
-                                .flex()
+                                .flex_dir()
                                 .items_center()
                                 .justify_center()
                                 .child(indicator),

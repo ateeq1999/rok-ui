@@ -4,6 +4,7 @@ use gpui::{
     div, prelude::*, px, AnyElement, App, FontWeight, SharedString, StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use crate::{
     icon::{Icon, IconName},
     styles::ApplyStyleOverrides,
@@ -89,7 +90,7 @@ impl RenderOnce for Empty {
         let theme = cx.theme();
         let colors = theme.colors.clone();
         div()
-            .flex()
+            .flex_dir()
             .flex_col()
             .items_center()
             .justify_center()
@@ -102,7 +103,7 @@ impl RenderOnce for Empty {
             })
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .items_center()
                     .gap(px(8.))
@@ -112,7 +113,7 @@ impl RenderOnce for Empty {
                             div()
                                 .mb(px(8.))
                                 .size(px(40.))
-                                .flex()
+                                .flex_dir()
                                 .items_center()
                                 .justify_center()
                                 .rounded(theme.radius_large())
@@ -139,7 +140,7 @@ impl RenderOnce for Empty {
             .when(!self.children.is_empty(), |empty| {
                 empty.child(
                     div()
-                        .flex()
+                        .flex_dir()
                         .items_center()
                         .gap(px(8.))
                         .children(self.children),

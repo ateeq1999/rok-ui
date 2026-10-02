@@ -6,6 +6,7 @@ use gpui::{
     div, prelude::*, px, App, CursorStyle, ElementId, SharedString, StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::{
     focus_ring_outline,
     menu::{close_handler, render_menu_panel, Menu, MenuItem},
@@ -206,7 +207,7 @@ impl RenderOnce for Select {
 
         let trigger = div()
             .id("select-trigger")
-            .flex()
+            .flex_dir()
             .items_center()
             .justify_between()
             .gap(px(8.))
@@ -255,7 +256,7 @@ impl RenderOnce for Select {
             .child(measure_width(trigger_width.clone()));
 
         let wrapper = trigger_wrapper(self.id.clone(), &open_state, self.disabled, cx)
-            .flex()
+            .flex_dir()
             .flex_col()
             .when(self.native, |wrapper| wrapper.w_full())
             .child(trigger)

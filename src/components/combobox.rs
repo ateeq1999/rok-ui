@@ -8,6 +8,7 @@ use gpui::{
     Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::{
     command::{render_command, CommandGroup, CommandItem},
     extra_small_shadow, focus_ring_shadow,
@@ -137,7 +138,7 @@ impl RenderOnce for Combobox {
         let trigger = div()
             .id("combobox-trigger")
             .relative()
-            .flex()
+            .flex_dir()
             .items_center()
             .justify_between()
             .gap(px(8.))

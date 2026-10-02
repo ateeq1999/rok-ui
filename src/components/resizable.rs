@@ -7,6 +7,7 @@ use gpui::{
     Pixels, StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::{
     focus_ring_shadow,
     interaction::{measure_bounds, track_drag},
@@ -185,6 +186,8 @@ impl RenderOnce for ResizablePanelGroup {
                 .collect(),
         );
         let is_horizontal = self.direction == ResizableDirection::Horizontal;
+        // Captured while rendering: handlers run outside the `Direction` scope.
+        let rtl = is_horizontal && super::direction::is_rtl();
         let colors = cx.theme().colors.clone();
         let ring_color = colors.ring;
         let panel_count = self.panels.len();
@@ -194,7 +197,7 @@ impl RenderOnce for ResizablePanelGroup {
             let basis = relative(sizes[index] / 100.);
             children.push(
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .flex_grow()
                     .flex_shrink()
@@ -214,7 +217,7 @@ impl RenderOnce for ResizablePanelGroup {
             let grip = self.with_handle.then(|| {
                 div()
                     .absolute()
-                    .flex()
+                    .flex_dir()
                     .items_center()
                     .justify_center()
                     .rounded(px(2.))
@@ -234,7 +237,7 @@ impl RenderOnce for ResizablePanelGroup {
                 div()
                     .id(("resizable-handle", index))
                     .relative()
-                    .flex()
+                    .flex_dir()
                     .flex_none()
                     .items_center()
                     .justify_center()
@@ -284,6 +287,9 @@ impl RenderOnce for ResizablePanelGroup {
                     .children(grip)
                     .on_key_down(move |event, _, cx| {
                         let delta = match (event.keystroke.key.as_str(), is_horizontal) {
+                            // Panels run right to left in RTL.
+                            ("left", true) if rtl => 5.,
+                            ("right", true) if rtl => -5.,
                             ("left", true) | ("up", false) => -5.,
                             ("right", true) | ("down", false) => 5.,
                             _ => return,
@@ -303,7 +309,7 @@ impl RenderOnce for ResizablePanelGroup {
         div()
             .id(self.id)
             .relative()
-            .flex()
+            .flex_dir()
             .size_full()
             .when(!is_horizontal, |group| group.flex_col())
             .child(measure_bounds(bounds))
@@ -316,7 +322,12 @@ impl RenderOnce for ResizablePanelGroup {
                     };
                     let group_bounds = move_bounds.get();
                     let (offset, length) = if is_horizontal {
-                        (position.x - group_bounds.left(), group_bounds.size.width)
+                        let from_start = if rtl {
+                            group_bounds.right() - position.x
+                        } else {
+                            position.x - group_bounds.left()
+                        };
+                        (from_start, group_bounds.size.width)
                     } else {
                         (position.y - group_bounds.top(), group_bounds.size.height)
                     };

@@ -2,6 +2,7 @@
 
 use gpui::{div, prelude::*, px, App, FontWeight, SharedString};
 
+use super::direction::DirectionalStyled;
 use crate::{component, theme::ActiveTheme};
 
 /// `KeyboardShortcut::new("⌘K")`.
@@ -9,7 +10,7 @@ use crate::{component, theme::ActiveTheme};
 pub fn KeyboardShortcut(keys: SharedString, cx: &mut App) -> impl IntoElement {
     let theme = cx.theme();
     div()
-        .flex()
+        .flex_dir()
         .flex_none()
         .items_center()
         .justify_center()
@@ -36,7 +37,7 @@ pub fn KbdGroup(keys: Vec<SharedString>, cx: &mut App) -> impl IntoElement {
     let muted_foreground = cx.theme().colors.muted_foreground;
     let key_count = keys.len();
     div()
-        .flex()
+        .flex_dir()
         .items_center()
         .gap(px(4.))
         .text_xs()

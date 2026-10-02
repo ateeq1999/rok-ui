@@ -6,6 +6,7 @@ use gpui::{
     div, prelude::*, px, App, CursorStyle, ElementId, SharedString, StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::focus_ring_shadow;
 use crate::{
     hooks::EventHandler,
@@ -79,7 +80,7 @@ impl RenderOnce for Checkbox {
         let is_interactive = !self.disabled;
 
         let check_box = div()
-            .flex()
+            .flex_dir()
             .flex_none()
             .items_center()
             .justify_center()
@@ -107,7 +108,7 @@ impl RenderOnce for Checkbox {
 
         div()
             .id(self.id)
-            .flex()
+            .flex_dir()
             .items_center()
             .gap(px(8.))
             .text_sm()

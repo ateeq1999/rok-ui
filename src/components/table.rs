@@ -19,6 +19,7 @@
 
 use gpui::{div, prelude::*, px, AnyElement, App, FontWeight, SharedString, StyleRefinement};
 
+use super::direction::DirectionalStyled;
 use crate::{component, styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// The table container.
@@ -28,7 +29,7 @@ pub fn Table(
     #[style] style_overrides: StyleRefinement,
 ) -> impl IntoElement {
     div()
-        .flex()
+        .flex_dir()
         .flex_col()
         .w_full()
         .text_sm()
@@ -40,7 +41,7 @@ pub fn Table(
 #[component]
 pub fn TableHeader(#[children] children: Vec<AnyElement>, cx: &mut App) -> impl IntoElement {
     div()
-        .flex()
+        .flex_dir()
         .flex_col()
         .border_b_1()
         .border_color(cx.theme().colors.border)
@@ -50,7 +51,7 @@ pub fn TableHeader(#[children] children: Vec<AnyElement>, cx: &mut App) -> impl 
 /// The body rows. Each row but the last draws a bottom border.
 #[component]
 pub fn TableBody(#[children] children: Vec<AnyElement>) -> impl IntoElement {
-    div().flex().flex_col().children(children)
+    div().flex_dir().flex_col().children(children)
 }
 
 /// Summary rows under the body, on a muted background.
@@ -58,7 +59,7 @@ pub fn TableBody(#[children] children: Vec<AnyElement>) -> impl IntoElement {
 pub fn TableFooter(#[children] children: Vec<AnyElement>, cx: &mut App) -> impl IntoElement {
     let colors = &cx.theme().colors;
     div()
-        .flex()
+        .flex_dir()
         .flex_col()
         .border_t_1()
         .border_color(colors.border)
@@ -78,7 +79,7 @@ pub fn TableRow(
     let colors = &cx.theme().colors;
     let muted = colors.muted;
     div()
-        .flex()
+        .flex_dir()
         .items_center()
         .w_full()
         .border_b_1()
@@ -100,7 +101,7 @@ pub fn TableHead(
         .min_w_0()
         .h(px(40.))
         .px(px(8.))
-        .flex()
+        .flex_dir()
         .items_center()
         .font_weight(FontWeight::MEDIUM)
         .text_color(cx.theme().colors.foreground)

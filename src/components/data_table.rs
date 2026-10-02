@@ -8,6 +8,7 @@ use gpui::{
     StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::{
     button::{Button, IconPosition},
     checkbox::Checkbox,
@@ -308,7 +309,7 @@ impl RenderOnce for DataTable {
             div()
                 .min_w_0()
                 .px(px(8.))
-                .flex()
+                .flex_dir()
                 .items_center()
                 .map(|cell| match column.width {
                     Some(width) => cell.w(width).flex_none(),
@@ -321,7 +322,7 @@ impl RenderOnce for DataTable {
         let all_on_page_selected =
             !page_rows.is_empty() && page_rows.iter().all(|row| selected.contains(row));
         let mut header = div()
-            .flex()
+            .flex_dir()
             .items_center()
             .h(px(40.))
             .border_b_1()
@@ -332,22 +333,27 @@ impl RenderOnce for DataTable {
             let page_rows = page_rows.clone();
             let on_selection_change = on_selection_change.clone();
             header = header.child(
-                div().w(px(40.)).flex_none().flex().justify_center().child(
-                    Checkbox::new("data-table-select-all")
-                        .checked(all_on_page_selected)
-                        .on_change(move |checked, window, cx| {
-                            memory.update(cx, |memory| {
-                                for row in &page_rows {
-                                    if *checked {
-                                        memory.selected.insert(*row);
-                                    } else {
-                                        memory.selected.remove(row);
+                div()
+                    .w(px(40.))
+                    .flex_none()
+                    .flex_dir()
+                    .justify_center()
+                    .child(
+                        Checkbox::new("data-table-select-all")
+                            .checked(all_on_page_selected)
+                            .on_change(move |checked, window, cx| {
+                                memory.update(cx, |memory| {
+                                    for row in &page_rows {
+                                        if *checked {
+                                            memory.selected.insert(*row);
+                                        } else {
+                                            memory.selected.remove(row);
+                                        }
                                     }
-                                }
-                            });
-                            report_selection(&memory, on_selection_change.as_ref(), window, cx);
-                        }),
-                ),
+                                });
+                                report_selection(&memory, on_selection_change.as_ref(), window, cx);
+                            }),
+                    ),
             );
         }
         for (column_index, column) in &visible_columns {
@@ -370,7 +376,7 @@ impl RenderOnce for DataTable {
                     .label(title)
                     .icon(icon)
                     .icon_position(IconPosition::End)
-                    .ml(px(-8.))
+                    .ms(px(-8.))
                     .on_click(move |_, _, cx| {
                         memory.update(cx, |memory| {
                             memory.sort = match memory.sort {
@@ -406,7 +412,7 @@ impl RenderOnce for DataTable {
                 let is_selected = selected.contains(&row_index);
                 let mut row = div()
                     .id(("data-table-row", row_index))
-                    .flex()
+                    .flex_dir()
                     .items_center()
                     .min_h(px(48.))
                     .border_b_1()
@@ -417,25 +423,30 @@ impl RenderOnce for DataTable {
                     let memory = memory.clone();
                     let on_selection_change = on_selection_change.clone();
                     row = row.child(
-                        div().w(px(40.)).flex_none().flex().justify_center().child(
-                            Checkbox::new(("data-table-select", row_index))
-                                .checked(is_selected)
-                                .on_change(move |checked, window, cx| {
-                                    memory.update(cx, |memory| {
-                                        if *checked {
-                                            memory.selected.insert(row_index);
-                                        } else {
-                                            memory.selected.remove(&row_index);
-                                        }
-                                    });
-                                    report_selection(
-                                        &memory,
-                                        on_selection_change.as_ref(),
-                                        window,
-                                        cx,
-                                    );
-                                }),
-                        ),
+                        div()
+                            .w(px(40.))
+                            .flex_none()
+                            .flex_dir()
+                            .justify_center()
+                            .child(
+                                Checkbox::new(("data-table-select", row_index))
+                                    .checked(is_selected)
+                                    .on_change(move |checked, window, cx| {
+                                        memory.update(cx, |memory| {
+                                            if *checked {
+                                                memory.selected.insert(row_index);
+                                            } else {
+                                                memory.selected.remove(&row_index);
+                                            }
+                                        });
+                                        report_selection(
+                                            &memory,
+                                            on_selection_change.as_ref(),
+                                            window,
+                                            cx,
+                                        );
+                                    }),
+                            ),
                     );
                 }
                 for (column_index, column) in &visible_columns {
@@ -447,19 +458,24 @@ impl RenderOnce for DataTable {
                 }
                 if let Some(row_actions) = self.row_actions.as_ref() {
                     row = row.child(
-                        div().w(px(48.)).flex_none().flex().justify_center().child(
-                            DropdownMenu::new(("data-table-actions", row_index))
-                                .align(Align::End)
-                                .trigger(
-                                    Button::new(("data-table-actions-trigger", row_index))
-                                        .ghost()
-                                        .icon_only(IconName::Ellipsis)
-                                        .w(px(32.))
-                                        .h(px(32.))
-                                        .tooltip("Open menu"),
-                                )
-                                .menu(row_actions(row_index)),
-                        ),
+                        div()
+                            .w(px(48.))
+                            .flex_none()
+                            .flex_dir()
+                            .justify_center()
+                            .child(
+                                DropdownMenu::new(("data-table-actions", row_index))
+                                    .align(Align::End)
+                                    .trigger(
+                                        Button::new(("data-table-actions-trigger", row_index))
+                                            .ghost()
+                                            .icon_only(IconName::Ellipsis)
+                                            .w(px(32.))
+                                            .h(px(32.))
+                                            .tooltip("Open menu"),
+                                    )
+                                    .menu(row_actions(row_index)),
+                            ),
                     );
                 }
                 row.into_any_element()
@@ -468,7 +484,7 @@ impl RenderOnce for DataTable {
         let body = if body_rows.is_empty() {
             vec![div()
                 .h(px(96.))
-                .flex()
+                .flex_dir()
                 .items_center()
                 .justify_center()
                 .text_color(colors.muted_foreground)
@@ -514,7 +530,7 @@ impl RenderOnce for DataTable {
                 .menu(menu)
         });
         let toolbar = div()
-            .flex()
+            .flex_dir()
             .items_center()
             .gap(px(8.))
             .when(self.filter.is_some(), |toolbar| {
@@ -527,7 +543,7 @@ impl RenderOnce for DataTable {
         let previous_memory = memory.clone();
         let next_memory = memory.clone();
         let footer = div()
-            .flex()
+            .flex_dir()
             .items_center()
             .gap(px(8.))
             .text_sm()
@@ -560,14 +576,14 @@ impl RenderOnce for DataTable {
 
         div()
             .id(self.id)
-            .flex()
+            .flex_dir()
             .flex_col()
             .gap(px(16.))
             .w_full()
             .child(toolbar)
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .rounded(theme.radius_medium())
                     .border_1()

@@ -7,6 +7,7 @@ use gpui::{
     Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::layer::layer_at;
 use crate::{components::button::Button, hooks::EventHandler, icon::IconName, theme::ActiveTheme};
 
@@ -132,7 +133,7 @@ impl RenderOnce for Dialog {
             // Clicks inside the panel must not reach the backdrop.
             .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
             .relative()
-            .flex()
+            .flex_dir()
             .flex_col()
             .gap(px(16.))
             .w_full()
@@ -146,10 +147,10 @@ impl RenderOnce for Dialog {
             .shadow_lg()
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .gap(px(8.))
-                    .pr(px(24.))
+                    .pe(px(24.))
                     .when_some(self.title, |header, title| {
                         header.child(
                             div()
@@ -170,10 +171,16 @@ impl RenderOnce for Dialog {
             )
             .children(self.children)
             .when(!self.footer.is_empty(), |panel| {
-                panel.child(div().flex().justify_end().gap(px(8.)).children(self.footer))
+                panel.child(
+                    div()
+                        .flex_dir()
+                        .justify_end()
+                        .gap(px(8.))
+                        .children(self.footer),
+                )
             })
             .child(
-                div().absolute().top(px(12.)).right(px(12.)).child(
+                div().absolute().top(px(12.)).inset_end(px(12.)).child(
                     Button::new("dialog-close")
                         .ghost()
                         .small()
@@ -190,7 +197,7 @@ impl RenderOnce for Dialog {
             .occlude()
             .w(viewport_size.width)
             .h(viewport_size.height)
-            .flex()
+            .flex_dir()
             .items_center()
             .justify_center()
             .p(px(16.))

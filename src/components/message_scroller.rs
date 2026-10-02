@@ -14,6 +14,7 @@ use gpui::{
 };
 
 use super::button::{Button, IconPosition};
+use super::direction::DirectionalStyled;
 use crate::{icon::IconName, styles::ApplyStyleOverrides};
 
 /// Scroll position and message count of a [`MessageScroller`]. Keep it in your
@@ -156,7 +157,7 @@ impl RenderOnce for MessageScroller {
 
         div()
             .relative()
-            .flex()
+            .flex_dir()
             .flex_col()
             .child(
                 list(list_state, move |index, window, cx| {
@@ -176,7 +177,7 @@ impl RenderOnce for MessageScroller {
                         .bottom(px(12.))
                         .left_0()
                         .w_full()
-                        .flex()
+                        .flex_dir()
                         .justify_center()
                         .child(
                             Button::new("message-scroller-jump")

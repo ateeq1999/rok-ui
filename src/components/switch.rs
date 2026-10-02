@@ -6,6 +6,7 @@ use gpui::{
     div, prelude::*, px, App, CursorStyle, ElementId, SharedString, StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::focus_ring_shadow;
 use crate::{hooks::EventHandler, styles::ApplyStyleOverrides, theme::ActiveTheme};
 
@@ -83,7 +84,7 @@ impl RenderOnce for Switch {
         };
 
         let track = div()
-            .flex()
+            .flex_dir()
             .flex_none()
             .items_center()
             .w(track_width)
@@ -102,7 +103,7 @@ impl RenderOnce for Switch {
 
         div()
             .id(self.id)
-            .flex()
+            .flex_dir()
             .items_center()
             .gap(px(8.))
             .text_sm()

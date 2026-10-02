@@ -33,6 +33,7 @@ use gpui::{
 };
 
 use crate::{
+    components::direction::DirectionalStyled,
     components::{extra_small_shadow, focus_ring_shadow},
     theme::{Theme, ThemeColors},
 };
@@ -310,6 +311,22 @@ pub enum Edges {
     Right,
     Bottom,
     Left,
+    /// Left in LTR, right in RTL.
+    Start,
+    /// Right in LTR, left in RTL.
+    End,
+}
+
+impl Edges {
+    /// Logical edges resolved for the current direction.
+    fn physical(self) -> Edges {
+        let rtl = crate::components::direction::is_rtl();
+        match (self, rtl) {
+            (Edges::Start, false) | (Edges::End, true) => Edges::Left,
+            (Edges::Start, true) | (Edges::End, false) => Edges::Right,
+            (other, _) => other,
+        }
+    }
 }
 
 /// Which corners a radius applies to.
@@ -324,6 +341,49 @@ pub enum Corners {
     TopRight,
     BottomLeft,
     BottomRight,
+    /// The starting side's corners (left in LTR).
+    Start,
+    End,
+    TopStart,
+    TopEnd,
+    BottomStart,
+    BottomEnd,
+}
+
+impl Corners {
+    /// Logical corners resolved for the current direction.
+    fn physical(self) -> Corners {
+        let rtl = crate::components::direction::is_rtl();
+        let (start, end) = if rtl {
+            (Corners::Right, Corners::Left)
+        } else {
+            (Corners::Left, Corners::Right)
+        };
+        let (top_start, top_end, bottom_start, bottom_end) = if rtl {
+            (
+                Corners::TopRight,
+                Corners::TopLeft,
+                Corners::BottomRight,
+                Corners::BottomLeft,
+            )
+        } else {
+            (
+                Corners::TopLeft,
+                Corners::TopRight,
+                Corners::BottomLeft,
+                Corners::BottomRight,
+            )
+        };
+        match self {
+            Corners::Start => start,
+            Corners::End => end,
+            Corners::TopStart => top_start,
+            Corners::TopEnd => top_end,
+            Corners::BottomStart => bottom_start,
+            Corners::BottomEnd => bottom_end,
+            other => other,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -377,6 +437,8 @@ pub enum SxTextAlign {
     Left,
     Center,
     Right,
+    Start,
+    End,
 }
 
 // ---------------------------------------------------------------------------
@@ -451,7 +513,7 @@ fn apply_edges<L>(
 where
     L: Copy,
 {
-    match edges {
+    match edges.physical() {
         Edges::All => all(layer, value),
         Edges::X => each(each(layer, Edges::Left, value), Edges::Right, value),
         Edges::Y => each(each(layer, Edges::Top, value), Edges::Bottom, value),
@@ -463,9 +525,23 @@ impl Decl {
     fn apply(&self, layer: Layer, theme: &Theme) -> Layer {
         let colors = &theme.colors;
         match self {
-            Decl::Display(SxDisplay::Flex) => layer.flex(),
+            // Rows flow in the reading direction, like CSS flex in `dir="rtl"`.
+            Decl::Display(SxDisplay::Flex) => {
+                let layer = layer.flex();
+                if crate::components::direction::is_rtl() && layer.0.flex_direction.is_none() {
+                    layer.flex_row_reverse()
+                } else {
+                    layer
+                }
+            }
             Decl::Display(SxDisplay::Block) => layer.block(),
             Decl::Display(SxDisplay::Hidden) => layer.hidden(),
+            Decl::Direction(SxDirection::Row) if crate::components::direction::is_rtl() => {
+                layer.flex_row_reverse()
+            }
+            Decl::Direction(SxDirection::RowReverse) if crate::components::direction::is_rtl() => {
+                layer.flex_row()
+            }
             Decl::Direction(SxDirection::Row) => layer.flex_row(),
             Decl::Direction(SxDirection::Column) => layer.flex_col(),
             Decl::Direction(SxDirection::RowReverse) => layer.flex_row_reverse(),
@@ -583,7 +659,7 @@ impl Decl {
                 let mut layer = layer;
                 let width = Some(AbsoluteLength::from(*width));
                 let widths = &mut layer.0.border_widths;
-                match edges {
+                match edges.physical() {
                     Edges::All => {
                         widths.top = width;
                         widths.right = width;
@@ -602,12 +678,14 @@ impl Decl {
                     Edges::Right => widths.right = width,
                     Edges::Bottom => widths.bottom = width,
                     Edges::Left => widths.left = width,
+                    // `physical()` never returns logical edges.
+                    Edges::Start | Edges::End => {}
                 }
                 layer
             }
             Decl::Radius(corners, radius) => {
                 let value = radius.resolve(theme);
-                match corners {
+                match corners.physical() {
                     Corners::All => layer.rounded(value),
                     Corners::Top => layer.rounded_t(value),
                     Corners::Bottom => layer.rounded_b(value),
@@ -617,6 +695,13 @@ impl Decl {
                     Corners::TopRight => layer.rounded_tr(value),
                     Corners::BottomLeft => layer.rounded_bl(value),
                     Corners::BottomRight => layer.rounded_br(value),
+                    // `physical()` never returns logical corners.
+                    Corners::Start
+                    | Corners::End
+                    | Corners::TopStart
+                    | Corners::TopEnd
+                    | Corners::BottomStart
+                    | Corners::BottomEnd => layer,
                 }
             }
             Decl::Shadow(shadow) => match shadow {
@@ -648,6 +733,8 @@ impl Decl {
             Decl::TextAlign(SxTextAlign::Left) => layer.text_left(),
             Decl::TextAlign(SxTextAlign::Center) => layer.text_center(),
             Decl::TextAlign(SxTextAlign::Right) => layer.text_right(),
+            Decl::TextAlign(SxTextAlign::Start) => layer.text_start(),
+            Decl::TextAlign(SxTextAlign::End) => layer.text_end(),
             Decl::NoWrap(true) => layer.whitespace_nowrap(),
             Decl::NoWrap(false) => layer.whitespace_normal(),
             Decl::Truncate => layer.truncate(),

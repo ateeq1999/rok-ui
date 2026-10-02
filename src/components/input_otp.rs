@@ -7,6 +7,7 @@ use gpui::{
     Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::{focus_ring_outline, overlay::child_id};
 use crate::{
     hooks::EventHandler,
@@ -181,7 +182,7 @@ impl RenderOnce for InputOtp {
                 let is_last = index + 1 == group_end;
                 div()
                     .relative()
-                    .flex()
+                    .flex_ltr()
                     .items_center()
                     .justify_center()
                     .size(px(36.))
@@ -205,7 +206,7 @@ impl RenderOnce for InputOtp {
             });
             children.push(
                 div()
-                    .flex()
+                    .flex_ltr()
                     .items_center()
                     .children(slots)
                     .into_any_element(),
@@ -220,7 +221,7 @@ impl RenderOnce for InputOtp {
         let focus_on_click = focus_handle.clone();
         div()
             .id(self.id)
-            .flex()
+            .flex_ltr()
             .items_center()
             .gap(px(8.))
             .when(self.disabled, |otp| otp.opacity(0.5))

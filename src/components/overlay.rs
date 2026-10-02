@@ -15,6 +15,7 @@ use gpui::{
     div, prelude::*, px, relative, App, Corner, Div, ElementId, FocusHandle, Pixels, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::layer::layer_at_marker;
 use crate::motion::{presets, Motion, MotionExt, MotionSide};
 
@@ -23,7 +24,8 @@ use crate::{
     theme::Theme,
 };
 
-/// Which side of the trigger a floating surface opens on.
+/// Which side of the trigger a floating surface opens on. `Left` and `Right`
+/// swap in RTL.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Side {
     Top,
@@ -34,6 +36,7 @@ pub enum Side {
 }
 
 /// How a floating surface lines up with its trigger along the trigger's edge.
+/// Logical: `Start` is the left edge in LTR and the right edge in RTL.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Align {
     /// Left edges line up (top edges for `Left` / `Right` sides).
@@ -127,6 +130,22 @@ pub(crate) fn use_open_state(
 /// parent must be `relative()`. The content draws above everything else and is
 /// shifted back inside the window when it would overflow.
 pub(crate) fn floating(side: Side, align: Align, content: impl IntoElement, cx: &mut App) -> Div {
+    // Sides and alignment are logical: in RTL, start is the right edge and a
+    // surface opening "right" (a submenu) opens left.
+    let (side, align) = if super::direction::is_rtl() {
+        let side = match side {
+            Side::Left => Side::Right,
+            Side::Right => Side::Left,
+            other => other,
+        };
+        let align = match align {
+            Align::Start => Align::End,
+            Align::End => Align::Start,
+        };
+        (side, align)
+    } else {
+        (side, align)
+    };
     let gap = px(4.);
     let anchor = match (side, align) {
         (Side::Bottom, Align::Start) | (Side::Right, Align::Start) => Corner::TopLeft,
@@ -167,7 +186,7 @@ pub(crate) fn floating(side: Side, align: Align, content: impl IntoElement, cx: 
 /// border, `rounded-md`, `shadow-md`).
 pub(crate) fn popover_surface(theme: &Theme) -> Div {
     div()
-        .flex()
+        .flex_dir()
         .flex_col()
         .rounded(theme.radius_medium())
         .border_1()

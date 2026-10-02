@@ -8,6 +8,7 @@ use gpui::{
     Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::focus_ring_shadow;
 use crate::{hooks::EventHandler, styles::ApplyStyleOverrides, theme::ActiveTheme};
 
@@ -79,7 +80,7 @@ impl RenderOnce for Tabs {
                 let on_change = on_change.clone();
                 div()
                     .id(tab_index)
-                    .flex()
+                    .flex_dir()
                     .flex_1()
                     .items_center()
                     .justify_center()
@@ -115,7 +116,7 @@ impl RenderOnce for Tabs {
 
         div()
             .id(self.id)
-            .flex()
+            .flex_dir()
             .items_center()
             .h(px(36.))
             .p(px(3.))

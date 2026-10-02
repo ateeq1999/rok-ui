@@ -8,6 +8,7 @@ use gpui::{
     FontWeight, Hsla, PathBuilder, Pixels, Point, SharedString, StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::{interaction::measure_bounds, overlay::child_id};
 use crate::{
     hooks::{use_keyed_state, State},
@@ -306,7 +307,7 @@ impl RenderOnce for Chart {
         };
         let legend = self.show_legend.then(|| {
             div()
-                .flex()
+                .flex_ltr()
                 .flex_wrap()
                 .justify_center()
                 .gap(px(16.))
@@ -314,7 +315,7 @@ impl RenderOnce for Chart {
                 .text_xs()
                 .children(legend_items.into_iter().map(|(label, color)| {
                     div()
-                        .flex()
+                        .flex_ltr()
                         .items_center()
                         .gap(px(6.))
                         .child(div().size(px(8.)).rounded(px(2.)).bg(color))
@@ -324,7 +325,7 @@ impl RenderOnce for Chart {
 
         div()
             .id(self.id.clone())
-            .flex()
+            .flex_ltr()
             .flex_col()
             .w_full()
             .child(plot)
@@ -375,14 +376,14 @@ impl Chart {
                 .top_0()
                 .left_0()
                 .size_full()
-                .flex()
+                .flex_ltr()
                 .items_end()
                 .children((0..category_count).map(|index| {
                     let is_dimmed = hovered.is_some_and(|hovered| hovered != index);
                     let column = div()
                         .flex_1()
                         .h_full()
-                        .flex()
+                        .flex_ltr()
                         .items_end()
                         .justify_center()
                         .px(px(4.))
@@ -390,7 +391,7 @@ impl Chart {
                     if self.stacked {
                         column.child(
                             div()
-                                .flex()
+                                .flex_ltr()
                                 .flex_col_reverse()
                                 .w(relative(0.7))
                                 .max_w(px(48.))
@@ -507,7 +508,7 @@ impl Chart {
                     .zip(series_colors)
                     .map(|(series, color)| {
                         div()
-                            .flex()
+                            .flex_ltr()
                             .items_center()
                             .gap(px(8.))
                             .child(div().size(px(10.)).rounded(px(2.)).bg(*color))
@@ -524,7 +525,7 @@ impl Chart {
                             )
                     });
                 let card = div()
-                    .flex()
+                    .flex_ltr()
                     .flex_col()
                     .gap(px(6.))
                     .min_w(px(128.))
@@ -539,7 +540,7 @@ impl Chart {
                     .child(div().font_weight(FontWeight::MEDIUM).child(label))
                     .children(rows);
                 // Show the card on whichever side of the cursor has room.
-                let column = div().absolute().top(px(8.)).w(px(0.)).flex();
+                let column = div().absolute().top(px(8.)).w(px(0.)).flex_ltr();
                 if fraction > 0.6 {
                     column
                         .left(relative(fraction))
@@ -601,7 +602,7 @@ impl Chart {
         });
 
         let x_labels = div()
-            .flex()
+            .flex_ltr()
             .pt(px(8.))
             .when(self.show_y_axis, |labels| labels.pl(px(40.)))
             .text_xs()
@@ -610,7 +611,7 @@ impl Chart {
                 div()
                     .flex_1()
                     .min_w_0()
-                    .flex()
+                    .flex_ltr()
                     .justify_center()
                     .overflow_hidden()
                     .whitespace_nowrap()
@@ -618,10 +619,10 @@ impl Chart {
             }));
 
         div()
-            .flex()
+            .flex_ltr()
             .flex_col()
             .w_full()
-            .child(div().flex().w_full().children(y_axis).child(plot))
+            .child(div().flex_ltr().w_full().children(y_axis).child(plot))
             .child(x_labels)
             .into_any_element()
     }
@@ -723,7 +724,7 @@ impl Chart {
                         .top_0()
                         .left_0()
                         .size_full()
-                        .flex()
+                        .flex_ltr()
                         .flex_col()
                         .items_center()
                         .justify_center()
@@ -747,7 +748,7 @@ impl Chart {
                 .absolute()
                 .top(px(8.))
                 .right(px(8.))
-                .flex()
+                .flex_ltr()
                 .items_center()
                 .gap(px(8.))
                 .px(px(10.))

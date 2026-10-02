@@ -13,6 +13,7 @@
 
 use gpui::{div, prelude::*, px, App, FontWeight, SharedString, StyleRefinement};
 
+use super::direction::DirectionalStyled;
 use crate::{component, styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// Page title: 36px extra-bold.
@@ -84,8 +85,14 @@ pub fn Blockquote(
     cx: &mut App,
 ) -> impl IntoElement {
     div()
-        .pl(px(24.))
-        .border_l_2()
+        .ps(px(24.))
+        .map(|quote| {
+            if super::direction::is_rtl() {
+                quote.border_r_2()
+            } else {
+                quote.border_l_2()
+            }
+        })
         .border_color(cx.theme().colors.border)
         .italic()
         .child(text)
@@ -100,10 +107,10 @@ pub fn List(
     #[style] style_overrides: StyleRefinement,
 ) -> impl IntoElement {
     div()
-        .flex()
+        .flex_dir()
         .flex_col()
         .gap(px(8.))
-        .pl(px(24.))
+        .ps(px(24.))
         .children(items.into_iter().enumerate().map(move |(index, item)| {
             let marker: SharedString = if ordered {
                 format!("{}.", index + 1).into()
@@ -111,7 +118,7 @@ pub fn List(
                 "•".into()
             };
             div()
-                .flex()
+                .flex_dir()
                 .gap(px(8.))
                 .child(div().flex_none().min_w(px(12.)).child(marker))
                 .child(item)

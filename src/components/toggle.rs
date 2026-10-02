@@ -7,6 +7,7 @@ use gpui::{
     StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::extra_small_shadow;
 use crate::{
     hooks::EventHandler,
@@ -134,7 +135,7 @@ impl RenderOnce for Toggle {
 
         div()
             .id(self.id)
-            .flex()
+            .flex_dir()
             .flex_none()
             .items_center()
             .justify_center()
@@ -349,11 +350,11 @@ impl RenderOnce for ToggleGroup {
                 // Outlined groups join into one bordered strip.
                 let toggle = if is_outline && count > 1 {
                     let toggle = if index == 0 {
-                        toggle.rounded_r_none()
+                        toggle.rounded_e_none()
                     } else if index + 1 == count {
-                        toggle.rounded_l_none().ml(px(-1.))
+                        toggle.rounded_s_none().ms(px(-1.))
                     } else {
-                        toggle.rounded_none().ml(px(-1.))
+                        toggle.rounded_none().ms(px(-1.))
                     };
                     toggle.shadow(Vec::new())
                 } else {
@@ -365,7 +366,7 @@ impl RenderOnce for ToggleGroup {
 
         div()
             .id(self.id)
-            .flex()
+            .flex_dir()
             .items_center()
             .when(!is_outline, |group| group.gap(px(4.)))
             .when(is_outline, |group| {

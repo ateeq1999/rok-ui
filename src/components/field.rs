@@ -17,6 +17,7 @@
 
 use gpui::{div, prelude::*, px, AnyElement, App, FontWeight, SharedString, StyleRefinement};
 
+use super::direction::DirectionalStyled;
 use crate::{component, styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// Label above the control, or beside it when horizontal.
@@ -39,7 +40,7 @@ pub fn Field(
 ) -> impl IntoElement {
     let destructive_text = cx.theme().colors.destructive_text;
     div()
-        .flex()
+        .flex_dir()
         .w_full()
         .gap(px(12.))
         .map(|field| match orientation {
@@ -99,7 +100,7 @@ pub fn FieldError(text: SharedString, cx: &mut App) -> impl IntoElement {
 #[component]
 pub fn FieldContent(#[children] children: Vec<AnyElement>) -> impl IntoElement {
     div()
-        .flex()
+        .flex_dir()
         .flex_col()
         .flex_1()
         .gap(px(6.))
@@ -113,7 +114,7 @@ pub fn FieldGroup(
     #[style] style_overrides: StyleRefinement,
 ) -> impl IntoElement {
     div()
-        .flex()
+        .flex_dir()
         .flex_col()
         .w_full()
         .gap(px(28.))
@@ -128,7 +129,7 @@ pub fn FieldSet(
     #[style] style_overrides: StyleRefinement,
 ) -> impl IntoElement {
     div()
-        .flex()
+        .flex_dir()
         .flex_col()
         .gap(px(24.))
         .children(children)
@@ -154,7 +155,7 @@ pub fn FieldSeparator(
     let colors = cx.theme().colors.clone();
     let line = || div().flex_1().h(px(1.)).bg(colors.border);
     div()
-        .flex()
+        .flex_dir()
         .items_center()
         .gap(px(8.))
         .h(px(20.))

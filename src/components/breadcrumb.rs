@@ -7,6 +7,7 @@ use gpui::{
     Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::{
     direction::ActiveDirection,
     menu::{DropdownMenu, Menu},
@@ -130,7 +131,7 @@ impl RenderOnce for Breadcrumb {
                     let dots = div()
                         .id(("breadcrumb-ellipsis", index))
                         .size(px(36.))
-                        .flex()
+                        .flex_dir()
                         .items_center()
                         .justify_center()
                         .child(
@@ -160,13 +161,12 @@ impl RenderOnce for Breadcrumb {
 
         div()
             .id(self.id)
-            .flex()
+            .flex_dir()
             .flex_wrap()
             .items_center()
             .gap(px(6.))
             .text_sm()
             .text_color(colors.muted_foreground)
-            .when(cx.direction().is_rtl(), |row| row.flex_row_reverse())
             .children(children)
             .apply_style_overrides(&self.style_overrides)
     }

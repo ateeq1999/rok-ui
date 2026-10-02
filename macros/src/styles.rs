@@ -643,9 +643,11 @@ fn property_call(name: &Ident, value: &TokenStream) -> syn::Result<TokenStream> 
             };
             quote!(.decl(#sx::Decl::Absolute(#absolute)))
         }
-        "inset" | "top" | "right" | "bottom" | "left" => {
+        "inset" | "top" | "right" | "bottom" | "left" | "inset_start" | "inset_end" => {
             let edge = match property.as_str() {
                 "inset" => edges("All"),
+                "inset_start" => edges("Start"),
+                "inset_end" => edges("End"),
                 other => edges(&camel_case(other)),
             };
             let inset = length(value)?;
@@ -703,6 +705,8 @@ fn property_call(name: &Ident, value: &TokenStream) -> syn::Result<TokenStream> 
                 "right" => edges("Right"),
                 "bottom" => edges("Bottom"),
                 "left" => edges("Left"),
+                "start" => edges("Start"),
+                "end" => edges("End"),
                 _ => return Err(unknown_property(name)),
             };
             let method = format_ident!("{}", method);
@@ -726,7 +730,7 @@ fn property_call(name: &Ident, value: &TokenStream) -> syn::Result<TokenStream> 
             quote!(.border(#width))
         }
         "border_x" | "border_y" | "border_top" | "border_right" | "border_bottom"
-        | "border_left" => {
+        | "border_left" | "border_start" | "border_end" => {
             let side = property.trim_start_matches("border_");
             let edge = match side {
                 "x" => edges("X"),
@@ -823,6 +827,8 @@ fn property_call(name: &Ident, value: &TokenStream) -> syn::Result<TokenStream> 
                     ("left", quote!(Left)),
                     ("center", quote!(Center)),
                     ("right", quote!(Right)),
+                    ("start", quote!(Start)),
+                    ("end", quote!(End)),
                 ],
             )?;
             quote!(.text_align(#sx::SxTextAlign::#align))

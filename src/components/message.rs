@@ -5,6 +5,7 @@ use gpui::{
 };
 
 use super::bubble::BubbleAlign;
+use super::direction::DirectionalStyled;
 use crate::{styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// ```ignore
@@ -103,10 +104,10 @@ impl RenderOnce for Message {
 
         let header = has_header.then(|| {
             div()
-                .flex()
+                .flex_dir()
                 .items_center()
                 .gap(px(8.))
-                .when(is_end, |header| header.flex_row_reverse())
+                .when(is_end, flip_row)
                 .when_some(self.name, |header, name| {
                     header.child(
                         div()
@@ -127,7 +128,7 @@ impl RenderOnce for Message {
         });
         let footer = (!self.footer.is_empty()).then(|| {
             div()
-                .flex()
+                .flex_dir()
                 .items_center()
                 .gap(px(8.))
                 .text_xs()
@@ -136,23 +137,24 @@ impl RenderOnce for Message {
         });
 
         div()
-            .flex()
+            .flex_dir()
             .items_start()
             .gap(px(12.))
             .w_full()
-            .when(is_end, |message| message.flex_row_reverse())
+            .when(is_end, flip_row)
             .when_some(self.avatar, |message, avatar| {
                 message.child(div().flex_none().child(avatar))
             })
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .flex_1()
                     .min_w_0()
                     .gap(px(4.))
                     .map(|column| {
-                        if is_end {
+                        // End-aligned turns sit on the right in LTR and the left in RTL.
+                        if is_end ^ super::direction::is_rtl() {
                             column.items_end()
                         } else {
                             column.items_start()
@@ -163,5 +165,14 @@ impl RenderOnce for Message {
                     .children(footer),
             )
             .apply_style_overrides(&self.style_overrides)
+    }
+}
+
+/// Reverse a row that already flows in the reading direction.
+fn flip_row(row: gpui::Div) -> gpui::Div {
+    if super::direction::is_rtl() {
+        row.flex_row()
+    } else {
+        row.flex_row_reverse()
     }
 }

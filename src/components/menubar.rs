@@ -7,6 +7,7 @@ use gpui::{
     SharedString, StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::{
     menu::{render_menu_panel, Menu},
     overlay::{child_id, floating, popover_surface, Align, Side},
@@ -144,7 +145,7 @@ impl RenderOnce for Menubar {
         div()
             .id(self.id)
             .track_focus(&focus_handle)
-            .flex()
+            .flex_dir()
             .items_center()
             .gap(px(4.))
             .h(px(36.))
@@ -286,7 +287,7 @@ impl RenderOnce for NavigationMenuLink {
         let colors = theme.colors.clone();
         div()
             .id(self.id)
-            .flex()
+            .flex_dir()
             .flex_col()
             .gap(px(4.))
             .p(px(8.))
@@ -327,7 +328,7 @@ impl RenderOnce for NavigationMenu {
             let trigger = div()
                 .id(("navigation-trigger", index))
                 .relative()
-                .flex()
+                .flex_dir()
                 .items_center()
                 .gap(px(4.))
                 .h(px(36.))
@@ -413,7 +414,7 @@ impl RenderOnce for NavigationMenu {
         let leave_state = open_panel.clone();
         div()
             .id(self.id)
-            .flex()
+            .flex_dir()
             .items_center()
             .gap(px(4.))
             .children(entries)

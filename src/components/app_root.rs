@@ -3,6 +3,7 @@
 
 use gpui::{actions, div, prelude::*, AnyElement, App, KeyBinding, StyleRefinement, Window};
 
+use super::direction::DirectionalStyled;
 use crate::{styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 actions!(rok_ui, [FocusNextElement, FocusPreviousElement]);
@@ -72,12 +73,13 @@ impl RenderOnce for AppRoot {
             .id("rok-ui-app-root")
             .track_focus(&root_focus_handle)
             .size_full()
-            .flex()
+            .flex_dir()
             .flex_col()
             .bg(theme.colors.background)
             .text_color(theme.colors.foreground)
             .font_family(theme.font_family.clone())
             .text_size(theme.font_size)
+            .when(super::direction::is_rtl(), |root| root.text_right())
             .on_action(|_: &FocusNextElement, window, _| window.focus_next())
             .on_action(|_: &FocusPreviousElement, window, _| window.focus_prev())
             .children(self.children)

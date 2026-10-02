@@ -7,6 +7,7 @@ use gpui::{
     Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::{
     calendar::{Calendar, CalendarDate, DateRange},
     extra_small_shadow, focus_ring_shadow,
@@ -167,7 +168,7 @@ impl RenderOnce for DatePicker {
 
         let trigger = div()
             .id("date-picker-trigger")
-            .flex()
+            .flex_dir()
             .items_center()
             .gap(px(8.))
             .h(px(36.))
@@ -266,11 +267,11 @@ impl RenderOnce for DatePicker {
                     });
                 Some(
                     div()
-                        .flex()
+                        .flex_dir()
                         .flex_col()
                         .gap(px(2.))
                         .p(px(8.))
-                        .border_r_1()
+                        .border_e_1()
                         .border_color(colors.border)
                         .children(buttons),
                 )

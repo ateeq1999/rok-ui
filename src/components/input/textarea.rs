@@ -8,6 +8,7 @@ use gpui::{
 };
 
 use super::{forward_to_state, InputState, INPUT_KEY_CONTEXT, TEXTAREA_KEY_CONTEXT};
+use crate::components::direction::DirectionalStyled;
 use crate::{components::focus_ring_outline, styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// `useRef`-style hook for a multi-line [`InputState`].
@@ -92,7 +93,7 @@ impl RenderOnce for Textarea {
                 "rok-ui-textarea".into(),
                 self.state.entity_id().as_u64(),
             ))
-            .flex()
+            .flex_dir()
             .w_full()
             .min_h(px(64.))
             .px(px(12.))

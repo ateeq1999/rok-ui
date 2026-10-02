@@ -2,6 +2,7 @@
 
 use gpui::{div, prelude::*, px, App, FontWeight, SharedString, StyleRefinement, Window};
 
+use super::direction::DirectionalStyled;
 use crate::{
     icon::{Icon, IconName},
     styles::ApplyStyleOverrides,
@@ -69,7 +70,7 @@ impl RenderOnce for Badge {
             BadgeVariant::Outline => (gpui::transparent_black(), colors.foreground, colors.border),
         };
         div()
-            .flex()
+            .flex_dir()
             .flex_none()
             .items_center()
             .gap(px(4.))

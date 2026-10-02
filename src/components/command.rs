@@ -8,6 +8,7 @@ use gpui::{
     FontWeight, SharedString, StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::layer::layer_at;
 use super::{
     input::{use_input_state, Input, InputState, Submit},
@@ -169,7 +170,7 @@ pub(crate) fn render_command(
                     .into_any_element(),
             );
         }
-        let mut section = div().flex().flex_col().py(px(4.));
+        let mut section = div().flex_dir().flex_col().py(px(4.));
         if let Some(heading) = group.heading.clone() {
             section = section.child(
                 div()
@@ -190,7 +191,7 @@ pub(crate) fn render_command(
             section = section.child(
                 div()
                     .id(("command-item", flat_index))
-                    .flex()
+                    .flex_dir()
                     .items_center()
                     .gap(px(8.))
                     .px(px(8.))
@@ -238,7 +239,7 @@ pub(crate) fn render_command(
 
     let list = div()
         .id(child_id(id, "list"))
-        .flex()
+        .flex_dir()
         .flex_col()
         .max_h(px(300.))
         .overflow_y_scroll()
@@ -260,7 +261,7 @@ pub(crate) fn render_command(
     let key_items = visible_items.clone();
     let submit_after_select = after_select.clone();
     div()
-        .flex()
+        .flex_dir()
         .flex_col()
         .on_key_down(move |event, _, cx| {
             let count = key_items.len();
@@ -521,7 +522,7 @@ impl RenderOnce for CommandDialog {
             .occlude()
             .w(viewport_size.width)
             .h(viewport_size.height)
-            .flex()
+            .flex_dir()
             .flex_col()
             .items_center()
             .pt(viewport_size.height * 0.2)

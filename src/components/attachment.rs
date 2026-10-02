@@ -7,6 +7,7 @@ use gpui::{
     SharedString, StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::{button::Button, spinner::Spinner};
 use crate::{
     hooks::EventHandler,
@@ -134,7 +135,7 @@ impl RenderOnce for Attachment {
             .relative()
             .flex_none()
             .size(px(40.))
-            .flex()
+            .flex_dir()
             .items_center()
             .justify_center()
             .rounded(theme.radius_medium())
@@ -159,7 +160,7 @@ impl RenderOnce for Attachment {
                             .top_0()
                             .left_0()
                             .size_full()
-                            .flex()
+                            .flex_dir()
                             .items_center()
                             .justify_center()
                             .bg(colors.background.opacity(0.6))
@@ -229,7 +230,7 @@ impl RenderOnce for Attachment {
 
         div()
             .id(self.id)
-            .flex()
+            .flex_dir()
             .items_center()
             .gap(px(12.))
             .w(px(280.))
@@ -251,7 +252,7 @@ impl RenderOnce for Attachment {
             .child(media)
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .flex_1()
                     .min_w_0()

@@ -2,6 +2,7 @@
 
 use gpui::{div, img, prelude::*, px, App, FontWeight, ImageSource, Pixels, SharedString, Window};
 
+use super::direction::DirectionalStyled;
 use crate::theme::ActiveTheme;
 
 /// `Avatar::new("AT")` shows initials; add `.image(..)` to show a picture,
@@ -47,7 +48,7 @@ impl RenderOnce for Avatar {
                 .size_full()
                 // GPUI clips children to a rectangle, so round the children too.
                 .rounded_full()
-                .flex()
+                .flex_dir()
                 .items_center()
                 .justify_center()
                 .bg(initials_background)

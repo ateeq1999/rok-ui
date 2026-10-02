@@ -178,7 +178,10 @@ pub use data_table::{
 pub use date_picker::DatePicker;
 #[cfg(feature = "dialog")]
 pub use dialog::Dialog;
-pub use direction::{set_text_direction, ActiveDirection, Direction, TextDirection};
+pub use direction::{
+    current_direction, is_rtl, set_text_direction, with_direction, ActiveDirection, Direction,
+    DirectionalStyled, TextDirection,
+};
 #[cfg(feature = "empty")]
 pub use empty::Empty;
 #[cfg(feature = "field")]

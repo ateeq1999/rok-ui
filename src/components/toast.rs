@@ -14,6 +14,7 @@ use std::{rc::Rc, time::Duration};
 
 use gpui::{div, point, prelude::*, px, App, Corner, FontWeight, Global, SharedString, Window};
 
+use super::direction::DirectionalStyled;
 use super::layer::layer_at;
 use super::{button::Button, spinner::Spinner};
 use crate::{
@@ -229,12 +230,12 @@ impl RenderOnce for Toaster {
                 .id(("toast", id.0))
                 .occlude()
                 .relative()
-                .flex()
+                .flex_dir()
                 .items_center()
                 .gap(px(10.))
                 .w(width)
                 .p(px(16.))
-                .pr(px(32.))
+                .pe(px(32.))
                 .rounded(radius)
                 .border_1()
                 .border_color(colors.border)
@@ -244,7 +245,7 @@ impl RenderOnce for Toaster {
                 .children(icon)
                 .child(
                     div()
-                        .flex()
+                        .flex_dir()
                         .flex_col()
                         .flex_1()
                         .gap(px(2.))
@@ -265,7 +266,7 @@ impl RenderOnce for Toaster {
                 )
                 .children(action)
                 .child(
-                    div().absolute().top(px(6.)).right(px(6.)).child(
+                    div().absolute().top(px(6.)).inset_end(px(6.)).child(
                         Button::new(("toast-close", id.0))
                             .ghost()
                             .icon_only(IconName::Close)
@@ -284,16 +285,25 @@ impl RenderOnce for Toaster {
         });
 
         let stack = div()
-            .flex()
+            .flex_dir()
             .flex_col()
             .gap(px(8.))
             .font_family(theme.font_family.clone())
             .text_size(theme.font_size)
             .children(cards);
-        let corner = point(
-            viewport_size.width - px(16.),
-            viewport_size.height - px(16.),
-        );
-        layer_at(corner, Corner::BottomRight, px(0.), stack, 2, cx)
+        // The ending corner: bottom-right in LTR, bottom-left in RTL.
+        let (x, corner) = if super::direction::is_rtl() {
+            (px(16.), Corner::BottomLeft)
+        } else {
+            (viewport_size.width - px(16.), Corner::BottomRight)
+        };
+        layer_at(
+            point(x, viewport_size.height - px(16.)),
+            corner,
+            px(0.),
+            stack,
+            2,
+            cx,
+        )
     }
 }

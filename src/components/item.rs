@@ -7,6 +7,7 @@ use gpui::{
     SharedString, StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
@@ -144,7 +145,7 @@ impl RenderOnce for Item {
         };
         div()
             .id(self.id)
-            .flex()
+            .flex_dir()
             .items_center()
             .gap(gap)
             .w_full()
@@ -169,7 +170,7 @@ impl RenderOnce for Item {
                     div()
                         .flex_none()
                         .size(px(32.))
-                        .flex()
+                        .flex_dir()
                         .items_center()
                         .justify_center()
                         .rounded(theme.radius_small())
@@ -184,7 +185,7 @@ impl RenderOnce for Item {
             })
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .flex_1()
                     .gap(px(4.))
@@ -210,7 +211,7 @@ impl RenderOnce for Item {
             .when(!self.actions.is_empty(), |item| {
                 item.child(
                     div()
-                        .flex()
+                        .flex_dir()
                         .items_center()
                         .gap(px(8.))
                         .children(self.actions),
@@ -262,7 +263,7 @@ impl RenderOnce for ItemGroup {
             }
         }
         div()
-            .flex()
+            .flex_dir()
             .flex_col()
             .w_full()
             .children(children)

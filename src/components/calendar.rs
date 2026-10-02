@@ -8,6 +8,7 @@ use gpui::{
     StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::{button::Button, overlay::child_id};
 use crate::{
     hooks::{use_keyed_state, EventHandler},
@@ -416,7 +417,7 @@ impl RenderOnce for Calendar {
             let next_state = visible_month.clone();
             let header = div()
                 .relative()
-                .flex()
+                .flex_dir()
                 .items_center()
                 .justify_center()
                 .h(cell)
@@ -428,10 +429,10 @@ impl RenderOnce for Calendar {
                 )
                 .when(is_first, |header| {
                     header.child(
-                        div().absolute().left_0().child(
+                        div().absolute().inset_start(px(0.)).child(
                             Button::new("calendar-previous")
                                 .ghost()
-                                .icon_only(IconName::ChevronLeft)
+                                .icon_only(IconName::ChevronLeft.for_direction())
                                 .w(cell)
                                 .h(cell)
                                 .tooltip("Previous month")
@@ -443,10 +444,10 @@ impl RenderOnce for Calendar {
                 })
                 .when(is_last, |header| {
                     header.child(
-                        div().absolute().right_0().child(
+                        div().absolute().inset_end(px(0.)).child(
                             Button::new("calendar-next")
                                 .ghost()
-                                .icon_only(IconName::ChevronRight)
+                                .icon_only(IconName::ChevronRight.for_direction())
                                 .w(cell)
                                 .h(cell)
                                 .tooltip("Next month")
@@ -457,18 +458,20 @@ impl RenderOnce for Calendar {
                     )
                 });
 
-            let weekday_row = div().flex().children(weekday_labels.iter().map(|label| {
-                div()
-                    .w(cell)
-                    .flex()
-                    .justify_center()
-                    .text_xs()
-                    .text_color(colors.muted_foreground)
-                    .child(*label)
-            }));
+            let weekday_row = div()
+                .flex_dir()
+                .children(weekday_labels.iter().map(|label| {
+                    div()
+                        .w(cell)
+                        .flex_dir()
+                        .justify_center()
+                        .text_xs()
+                        .text_color(colors.muted_foreground)
+                        .child(*label)
+                }));
 
             let weeks = days.chunks(7).map(|week| {
-                div().flex().children(week.iter().map(|date| {
+                div().flex_dir().children(week.iter().map(|date| {
                     let date = *date;
                     let is_outside = date.month != month.month;
                     let is_disabled = self.is_disabled(date);
@@ -489,7 +492,7 @@ impl RenderOnce for Calendar {
                     let mut day = div()
                         .id(("calendar-day", date.days_since_epoch() as u64))
                         .size(cell)
-                        .flex()
+                        .flex_dir()
                         .items_center()
                         .justify_center()
                         .rounded(cell_radius)
@@ -537,18 +540,18 @@ impl RenderOnce for Calendar {
 
             div()
                 .id(("calendar-month", month_offset))
-                .flex()
+                .flex_dir()
                 .flex_col()
                 .gap(px(8.))
                 .child(header)
                 .child(weekday_row)
-                .child(div().flex().flex_col().gap(px(2.)).children(weeks))
+                .child(div().flex_dir().flex_col().gap(px(2.)).children(weeks))
         });
         let months: Vec<AnyElement> = months.map(IntoElement::into_any_element).collect();
 
         div()
             .id(self.id)
-            .flex()
+            .flex_dir()
             .gap(px(16.))
             .p(px(12.))
             .children(months)

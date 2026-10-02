@@ -2,6 +2,7 @@
 
 use gpui::{div, prelude::*, px, AnyElement, App, Entity, SharedString, StyleRefinement, Window};
 
+use super::direction::DirectionalStyled;
 use super::{
     focus_ring_outline,
     input::{Input, InputState, Textarea},
@@ -157,14 +158,14 @@ impl RenderOnce for InputGroup {
                 .border_0()
                 .rounded_none()
                 .flex_1()
-                .when(!self.leading.is_empty(), |input| input.pl(px(0.)))
-                .when(!self.trailing.is_empty(), |input| input.pr(px(0.)))
+                .when(!self.leading.is_empty(), |input| input.ps(px(0.)))
+                .when(!self.trailing.is_empty(), |input| input.pe(px(0.)))
                 .into_any_element()
         };
 
         let addon_row = |children: Vec<AnyElement>| {
             div()
-                .flex()
+                .flex_dir()
                 .items_center()
                 .gap(px(8.))
                 .px(px(12.))
@@ -173,19 +174,19 @@ impl RenderOnce for InputGroup {
         let has_leading = !self.leading.is_empty();
         let has_trailing = !self.trailing.is_empty();
         let main_row = div()
-            .flex()
+            .flex_dir()
             .items_center()
             .w_full()
             .when(has_leading, |row| {
-                row.child(addon_row(self.leading).pr(px(8.)))
+                row.child(addon_row(self.leading).pe(px(8.)))
             })
             .child(div().flex_1().min_w_0().child(control))
             .when(has_trailing, |row| {
-                row.child(addon_row(self.trailing).pl(px(8.)))
+                row.child(addon_row(self.trailing).ps(px(8.)))
             });
 
         div()
-            .flex()
+            .flex_dir()
             .flex_col()
             .w_full()
             .rounded(theme.radius_medium())

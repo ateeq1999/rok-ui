@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 use gpui::{div, prelude::*, px, AnyElement, App, ElementId, StyleRefinement, Window};
 
+use super::direction::DirectionalStyled;
 use super::{interaction::on_activate, overlay::child_id};
 use crate::{
     hooks::{use_keyed_state, EventHandler},
@@ -98,7 +99,7 @@ impl RenderOnce for Collapsible {
         });
 
         div()
-            .flex()
+            .flex_dir()
             .flex_col()
             .gap(px(8.))
             .when_some(self.trigger, |collapsible, trigger| {

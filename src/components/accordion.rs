@@ -7,6 +7,7 @@ use gpui::{
     StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::{interaction::on_activate, overlay::child_id};
 use crate::{
     hooks::{use_keyed_state, EventHandler},
@@ -148,7 +149,7 @@ impl RenderOnce for Accordion {
             let ring_color = colors.ring;
             let trigger = div()
                 .id(("accordion-trigger", index))
-                .flex()
+                .flex_dir()
                 .items_start()
                 .justify_between()
                 .gap(px(16.))
@@ -182,7 +183,7 @@ impl RenderOnce for Accordion {
                 )
             };
             div()
-                .flex()
+                .flex_dir()
                 .flex_col()
                 .when(index + 1 < item_count, |item_row| {
                     item_row.border_b_1().border_color(colors.border)
@@ -191,7 +192,7 @@ impl RenderOnce for Accordion {
                 .when(is_open, |item_row| {
                     item_row.child(
                         div()
-                            .flex()
+                            .flex_dir()
                             .flex_col()
                             .gap(px(8.))
                             .pb(px(16.))
@@ -203,7 +204,7 @@ impl RenderOnce for Accordion {
 
         div()
             .id(self.id)
-            .flex()
+            .flex_dir()
             .flex_col()
             .w_full()
             .children(items)

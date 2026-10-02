@@ -12,6 +12,7 @@ use gpui::{
     ElementId, MouseMoveEvent, MouseUpEvent, Pixels, Point, Stateful, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::layer::layer_at;
 use super::overlay::child_id;
 use crate::{
@@ -171,7 +172,7 @@ pub(crate) fn render_modal(
         .occlude()
         .w(viewport_size.width)
         .h(viewport_size.height)
-        .flex()
+        .flex_ltr()
         .bg(theme.colors.overlay.opacity(progress))
         .font_family(theme.font_family.clone())
         .text_size(theme.font_size)

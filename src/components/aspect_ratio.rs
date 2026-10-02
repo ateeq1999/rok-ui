@@ -2,6 +2,7 @@
 
 use gpui::{div, prelude::*, AnyElement, StyleRefinement};
 
+use super::direction::DirectionalStyled;
 use crate::{component, styles::ApplyStyleOverrides};
 
 /// Fills the available width and sets its height from `ratio` (width / height).
@@ -25,7 +26,7 @@ pub fn AspectRatio(
                 .top_0()
                 .left_0()
                 .size_full()
-                .flex()
+                .flex_dir()
                 .children(children),
         )
         .apply_style_overrides(&style_overrides)

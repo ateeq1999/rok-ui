@@ -7,6 +7,7 @@ use gpui::{
     StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::{button::Button, direction::ActiveDirection, overlay::child_id, tooltip::Tooltip};
 use crate::{
     hooks::{use_keyed_state, EventHandler},
@@ -117,7 +118,7 @@ impl Default for SidebarGroup {
 /// it shrinks to icons with tooltips.
 ///
 /// ```ignore
-/// div().flex().size_full()
+/// div().flex_dir().size_full()
 ///     .child(Sidebar::new("app-sidebar")
 ///         .collapsed(collapsed)
 ///         .header(team_switcher)
@@ -209,7 +210,7 @@ fn render_item(
 
     let row = div()
         .id(item_id.clone())
-        .flex()
+        .flex_dir()
         .items_center()
         .gap(px(8.))
         .h(if depth > 0 { px(28.) } else { px(32.) })
@@ -254,7 +255,7 @@ fn render_item(
                         Icon::new(if is_open {
                             IconName::ChevronDown
                         } else {
-                            IconName::ChevronRight
+                            IconName::ChevronRight.for_direction()
                         })
                         .size(px(14.))
                         .color(colors.muted_foreground),
@@ -275,18 +276,18 @@ fn render_item(
         })
         .collect();
     div()
-        .flex()
+        .flex_dir()
         .flex_col()
         .gap(px(2.))
         .child(row)
         .child(
             div()
-                .flex()
+                .flex_dir()
                 .flex_col()
                 .gap(px(2.))
-                .ml(px(14.))
-                .pl(px(10.))
-                .border_l_1()
+                .ms(px(14.))
+                .ps(px(10.))
+                .border_s_1()
                 .border_color(cx.theme().colors.border)
                 .children(sub_rows),
         )
@@ -320,7 +321,7 @@ impl RenderOnce for Sidebar {
                     })
                     .collect();
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .gap(px(2.))
                     .p(px(8.))
@@ -329,7 +330,7 @@ impl RenderOnce for Sidebar {
                             div()
                                 .h(px(32.))
                                 .px(px(8.))
-                                .flex()
+                                .flex_dir()
                                 .items_center()
                                 .text_xs()
                                 .font_weight(FontWeight::MEDIUM)
@@ -345,7 +346,7 @@ impl RenderOnce for Sidebar {
         let colors = cx.theme().colors.clone();
         div()
             .id(self.id)
-            .flex()
+            .flex_dir()
             .flex_col()
             .flex_none()
             .h_full()
@@ -359,7 +360,7 @@ impl RenderOnce for Sidebar {
             .when(!self.header.is_empty(), |sidebar| {
                 sidebar.child(
                     div()
-                        .flex()
+                        .flex_dir()
                         .flex_col()
                         .gap(px(8.))
                         .p(px(8.))
@@ -369,7 +370,7 @@ impl RenderOnce for Sidebar {
             .child(
                 div()
                     .id("sidebar-content")
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .flex_1()
                     .overflow_y_scroll()
@@ -379,7 +380,7 @@ impl RenderOnce for Sidebar {
             .when(!self.footer.is_empty(), |sidebar| {
                 sidebar.child(
                     div()
-                        .flex()
+                        .flex_dir()
                         .flex_col()
                         .gap(px(8.))
                         .p(px(8.))

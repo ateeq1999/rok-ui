@@ -7,6 +7,7 @@ use gpui::{
     StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::overlay::child_id;
 use crate::{
     hooks::{use_keyed_state, EventHandler},
@@ -172,6 +173,7 @@ impl RenderOnce for Bubble {
             ),
         };
         let is_ghost = self.variant == BubbleVariant::Ghost;
+        let on_right = (self.align == BubbleAlign::End) ^ super::direction::is_rtl();
 
         // Tail-side corners: the bottom one is the tail; the top one tightens when
         // the bubble continues a run from the same sender.
@@ -207,7 +209,7 @@ impl RenderOnce for Bubble {
         };
         let content = div()
             .relative()
-            .flex()
+            .flex_dir()
             .flex_col()
             .gap(px(4.))
             .children(self.children)
@@ -227,7 +229,7 @@ impl RenderOnce for Bubble {
             );
 
         let bubble = div()
-            .flex()
+            .flex_dir()
             .flex_col()
             .max_w(px(480.))
             .when(!is_ghost, |bubble| bubble.px(px(14.)).py(px(8.)))
@@ -236,13 +238,14 @@ impl RenderOnce for Bubble {
             .bg(background)
             .text_color(text)
             .text_sm()
-            .map(|bubble| match self.align {
-                BubbleAlign::Start => bubble
+            // The tail is on the left for start-aligned bubbles in LTR, the right in RTL.
+            .map(|bubble| match on_right {
+                false => bubble
                     .rounded_tr(large)
                     .rounded_br(large)
                     .rounded_tl(tail_top)
                     .rounded_bl(tail_bottom),
-                BubbleAlign::End => bubble
+                true => bubble
                     .rounded_tl(large)
                     .rounded_bl(large)
                     .rounded_tr(tail_top)
@@ -253,7 +256,7 @@ impl RenderOnce for Bubble {
 
         let reactions = (!self.reactions.is_empty()).then(|| {
             let on_reaction = self.on_reaction.clone();
-            div().flex().flex_wrap().gap(px(4.)).children(
+            div().flex_dir().flex_wrap().gap(px(4.)).children(
                 self.reactions
                     .into_iter()
                     .enumerate()
@@ -262,7 +265,7 @@ impl RenderOnce for Bubble {
                         let emoji = reaction.emoji.clone();
                         div()
                             .id(("bubble-reaction", index))
-                            .flex()
+                            .flex_dir()
                             .items_center()
                             .gap(px(4.))
                             .h(px(24.))
@@ -292,12 +295,12 @@ impl RenderOnce for Bubble {
 
         div()
             .id(self.id)
-            .flex()
+            .flex_dir()
             .flex_col()
             .gap(px(4.))
-            .map(|column| match self.align {
-                BubbleAlign::Start => column.items_start(),
-                BubbleAlign::End => column.items_end(),
+            .map(|column| match on_right {
+                false => column.items_start(),
+                true => column.items_end(),
             })
             .child(bubble)
             .children(reactions)

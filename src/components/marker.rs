@@ -3,6 +3,7 @@
 
 use gpui::{div, prelude::*, px, App, Hsla, SharedString, StyleRefinement, Window};
 
+use super::direction::DirectionalStyled;
 use super::spinner::Spinner;
 use crate::{
     icon::{Icon, IconName},
@@ -112,7 +113,7 @@ impl RenderOnce for Marker {
             .icon
             .map(|icon| Icon::new(icon).size(px(14.)).color(muted));
         let row = div()
-            .flex()
+            .flex_dir()
             .items_center()
             .gap(px(8.))
             .text_xs()

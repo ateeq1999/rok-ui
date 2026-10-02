@@ -2,6 +2,7 @@
 
 use gpui::{div, prelude::*, px, AnyElement, App, SharedString, StyleRefinement, Styled, Window};
 
+use super::direction::DirectionalStyled;
 use crate::{styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// Direction of a [`ButtonGroup`].
@@ -67,10 +68,10 @@ impl ButtonGroup {
                 (_, GroupPosition::Only) => control,
                 (_, GroupPosition::Middle) => control.rounded_none(),
                 (ButtonGroupOrientation::Horizontal, GroupPosition::First) => {
-                    control.rounded_r_none()
+                    control.rounded_e_none()
                 }
                 (ButtonGroupOrientation::Horizontal, GroupPosition::Last) => {
-                    control.rounded_l_none()
+                    control.rounded_s_none()
                 }
                 (ButtonGroupOrientation::Vertical, GroupPosition::First) => {
                     control.rounded_b_none()
@@ -80,7 +81,7 @@ impl ButtonGroup {
             // Overlap borders so adjacent outlines read as one line.
             let control = match (orientation, position) {
                 (_, GroupPosition::Only | GroupPosition::First) => control,
-                (ButtonGroupOrientation::Horizontal, _) => control.ml(px(-1.)),
+                (ButtonGroupOrientation::Horizontal, _) => control.ms(px(-1.)),
                 (ButtonGroupOrientation::Vertical, _) => control.mt(px(-1.)),
             };
             control.into_any_element()
@@ -114,7 +115,7 @@ impl RenderOnce for ButtonGroup {
             item(position, orientation)
         });
         div()
-            .flex()
+            .flex_dir()
             .when(orientation == ButtonGroupOrientation::Vertical, |group| {
                 group.flex_col()
             })
@@ -150,7 +151,7 @@ impl RenderOnce for ButtonGroupText {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = cx.theme();
         div()
-            .flex()
+            .flex_dir()
             .items_center()
             .px(px(16.))
             .rounded(theme.radius_medium())

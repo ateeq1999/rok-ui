@@ -6,6 +6,7 @@ use gpui::{
     div, prelude::*, px, AnyElement, App, Div, ElementId, FontWeight, SharedString, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::{
     button::Button,
     interaction::{modal_presence, render_modal, Callback, ModalPlacement},
@@ -47,7 +48,7 @@ impl PanelContent {
             .when(has_header, |panel| {
                 panel.child(
                     div()
-                        .flex()
+                        .flex_dir()
                         .flex_col()
                         .gap(px(6.))
                         .p(px(16.))
@@ -73,7 +74,7 @@ impl PanelContent {
             .child(
                 div()
                     .id("sheet-body")
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .flex_1()
                     .gap(px(16.))
@@ -84,7 +85,7 @@ impl PanelContent {
             .when(!self.footer.is_empty(), |panel| {
                 panel.child(
                     div()
-                        .flex()
+                        .flex_dir()
                         .flex_col()
                         .gap(px(8.))
                         .p(px(16.))
@@ -176,6 +177,12 @@ impl ParentElement for Sheet {
 
 impl RenderOnce for Sheet {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        // Left and right are the starting and ending edges: they swap in RTL.
+        let side = match (self.side, super::direction::is_rtl()) {
+            (SheetSide::Left, true) => SheetSide::Right,
+            (SheetSide::Right, true) => SheetSide::Left,
+            (side, _) => side,
+        };
         let presence = modal_presence(&self.id, self.open, window, cx);
         if !presence.is_mounted() {
             return div().into_any_element();
@@ -188,13 +195,13 @@ impl RenderOnce for Sheet {
 
         let panel = div()
             .relative()
-            .flex()
+            .flex_dir()
             .flex_col()
             .gap(px(16.))
             .bg(colors.background)
             .border_color(colors.border)
             .shadow_lg()
-            .map(|panel| match self.side {
+            .map(|panel| match side {
                 SheetSide::Right => panel
                     .h_full()
                     .w(px(384.).min(viewport_size.width * 0.75))
@@ -207,7 +214,7 @@ impl RenderOnce for Sheet {
                 SheetSide::Bottom => panel.w_full().border_t_1(),
             });
         let panel = self.content.render_into(panel, false, cx).child(
-            div().absolute().top(px(12.)).right(px(12.)).child(
+            div().absolute().top(px(12.)).inset_end(px(12.)).child(
                 Button::new("sheet-close")
                     .ghost()
                     .small()
@@ -219,7 +226,7 @@ impl RenderOnce for Sheet {
             ),
         );
 
-        let placement = match self.side {
+        let placement = match side {
             SheetSide::Top => ModalPlacement::Top,
             SheetSide::Right => ModalPlacement::Right,
             SheetSide::Bottom => ModalPlacement::Bottom,
@@ -314,7 +321,7 @@ impl RenderOnce for Drawer {
         let radius = theme.radius_large();
 
         let panel = div()
-            .flex()
+            .flex_dir()
             .flex_col()
             .items_center()
             .w_full()
@@ -332,9 +339,11 @@ impl RenderOnce for Drawer {
                     .rounded_full()
                     .bg(colors.muted),
             );
-        let body =
-            self.content
-                .render_into(div().flex().flex_col().w_full().max_w(px(384.)), true, cx);
+        let body = self.content.render_into(
+            div().flex_dir().flex_col().w_full().max_w(px(384.)),
+            true,
+            cx,
+        );
 
         render_modal(
             self.id,

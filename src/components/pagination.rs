@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 use gpui::{div, prelude::*, px, AnyElement, App, ElementId, StyleRefinement, Window};
 
+use super::direction::DirectionalStyled;
 use super::{
     button::{Button, IconPosition},
     direction::ActiveDirection,
@@ -122,12 +123,8 @@ impl RenderOnce for Pagination {
         } else {
             (IconName::ChevronLeft, IconName::ChevronRight)
         };
-        // Arrows sit on the outer side of each label, which flips in RTL.
-        let (previous_icon_position, next_icon_position) = if is_rtl {
-            (IconPosition::End, IconPosition::Start)
-        } else {
-            (IconPosition::Start, IconPosition::End)
-        };
+        // Arrows sit on the outer side of each label; the row itself mirrors in RTL.
+        let (previous_icon_position, next_icon_position) = (IconPosition::Start, IconPosition::End);
         let previous = Button::new("pagination-previous")
             .ghost()
             .icon(previous_icon)
@@ -162,7 +159,7 @@ impl RenderOnce for Pagination {
                 PageSlot::Ellipsis => div()
                     .id(("pagination-ellipsis", slot_index))
                     .size(px(36.))
-                    .flex()
+                    .flex_dir()
                     .items_center()
                     .justify_center()
                     .child(
@@ -176,11 +173,10 @@ impl RenderOnce for Pagination {
 
         div()
             .id(self.id)
-            .flex()
+            .flex_dir()
             .items_center()
             .justify_center()
             .gap(px(4.))
-            .when(is_rtl, |row| row.flex_row_reverse())
             .child(previous)
             .children(pages)
             .child(next)

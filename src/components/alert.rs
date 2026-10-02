@@ -2,6 +2,7 @@
 
 use gpui::{div, prelude::*, px, App, FontWeight, SharedString, StyleRefinement, Window};
 
+use super::direction::DirectionalStyled;
 use crate::{
     icon::{Icon, IconName},
     styles::ApplyStyleOverrides,
@@ -82,7 +83,7 @@ impl RenderOnce for Alert {
         };
 
         div()
-            .flex()
+            .flex_dir()
             .items_start()
             .gap(px(12.))
             .w_full()
@@ -97,7 +98,7 @@ impl RenderOnce for Alert {
             })
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .gap(px(4.))
                     .flex_1()

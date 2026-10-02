@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 use gpui::{div, prelude::*, px, AnyElement, App, ElementId, FontWeight, SharedString, Window};
 
+use super::direction::DirectionalStyled;
 use super::{
     button::Button,
     interaction::{modal_presence, render_modal, Callback, ModalPlacement},
@@ -124,7 +125,7 @@ impl RenderOnce for AlertDialog {
         let cancel_from_button = cancel.clone();
 
         let panel = div()
-            .flex()
+            .flex_dir()
             .flex_col()
             .gap(px(16.))
             .w_full()
@@ -138,7 +139,7 @@ impl RenderOnce for AlertDialog {
             .shadow_lg()
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .gap(px(8.))
                     .child(
@@ -159,7 +160,7 @@ impl RenderOnce for AlertDialog {
             .children(self.children)
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .justify_end()
                     .gap(px(8.))
                     .child(

@@ -7,6 +7,7 @@ use gpui::{
     ScrollHandle, StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::{interaction::track_drag, overlay::child_id};
 use crate::{
     hooks::{use_keyed_state, State},
@@ -154,7 +155,11 @@ impl RenderOnce for ScrollArea {
                     .p(px(1.))
                     .map(|track| {
                         if vertical {
-                            track.top(px(2.)).right(px(1.)).w(px(10.)).h(track_length)
+                            track
+                                .top(px(2.))
+                                .inset_end(px(1.))
+                                .w(px(10.))
+                                .h(track_length)
                         } else {
                             track.left(px(2.)).bottom(px(1.)).h(px(10.)).w(track_length)
                         }
@@ -179,7 +184,7 @@ impl RenderOnce for ScrollArea {
             })
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .when(scrolls_vertically && !scrolls_horizontally, |inner| {
                         inner.flex_col()
                     })

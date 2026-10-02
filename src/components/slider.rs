@@ -7,6 +7,7 @@ use gpui::{
     StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::{
     focus_ring_shadow,
     interaction::{measure_bounds, track_drag},
@@ -110,6 +111,8 @@ pub(crate) fn snap(value: f32, min: f32, max: f32, step: f32) -> f32 {
 #[derive(Clone)]
 struct SliderModel {
     values: Vec<f32>,
+    /// Captured while rendering: handlers run outside the `Direction` scope.
+    rtl: bool,
     min: f32,
     max: f32,
     step: f32,
@@ -128,7 +131,12 @@ impl SliderModel {
 
     fn value_at(&self, position: Point<Pixels>, bounds: Bounds<Pixels>) -> f32 {
         let width = bounds.size.width.max(px(1.));
-        let fraction = ((position.x - bounds.left()) / width).clamp(0., 1.);
+        let from_start = if self.rtl {
+            bounds.right() - position.x
+        } else {
+            position.x - bounds.left()
+        };
+        let fraction = (from_start / width).clamp(0., 1.);
         snap(
             self.min + fraction * (self.max - self.min),
             self.min,
@@ -186,6 +194,7 @@ impl RenderOnce for Slider {
         let bounds = memory.read(cx).bounds.clone();
         let dragging_thumb = memory.read(cx).dragging_thumb;
         let model = SliderModel {
+            rtl: super::direction::is_rtl(),
             values: self
                 .values
                 .iter()
@@ -212,8 +221,8 @@ impl RenderOnce for Slider {
             div()
                 .id(("slider-thumb", index))
                 .absolute()
-                .left(relative(model.fraction(value)))
-                .ml(px(-8.))
+                .inset_start(relative(model.fraction(value)))
+                .ms(px(-8.))
                 .size(px(16.))
                 .rounded_full()
                 .border_1()
@@ -227,8 +236,13 @@ impl RenderOnce for Slider {
                         .focus(move |style| style.shadow(focus_ring_shadow(ring_color)))
                         .on_key_down(move |event, window, cx| {
                             let target = match event.keystroke.key.as_str() {
-                                "right" | "up" => value + key_model.step,
-                                "left" | "down" => value - key_model.step,
+                                "up" => value + key_model.step,
+                                "down" => value - key_model.step,
+                                // The track runs right to left in RTL.
+                                "right" if key_model.rtl => value - key_model.step,
+                                "left" if key_model.rtl => value + key_model.step,
+                                "right" => value + key_model.step,
+                                "left" => value - key_model.step,
                                 "pageup" => value + key_model.step * 10.,
                                 "pagedown" => value - key_model.step * 10.,
                                 "home" => key_model.min,
@@ -252,7 +266,7 @@ impl RenderOnce for Slider {
         div()
             .id(self.id)
             .relative()
-            .flex()
+            .flex_dir()
             .items_center()
             .w_full()
             .h(px(16.))
@@ -271,7 +285,7 @@ impl RenderOnce for Slider {
                             .absolute()
                             .top_0()
                             .h_full()
-                            .left(relative(fill_start))
+                            .inset_start(relative(fill_start))
                             .w(relative(fill_end - fill_start))
                             .bg(colors.primary),
                     ),

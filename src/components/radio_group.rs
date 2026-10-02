@@ -6,6 +6,7 @@ use gpui::{
     div, prelude::*, px, App, CursorStyle, ElementId, SharedString, StyleRefinement, Window,
 };
 
+use super::direction::DirectionalStyled;
 use super::extra_small_shadow;
 use crate::{hooks::EventHandler, styles::ApplyStyleOverrides, theme::ActiveTheme};
 
@@ -134,7 +135,7 @@ impl RenderOnce for RadioGroup {
             let is_selected = self.value.as_ref() == Some(&option.value);
             let is_interactive = !option.disabled && !self.disabled;
             let indicator = div()
-                .flex()
+                .flex_dir()
                 .flex_none()
                 .items_center()
                 .justify_center()
@@ -160,7 +161,7 @@ impl RenderOnce for RadioGroup {
             let horizontal = self.horizontal;
             div()
                 .id(index)
-                .flex()
+                .flex_dir()
                 .items_start()
                 .gap(px(12.))
                 .rounded(px(4.))
@@ -168,7 +169,7 @@ impl RenderOnce for RadioGroup {
                 .child(indicator)
                 .child(
                     div()
-                        .flex()
+                        .flex_dir()
                         .flex_col()
                         .gap(px(4.))
                         .child(option.label)
@@ -214,7 +215,7 @@ impl RenderOnce for RadioGroup {
 
         div()
             .id(self.id)
-            .flex()
+            .flex_dir()
             .gap(px(12.))
             .when(!self.horizontal, |group| group.flex_col())
             .children(options)

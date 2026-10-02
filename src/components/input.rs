@@ -24,6 +24,7 @@ use unicode_segmentation::UnicodeSegmentation;
 mod textarea;
 pub use textarea::{use_textarea_state, Textarea};
 
+use super::direction::DirectionalStyled;
 use super::focus_ring_outline;
 use crate::{
     icon::{Icon, IconName},
@@ -742,7 +743,7 @@ impl RenderOnce for Input {
                 "rok-ui-input".into(),
                 self.state.entity_id().as_u64(),
             ))
-            .flex()
+            .flex_dir()
             .items_center()
             .gap(px(8.))
             .w_full()
