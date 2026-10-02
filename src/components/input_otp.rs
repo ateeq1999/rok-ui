@@ -6,7 +6,6 @@ use gpui::{
     div, prelude::*, px, AnyElement, App, ElementId, SharedString, StyleRefinement, Window,
 };
 
-use super::direction::DirectionalStyled;
 use super::{focus_ring_outline, overlay::child_id};
 use crate::sx::SxStyled;
 use crate::{
@@ -137,6 +136,8 @@ impl InputOtp {
 
 styles! {
     INPUT_OTP = {
+        // Codes read left to right in every direction.
+        ltr: { display: flex, direction: row_ltr },
         root: { align: center, gap: 2 },
         interactive: { cursor: text },
         inert: { opacity: 0.5 },
@@ -208,10 +209,9 @@ impl RenderOnce for InputOtp {
                 let is_active = is_focused && index == active_slot;
                 let is_first = index == slot_index;
                 let is_last = index + 1 == group_end;
-                // Codes read left to right in every direction.
                 div()
-                    .flex_ltr()
                     .sx((
+                        &INPUT_OTP.ltr,
                         &INPUT_OTP.slot,
                         is_first.then_some(&INPUT_OTP.slot_first),
                         is_last.then_some(&INPUT_OTP.slot_last),
@@ -231,8 +231,7 @@ impl RenderOnce for InputOtp {
             });
             children.push(
                 div()
-                    .flex_ltr()
-                    .sx(&INPUT_OTP.group)
+                    .sx((&INPUT_OTP.ltr, &INPUT_OTP.group))
                     .children(slots)
                     .into_any_element(),
             );
@@ -246,8 +245,8 @@ impl RenderOnce for InputOtp {
         let focus_on_click = focus_handle.clone();
         div()
             .id(self.id)
-            .flex_ltr()
             .sx((
+                &INPUT_OTP.ltr,
                 &INPUT_OTP.root,
                 if self.disabled {
                     &INPUT_OTP.inert

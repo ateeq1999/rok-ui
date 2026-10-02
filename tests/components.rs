@@ -681,3 +681,177 @@ fn button_group_is_as_wide_as_its_items(cx: &mut gpui::TestAppContext) {
         "group {group}px vs buttons {row}px"
     );
 }
+
+use gpui::Focusable as _;
+
+/// An input outside a dialog and two inside it.
+struct FocusTrapView {
+    outside: Entity<InputState>,
+    first: Entity<InputState>,
+    second: Entity<InputState>,
+}
+
+impl Render for FocusTrapView {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        AppRoot::new().child(Input::new(&self.outside)).child(
+            Dialog::new("trap")
+                .open(true)
+                .title("Edit")
+                .child(Input::new(&self.first))
+                .child(Input::new(&self.second)),
+        )
+    }
+}
+
+#[gpui::test]
+fn dialog_focuses_its_first_field_and_traps_tab(cx: &mut gpui::TestAppContext) {
+    cx.update(rok_ui::init);
+    let (view, window_context) = cx.add_window_view(|_, cx| FocusTrapView {
+        outside: cx.new(InputState::new),
+        first: cx.new(InputState::new),
+        second: cx.new(InputState::new),
+    });
+    window_context.run_until_parked();
+    window_context.update(|window, _| window.refresh());
+    window_context.run_until_parked();
+
+    let focused = |window_context: &mut gpui::VisualTestContext,
+                   pick: fn(&FocusTrapView) -> &Entity<InputState>| {
+        let view = view.clone();
+        window_context.update(move |window, cx| {
+            let state = pick(view.read(cx)).clone();
+            state.read(cx).focus_handle(cx).is_focused(window)
+        })
+    };
+
+    assert!(
+        focused(window_context, |view| &view.first),
+        "opening the dialog focuses its first field"
+    );
+    // Tab cycles through the dialog's own focusable elements and never escapes.
+    for _ in 0..8 {
+        window_context.simulate_keystrokes("tab");
+        window_context.run_until_parked();
+        assert!(!focused(window_context, |view| &view.outside));
+    }
+    for _ in 0..8 {
+        window_context.simulate_keystrokes("shift-tab");
+        window_context.run_until_parked();
+        assert!(!focused(window_context, |view| &view.outside));
+    }
+    // From the first field, Shift-Tab wraps to the end and Tab wraps back to it.
+    window_context.update({
+        let view = view.clone();
+        move |window, cx| {
+            let first = view.read(cx).first.read(cx).focus_handle(cx);
+            window.focus(&first);
+        }
+    });
+    window_context.simulate_keystrokes("shift-tab");
+    window_context.run_until_parked();
+    assert!(!focused(window_context, |view| &view.first));
+    window_context.simulate_keystrokes("tab");
+    window_context.run_until_parked();
+    assert!(
+        focused(window_context, |view| &view.first),
+        "Tab from the last element wraps to the first"
+    );
+}
+
+/// A popover whose content holds a second popover. Records each open change as
+/// `(popover, open)`.
+struct NestedPopoverView(std::rc::Rc<std::cell::RefCell<Vec<(&'static str, bool)>>>);
+
+impl Render for NestedPopoverView {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let record = |name: &'static str| {
+            let log = self.0.clone();
+            move |open: &bool, _: &mut Window, _: &mut App| log.borrow_mut().push((name, *open))
+        };
+        AppRoot::new().p(px(40.)).child(
+            Popover::new("outer")
+                .on_open_change(record("outer"))
+                .trigger(
+                    div()
+                        .debug_selector(|| "outer-trigger".into())
+                        .child(Button::new("outer-button").label("Outer")),
+                )
+                .child(
+                    Popover::new("inner")
+                        .on_open_change(record("inner"))
+                        .trigger(
+                            div()
+                                .debug_selector(|| "inner-trigger".into())
+                                .child(Button::new("inner-button").label("Inner")),
+                        )
+                        .child(
+                            div()
+                                .debug_selector(|| "inner-body".into())
+                                .h(px(60.))
+                                .child("Inner content"),
+                        ),
+                ),
+        )
+    }
+}
+
+#[gpui::test]
+fn clicking_a_nested_popover_keeps_its_parent_open(cx: &mut gpui::TestAppContext) {
+    cx.update(rok_ui::init);
+    let log = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+    let view_log = log.clone();
+    let (_view, window_context) =
+        cx.add_window_view(move |_, _| NestedPopoverView(view_log.clone()));
+    window_context.run_until_parked();
+
+    let mut click = |selector: &'static str| {
+        let bounds = window_context
+            .debug_bounds(selector)
+            .unwrap_or_else(|| panic!("{selector} is not rendered"));
+        window_context.simulate_click(bounds.center(), gpui::Modifiers::none());
+        window_context.run_until_parked();
+    };
+    click("outer-trigger");
+    click("inner-trigger");
+    assert_eq!(*log.borrow(), [("outer", true), ("inner", true)]);
+
+    // Pressing inside the inner popover is outside the outer one, but must not close it.
+    click("inner-body");
+    assert_eq!(
+        *log.borrow(),
+        [("outer", true), ("inner", true)],
+        "a press inside a nested popover closes nothing"
+    );
+}
+
+struct FocusVisibleView;
+
+impl Render for FocusVisibleView {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        AppRoot::new()
+            .child(Button::new("first").label("First"))
+            .child(Button::new("second").label("Second"))
+    }
+}
+
+#[gpui::test]
+fn focus_rings_follow_the_last_input_device(cx: &mut gpui::TestAppContext) {
+    cx.update(rok_ui::init);
+    let (_view, window_context) = cx.add_window_view(|_, _| FocusVisibleView);
+    window_context.run_until_parked();
+
+    window_context.simulate_keystrokes("tab");
+    window_context.run_until_parked();
+    assert!(
+        rok_ui::sx::focus_visible(),
+        "keyboard input shows focus rings"
+    );
+
+    window_context.simulate_click(gpui::point(px(10.), px(10.)), gpui::Modifiers::none());
+    window_context.run_until_parked();
+    assert!(!rok_ui::sx::focus_visible(), "a click hides them");
+
+    rok_ui::sx::set_focus_ring_mode(rok_ui::sx::FocusRingMode::Always);
+    assert!(rok_ui::sx::focus_visible(), "Always shows them regardless");
+    rok_ui::sx::set_focus_ring_mode(rok_ui::sx::FocusRingMode::KeyboardOnly);
+}

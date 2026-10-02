@@ -24,6 +24,7 @@ pub mod attachment;
 pub mod avatar;
 #[cfg(feature = "badge")]
 pub mod badge;
+pub mod bidi_text;
 #[cfg(feature = "breadcrumb")]
 pub mod breadcrumb;
 #[cfg(feature = "bubble")]
@@ -144,6 +145,7 @@ pub use attachment::{icon_for_file_name, Attachment, AttachmentState};
 pub use avatar::Avatar;
 #[cfg(feature = "badge")]
 pub use badge::{Badge, BadgeVariant};
+pub use bidi_text::BidiText;
 #[cfg(feature = "breadcrumb")]
 pub use breadcrumb::Breadcrumb;
 #[cfg(feature = "bubble")]

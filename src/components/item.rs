@@ -204,10 +204,18 @@ impl RenderOnce for Item {
                 div()
                     .sx(&ITEM.content)
                     .when_some(self.title, |content, title| {
-                        content.child(div().sx(&ITEM.title).child(title))
+                        content.child(
+                            div()
+                                .sx(&ITEM.title)
+                                .child(crate::components::bidi_text::text(title)),
+                        )
                     })
                     .when_some(self.description, |content, description| {
-                        content.child(div().sx(&ITEM.description).child(description))
+                        content.child(
+                            div()
+                                .sx(&ITEM.description)
+                                .child(crate::components::bidi_text::text(description)),
+                        )
                     })
                     .children(self.children),
             )

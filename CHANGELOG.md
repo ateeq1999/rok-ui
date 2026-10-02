@@ -9,6 +9,34 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **Arabic, Persian and Hebrew text on Windows.** GPUI's Windows backend draws right-to-left runs
+  mirrored. rok-ui now reorders text there itself (Unicode Bidirectional Algorithm plus Arabic
+  contextual forms and lam-alef ligatures), in component text automatically and in your own text
+  through the new `BidiText` element, which also wraps paragraphs correctly. Single-line inputs
+  keep the caret, selection and clicks right while typing Arabic. See `rok_ui::bidi`.
+- **Fonts.** `rok_ui::fonts` registers font files, and the `font-cairo` and `font-inter` features
+  bundle those Google Fonts (SIL Open Font License). `Theme::set_font_family` sets the UI font and
+  survives preset and mode changes. `scripts/fetch-google-font.sh` downloads any Google Font.
+- **Arabic examples:** `arabic` (a settings screen) and `arabic_chat`, in the Cairo font.
+- **Keyboard-only focus rings**, like CSS `:focus-visible`: clicking a button no longer shows its
+  ring. `sx::set_focus_ring_mode(FocusRingMode::Always)` restores the old behaviour.
+- **Dialog focus.** Dialogs, alert dialogs, sheets, drawers and the command palette move focus to
+  their first field when they open and keep Tab and Shift-Tab inside.
+- `styles!`: `direction: row_ltr` for rows that never mirror, `border_style: dashed`, and
+  `text: theme` for the theme's base font size.
+- `CalendarDate::today_utc()`.
+
+### Changed
+
+- `CalendarDate::today()` returns the local date instead of the UTC date.
+- Theme preset and mode switches keep a custom font family and size.
+
+### Fixed
+
+- Clicking inside a popover that sits inside another popover no longer closes the outer one.
+
 ## [0.2.0] - 2026-10-03
 
 ### Added

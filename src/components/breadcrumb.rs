@@ -139,11 +139,12 @@ impl RenderOnce for Breadcrumb {
                         link.sx(&BREADCRUMB.link)
                             .on_click(move |_, window, cx| handler(&(), window, cx))
                     })
-                    .child(label)
+                    .child(crate::components::bidi_text::text(label))
                     .into_any_element(),
-                BreadcrumbEntry::Page(label) => {
-                    div().sx(&BREADCRUMB.page).child(label).into_any_element()
-                }
+                BreadcrumbEntry::Page(label) => div()
+                    .sx(&BREADCRUMB.page)
+                    .child(crate::components::bidi_text::text(label))
+                    .into_any_element(),
                 BreadcrumbEntry::Ellipsis(menu) => {
                     let dots = div()
                         .id(("breadcrumb-ellipsis", index))

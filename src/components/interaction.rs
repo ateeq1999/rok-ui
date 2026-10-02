@@ -9,10 +9,10 @@ use std::{cell::Cell, rc::Rc};
 
 use gpui::{
     canvas, div, point, prelude::*, px, AnyElement, App, Bounds, Corner, DispatchPhase, Div,
-    ElementId, MouseMoveEvent, MouseUpEvent, Pixels, Point, Stateful, Window,
+    ElementId, FocusHandle, MouseMoveEvent, MouseUpEvent, Pixels, Point, Stateful, Window,
 };
 
-use super::direction::DirectionalStyled;
+use super::app_root::{FocusNextElement, FocusPreviousElement};
 use super::layer::layer_at;
 use super::overlay::child_id;
 use crate::sx::SxStyled;
@@ -24,6 +24,100 @@ use crate::{
 
 /// A handler that takes no event, shared between several listeners.
 pub(crate) type Callback = Rc<dyn Fn(&mut Window, &mut App)>;
+
+/// Where a modal is in moving focus inside when it opens.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ModalFocus {
+    /// Just opened: focus goes to the panel, so Escape works at once.
+    Opening,
+    /// The panel is focused; once it has been laid out, focus moves to its first field.
+    PanelFocused,
+    /// Done. Focus is left to the user (moving it every frame would make stacked
+    /// modals fight over it).
+    Settled,
+}
+
+/// Call on every render of a modal. Moves focus to the panel when the modal opens,
+/// then on the following render, when the panel's elements are in the tab order,
+/// to the first focusable element inside it.
+pub(crate) fn focus_modal_on_open(
+    panel: &FocusHandle,
+    phase: &Cell<ModalFocus>,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    match phase.get() {
+        ModalFocus::Opening => {
+            phase.set(ModalFocus::PanelFocused);
+            let panel = panel.clone();
+            window.defer(cx, move |window, _| window.focus(&panel));
+        }
+        ModalFocus::PanelFocused => {
+            phase.set(ModalFocus::Settled);
+            let panel = panel.clone();
+            window.defer(cx, move |window, cx| {
+                // Leave focus alone if something inside already took it.
+                if panel.is_focused(window) {
+                    focus_first_inside(&panel, window, cx);
+                }
+            });
+        }
+        ModalFocus::Settled => {}
+    }
+}
+
+/// Keep Tab and Shift-Tab inside `panel`: leaving past the last element wraps to
+/// the first, and back past the first wraps to the last.
+pub(crate) fn trap_focus<E: InteractiveElement>(element: E, panel: &FocusHandle) -> E {
+    let forward_panel = panel.clone();
+    let backward_panel = panel.clone();
+    element
+        .on_action(move |_: &FocusNextElement, window, cx| {
+            window.focus_next();
+            if !is_inside(&forward_panel, window, cx) {
+                focus_first_inside(&forward_panel, window, cx);
+            }
+        })
+        .on_action(move |_: &FocusPreviousElement, window, cx| {
+            window.focus_prev();
+            if !is_inside(&backward_panel, window, cx) {
+                focus_last_inside(&backward_panel, window, cx);
+            }
+        })
+}
+
+/// Whether focus is on an element inside `panel` (not the panel itself).
+fn is_inside(panel: &FocusHandle, window: &Window, cx: &App) -> bool {
+    panel.contains_focused(window, cx) && !panel.is_focused(window)
+}
+
+/// Tab order runs through the panel's descendants right after the panel itself.
+fn focus_first_inside(panel: &FocusHandle, window: &mut Window, cx: &App) {
+    window.focus(panel);
+    window.focus_next();
+    if !is_inside(panel, window, cx) {
+        // Nothing focusable inside: keep focus on the panel.
+        window.focus(panel);
+    }
+}
+
+fn focus_last_inside(panel: &FocusHandle, window: &mut Window, cx: &App) {
+    focus_first_inside(panel, window, cx);
+    let mut last = window.focused(cx);
+    // Bounded, in case the tab order changes under us.
+    for _ in 0..1024 {
+        window.focus_next();
+        let current = window.focused(cx);
+        if !is_inside(panel, window, cx) || current == last {
+            break;
+        }
+        last = current;
+    }
+    match last {
+        Some(handle) => window.focus(&handle),
+        None => window.focus(panel),
+    }
+}
 
 /// Records the bounds of the element it is placed in (absolutely, full size).
 pub(crate) fn measure_bounds(bounds: Rc<Cell<Bounds<Pixels>>>) -> impl IntoElement {
@@ -87,7 +181,15 @@ pub(crate) fn on_activate(element: Stateful<Div>, handler: Callback) -> Stateful
 styles! {
     MODAL = {
         // Layers lay out apart from the window root, so text alignment is set here.
-        scrim: { color: foreground, font_family: sans, text_align: start },
+        // Panels slide in from physical edges (sheets already swap sides for RTL).
+        scrim: {
+            display: flex,
+            direction: row_ltr,
+            color: foreground,
+            font_family: sans,
+            text: theme,
+            text_align: start,
+        },
         placement(ModalPlacement): {
             Center: { align: center, justify: center, padding: 4 },
             Top: { direction: column, justify: start },
@@ -156,18 +258,16 @@ pub(crate) fn render_modal(
     // every frame instead would make stacked modals fight over it forever.
     let (focus_handle, focus_pending) = window
         .use_keyed_state(child_id(&id, "modal-focus"), cx, |_, cx| {
-            (cx.focus_handle(), Rc::new(Cell::new(true)))
+            (cx.focus_handle(), Rc::new(Cell::new(ModalFocus::Opening)))
         })
         .read(cx)
         .clone();
-    if focus_pending.replace(false) {
-        let focus_handle_to_focus = focus_handle.clone();
-        window.defer(cx, move |window, _| window.focus(&focus_handle_to_focus));
-    }
+    focus_modal_on_open(&focus_handle, &focus_pending, window, cx);
 
     let theme = cx.theme();
     let viewport_size = window.viewport_size();
     let (offset_x, offset_y) = modal_offset(placement, progress);
+    let panel = trap_focus(panel, &focus_handle);
     let panel = panel
         .relative()
         .left(offset_x)
@@ -188,11 +288,8 @@ pub(crate) fn render_modal(
         .occlude()
         .w(viewport_size.width)
         .h(viewport_size.height)
-        // Panels slide from physical edges (sheets already swap sides for RTL).
-        .flex_ltr()
         .sx((&MODAL.scrim, MODAL.placement(placement)))
         .bg(theme.colors.overlay.opacity(progress))
-        .text_size(theme.font_size)
         .when_some(on_backdrop, |scrim, on_backdrop| {
             scrim.on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
                 on_backdrop(window, cx)

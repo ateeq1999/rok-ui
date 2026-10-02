@@ -103,7 +103,9 @@ impl RenderOnce for Switch {
         div()
             .id(self.id)
             .child(track)
-            .when_some(self.label, |row, label| row.child(label))
+            .when_some(self.label, |row, label| {
+                row.child(crate::components::bidi_text::text(label))
+            })
             .when(is_interactive, |row| {
                 row.tab_index(0).when_some(self.on_change, |row, handler| {
                     row.on_click(move |_, window, cx| handler(&!checked, window, cx))

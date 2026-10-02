@@ -8,7 +8,7 @@ use super::overlay::{
     dismissable, floating, popover_surface, trigger_wrapper, use_open_state, Align, Side,
 };
 use crate::sx::SxStyled;
-use crate::{hooks::EventHandler, styles, styles::ApplyStyleOverrides, theme::ActiveTheme};
+use crate::{hooks::EventHandler, styles, styles::ApplyStyleOverrides};
 
 /// Uncontrolled by default: clicking the trigger opens it, Escape or a click
 /// outside closes it. Pass `.open(..)` with `.on_open_change(..)` to control it.
@@ -100,7 +100,7 @@ impl RenderOnce for Popover {
         if !is_open {
             return wrapper;
         }
-        let panel = popover_surface(cx.theme())
+        let panel = popover_surface()
             .sx((&POPOVER.panel, &self.sx))
             .children(self.children)
             .apply_style_overrides(&self.style_overrides);

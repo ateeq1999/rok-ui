@@ -82,14 +82,16 @@ pub fn FieldLabel(
 ) -> impl IntoElement {
     div()
         .sx((&FIELD.label, &sx))
-        .child(text)
+        .child(crate::components::bidi_text::text(text))
         .apply_style_overrides(&style_overrides)
 }
 
 /// A bolder title for fields whose control is a card or a choice group.
 #[component]
 pub fn FieldTitle(text: SharedString, #[sx] sx: Sx) -> impl IntoElement {
-    div().sx((&FIELD.title, &sx)).child(text)
+    div()
+        .sx((&FIELD.title, &sx))
+        .child(crate::components::bidi_text::text(text))
 }
 
 /// Help text under the control.
@@ -101,14 +103,16 @@ pub fn FieldDescription(
 ) -> impl IntoElement {
     div()
         .sx((&FIELD.description, &sx))
-        .child(text)
+        .child(crate::components::bidi_text::text(text))
         .apply_style_overrides(&style_overrides)
 }
 
 /// Validation message, in the error color.
 #[component]
 pub fn FieldError(text: SharedString, #[sx] sx: Sx) -> impl IntoElement {
-    div().sx((&FIELD.error, &sx)).child(text)
+    div()
+        .sx((&FIELD.error, &sx))
+        .child(crate::components::bidi_text::text(text))
 }
 
 /// Stacks label and description next to a horizontal control.
@@ -146,7 +150,9 @@ pub fn FieldSet(
 /// The heading of a [`FieldSet`].
 #[component]
 pub fn FieldLegend(text: SharedString, #[sx] sx: Sx) -> impl IntoElement {
-    div().sx((&FIELD.legend, &sx)).child(text)
+    div()
+        .sx((&FIELD.legend, &sx))
+        .child(crate::components::bidi_text::text(text))
 }
 
 /// A divider between fields, with optional centered text ("Or continue with").
@@ -161,7 +167,11 @@ pub fn FieldSeparator(
         .child(line())
         .when_some(text, |separator, text| {
             separator
-                .child(div().sx(&FIELD.separator_text).child(text))
+                .child(
+                    div()
+                        .sx(&FIELD.separator_text)
+                        .child(crate::components::bidi_text::text(text)),
+                )
                 .child(line())
         })
 }

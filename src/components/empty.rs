@@ -98,7 +98,7 @@ styles! {
             padding: 12,
             radius: lg,
         },
-        bordered: { border: 1, border_color: border },
+        bordered: { border: 1, border_style: dashed, border_color: border },
         header: { display: flex, direction: column, align: center, gap: 2, max_width: 96 },
         icon_tile: {
             margin_bottom: 2,
@@ -125,7 +125,6 @@ impl RenderOnce for Empty {
                 self.bordered.then_some(&EMPTY.bordered),
                 &self.sx,
             ))
-            .when(self.bordered, |empty| empty.border_dashed())
             .child(
                 div()
                     .sx(&EMPTY.header)
@@ -140,10 +139,18 @@ impl RenderOnce for Empty {
                         header.child(div().sx(&EMPTY.media).child(media))
                     })
                     .when_some(self.title, |header, title| {
-                        header.child(div().sx(&EMPTY.title).child(title))
+                        header.child(
+                            div()
+                                .sx(&EMPTY.title)
+                                .child(crate::components::bidi_text::text(title)),
+                        )
                     })
                     .when_some(self.description, |header, description| {
-                        header.child(div().sx(&EMPTY.description).child(description))
+                        header.child(
+                            div()
+                                .sx(&EMPTY.description)
+                                .child(crate::components::bidi_text::text(description)),
+                        )
                     }),
             )
             .when(!self.children.is_empty(), |empty| {

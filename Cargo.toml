@@ -29,6 +29,8 @@ exclude = ["docs/screenshots", ".github", "scripts", ".gitattributes", ".gitigno
 gpui = "0.2.2"
 rok-ui-macros = { version = "0.2.0", path = "macros" }
 unicode-segmentation = { version = "1.12", optional = true }
+unicode-bidi = "0.3"
+jiff = { version = "0.2", optional = true }
 
 # Every component is a feature, so you compile only what you use:
 #
@@ -63,6 +65,11 @@ data = [
 ]
 chat = ["attachment", "bubble", "marker", "message", "message-scroller", "questionnaire"]
 
+# Bundled Google Fonts (not part of `full`: each adds its font files to your binary).
+fonts = ["font-cairo", "font-inter"]
+font-cairo = []
+font-inter = []
+
 # Components, with the components they are built from.
 accordion = []
 alert = []
@@ -75,7 +82,7 @@ breadcrumb = ["menu"]
 bubble = []
 button = ["spinner", "tooltip"]
 button-group = []
-calendar = ["button"]
+calendar = ["button", "dep:jiff"]
 card = []
 carousel = ["button"]
 chart = []
@@ -142,6 +149,14 @@ required-features = ["full"]
 [[example]]
 name = "counter"
 required-features = ["button", "card"]
+
+[[example]]
+name = "arabic"
+required-features = ["full", "font-cairo"]
+
+[[example]]
+name = "arabic_chat"
+required-features = ["full", "font-cairo"]
 
 [[test]]
 name = "components"

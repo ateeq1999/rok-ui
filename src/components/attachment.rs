@@ -214,10 +214,12 @@ impl RenderOnce for Attachment {
             );
 
         let detail = match &self.state {
-            AttachmentState::Ready => self
-                .meta
-                .clone()
-                .map(|meta| div().sx(&ATTACHMENT.meta).child(meta).into_any_element()),
+            AttachmentState::Ready => self.meta.clone().map(|meta| {
+                div()
+                    .sx(&ATTACHMENT.meta)
+                    .child(crate::components::bidi_text::text(meta))
+                    .into_any_element()
+            }),
             AttachmentState::Uploading(progress) => Some(match progress {
                 Some(progress) => div()
                     .sx(&ATTACHMENT.progress_track)
@@ -235,7 +237,7 @@ impl RenderOnce for Attachment {
             AttachmentState::Failed(message) => Some(
                 div()
                     .sx(&ATTACHMENT.error)
-                    .child(message.clone())
+                    .child(crate::components::bidi_text::text(message.clone()))
                     .into_any_element(),
             ),
         };
@@ -274,7 +276,11 @@ impl RenderOnce for Attachment {
             .child(
                 div()
                     .sx(&ATTACHMENT.text)
-                    .child(div().sx(&ATTACHMENT.name).child(self.name))
+                    .child(
+                        div()
+                            .sx(&ATTACHMENT.name)
+                            .child(crate::components::bidi_text::text(self.name)),
+                    )
                     .children(detail),
             )
             .children(retry)

@@ -176,7 +176,7 @@ impl RenderOnce for ButtonGroupText {
     fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         div()
             .sx((&BUTTON_GROUP.text, &self.sx))
-            .child(self.text)
+            .child(crate::components::bidi_text::text(self.text))
             .apply_style_overrides(&self.style_overrides)
     }
 }

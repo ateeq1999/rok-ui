@@ -322,7 +322,7 @@ impl RenderOnce for Questionnaire {
                     .child(
                         div()
                             .sx(&QUESTIONNAIRE.caption)
-                            .child(question.title.clone()),
+                            .child(crate::components::bidi_text::text(question.title.clone())),
                     )
                     .child(
                         div()
@@ -404,7 +404,7 @@ impl RenderOnce for Questionnaire {
                 ))
                 .on_click(move |_, window, cx| on_pick(window, cx))
                 .child(indicator)
-                .child(label)
+                .child(crate::components::bidi_text::text(label))
                 .into_any_element()
         };
 
@@ -537,9 +537,17 @@ impl RenderOnce for Questionnaire {
             .child(
                 div()
                     .sx(&QUESTIONNAIRE.header)
-                    .child(div().sx(&QUESTIONNAIRE.title).child(question.title.clone()))
+                    .child(
+                        div()
+                            .sx(&QUESTIONNAIRE.title)
+                            .child(crate::components::bidi_text::text(question.title.clone())),
+                    )
                     .when_some(question.description.clone(), |header, description| {
-                        header.child(div().sx(&QUESTIONNAIRE.description).child(description))
+                        header.child(
+                            div()
+                                .sx(&QUESTIONNAIRE.description)
+                                .child(crate::components::bidi_text::text(description)),
+                        )
                     }),
             )
             .child(body)

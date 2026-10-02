@@ -75,13 +75,17 @@ pub fn CardHeader(
 /// The card's heading.
 #[component]
 pub fn CardTitle(text: SharedString, #[sx] sx: Sx) -> impl IntoElement {
-    div().sx((&CARD.title, &sx)).child(text)
+    div()
+        .sx((&CARD.title, &sx))
+        .child(crate::components::bidi_text::text(text))
 }
 
 /// Secondary text under the title.
 #[component]
 pub fn CardDescription(text: SharedString, #[sx] sx: Sx) -> impl IntoElement {
-    div().sx((&CARD.description, &sx)).child(text)
+    div()
+        .sx((&CARD.description, &sx))
+        .child(crate::components::bidi_text::text(text))
 }
 
 /// The card's main content.

@@ -268,7 +268,7 @@ pub(crate) fn render_menu_panel(
             MenuEntry::Label(label) => rows.push(
                 div()
                     .sx((&MENU.label, has_indicators.then_some(&MENU.inset)))
-                    .child(label)
+                    .child(crate::components::bidi_text::text(label))
                     .into_any_element(),
             ),
             MenuEntry::Item(item) => {
@@ -315,7 +315,10 @@ pub(crate) fn render_menu_panel(
                             .into_any_element(),
                     ),
                     _ => item.shortcut.clone().map(|shortcut| {
-                        div().sx(&MENU.shortcut).child(shortcut).into_any_element()
+                        div()
+                            .sx(&MENU.shortcut)
+                            .child(crate::components::bidi_text::text(shortcut))
+                            .into_any_element()
                     }),
                 };
 
@@ -377,7 +380,11 @@ pub(crate) fn render_menu_panel(
                     .when_some(item.icon, |row, icon| {
                         row.child(Icon::new(icon).size(px(16.)).color(icon_color))
                     })
-                    .child(div().sx(&MENU.item_label).child(item.label.clone()))
+                    .child(
+                        div()
+                            .sx(&MENU.item_label)
+                            .child(crate::components::bidi_text::text(item.label.clone())),
+                    )
                     .children(trailing)
                     .children(submenu_panel);
                 rows.push(row.into_any_element());
@@ -386,7 +393,7 @@ pub(crate) fn render_menu_panel(
     }
 
     let selectable = menu.selectable_indices();
-    let panel = popover_surface(cx.theme())
+    let panel = popover_surface()
         .sx(&MENU.panel)
         .id(child_id(&id, "panel"))
         .min_w(min_width)

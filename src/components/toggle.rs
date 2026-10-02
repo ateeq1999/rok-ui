@@ -190,7 +190,9 @@ impl RenderOnce for Toggle {
             .when_some(self.icon, |toggle, icon| {
                 toggle.child(Icon::new(icon).size(px(16.)).color(icon_color))
             })
-            .when_some(self.label, |toggle, label| toggle.child(label))
+            .when_some(self.label, |toggle, label| {
+                toggle.child(crate::components::bidi_text::text(label))
+            })
             .apply_style_overrides(&self.style_overrides)
     }
 }

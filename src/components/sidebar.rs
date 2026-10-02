@@ -293,21 +293,29 @@ fn render_item(
             row.child(Icon::new(icon).size(px(16.)).color(foreground))
         })
         .when(!collapsed, |row| {
-            row.child(div().sx(&SIDEBAR.item_label).child(item.label))
-                .when_some(item.badge, |row, badge| {
-                    row.child(div().sx(&SIDEBAR.badge).child(badge))
-                })
-                .when(has_sub_items, |row| {
-                    row.child(
-                        Icon::new(if is_open {
-                            IconName::ChevronDown
-                        } else {
-                            IconName::ChevronRight.for_direction()
-                        })
-                        .size(px(14.))
-                        .color(muted_foreground),
-                    )
-                })
+            row.child(
+                div()
+                    .sx(&SIDEBAR.item_label)
+                    .child(crate::components::bidi_text::text(item.label)),
+            )
+            .when_some(item.badge, |row, badge| {
+                row.child(
+                    div()
+                        .sx(&SIDEBAR.badge)
+                        .child(crate::components::bidi_text::text(badge)),
+                )
+            })
+            .when(has_sub_items, |row| {
+                row.child(
+                    Icon::new(if is_open {
+                        IconName::ChevronDown
+                    } else {
+                        IconName::ChevronRight.for_direction()
+                    })
+                    .size(px(14.))
+                    .color(muted_foreground),
+                )
+            })
         });
 
     if !is_open || collapsed {
@@ -357,7 +365,11 @@ impl RenderOnce for Sidebar {
                 div()
                     .sx(&SIDEBAR.group)
                     .when_some(group.label.filter(|_| !collapsed), |group, label| {
-                        group.child(div().sx(&SIDEBAR.group_label).child(label))
+                        group.child(
+                            div()
+                                .sx(&SIDEBAR.group_label)
+                                .child(crate::components::bidi_text::text(label)),
+                        )
                     })
                     .children(rows)
                     .into_any_element()

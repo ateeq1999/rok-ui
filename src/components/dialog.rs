@@ -90,6 +90,7 @@ styles! {
             justify: center,
             padding: 4,
             font_family: sans,
+            text: theme,
             text_align: start,
         },
         panel: {
@@ -125,18 +126,25 @@ impl RenderOnce for Dialog {
         }
         let progress = presence.progress();
 
-        // Focus moves into the dialog when it opens so Escape and Tab work inside it.
-        // Only once: grabbing it every frame would fight a modal stacked on top.
+        // Focus moves into the dialog when it opens, to its first field, and Tab stays
+        // inside. Only once: grabbing it every frame would fight a modal stacked on top.
         let (dialog_focus_handle, focus_pending) = window
             .use_keyed_state(self.id.clone(), cx, |_, cx| {
-                (cx.focus_handle(), Rc::new(std::cell::Cell::new(true)))
+                (
+                    cx.focus_handle(),
+                    Rc::new(std::cell::Cell::new(
+                        crate::components::interaction::ModalFocus::Opening,
+                    )),
+                )
             })
             .read(cx)
             .clone();
-        if focus_pending.replace(false) {
-            let focus_handle_to_focus = dialog_focus_handle.clone();
-            window.defer(cx, move |window, _| window.focus(&focus_handle_to_focus));
-        }
+        crate::components::interaction::focus_modal_on_open(
+            &dialog_focus_handle,
+            &focus_pending,
+            window,
+            cx,
+        );
 
         let theme = cx.theme();
         let viewport_size = window.viewport_size();
@@ -154,7 +162,7 @@ impl RenderOnce for Dialog {
         let close_from_escape = close.clone();
         let close_from_button = close;
 
-        let panel = div()
+        let panel = crate::components::interaction::trap_focus(div(), &dialog_focus_handle)
             .id("dialog-panel")
             .track_focus(&dialog_focus_handle)
             .on_key_down(move |event, window, cx| {
@@ -170,10 +178,18 @@ impl RenderOnce for Dialog {
                 div()
                     .sx(&DIALOG.header)
                     .when_some(self.title, |header, title| {
-                        header.child(div().sx(&DIALOG.title).child(title))
+                        header.child(
+                            div()
+                                .sx(&DIALOG.title)
+                                .child(crate::components::bidi_text::text(title)),
+                        )
                     })
                     .when_some(self.description, |header, description| {
-                        header.child(div().sx(&DIALOG.description).child(description))
+                        header.child(
+                            div()
+                                .sx(&DIALOG.description)
+                                .child(crate::components::bidi_text::text(description)),
+                        )
                     }),
             )
             .children(self.children)
@@ -199,7 +215,6 @@ impl RenderOnce for Dialog {
             .h(viewport_size.height)
             .sx(&DIALOG.scrim)
             .bg(theme.colors.overlay.opacity(progress))
-            .text_size(theme.font_size)
             .on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
                 close_from_backdrop(window, cx)
             })

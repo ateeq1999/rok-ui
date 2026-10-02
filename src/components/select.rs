@@ -257,8 +257,12 @@ impl RenderOnce for Select {
             })
             .when(is_interactive, |trigger| trigger.tab_index(0))
             .child(match selected_label {
-                Some(label) => div().sx(&SELECT.value).child(label),
-                None => div().sx(&SELECT.placeholder).child(self.placeholder),
+                Some(label) => div()
+                    .sx(&SELECT.value)
+                    .child(crate::components::bidi_text::text(label)),
+                None => div()
+                    .sx(&SELECT.placeholder)
+                    .child(crate::components::bidi_text::text(self.placeholder)),
             })
             .child(
                 Icon::new(if self.native {

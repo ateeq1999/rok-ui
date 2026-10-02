@@ -156,18 +156,28 @@ impl RenderOnce for Marker {
                     }
                 })
                 .children(icon)
-                .child(self.text),
-            MarkerKind::Note => row.children(icon).child(self.text),
+                .child(crate::components::bidi_text::text(self.text)),
+            MarkerKind::Note => row
+                .children(icon)
+                .child(crate::components::bidi_text::text(self.text)),
             MarkerKind::Row => row
                 .children(icon)
-                .child(div().sx(&MARKER.row_text).child(self.text))
+                .child(
+                    div()
+                        .sx(&MARKER.row_text)
+                        .child(crate::components::bidi_text::text(self.text)),
+                )
                 .when_some(self.detail, |row, detail| {
-                    row.child(div().sx(&MARKER.row_detail).child(detail))
+                    row.child(
+                        div()
+                            .sx(&MARKER.row_detail)
+                            .child(crate::components::bidi_text::text(detail)),
+                    )
                 }),
             MarkerKind::Separator => row
                 .child(div().sx(&MARKER.rule))
                 .children(icon)
-                .child(self.text)
+                .child(crate::components::bidi_text::text(self.text))
                 .child(div().sx(&MARKER.rule)),
         }
         .apply_style_overrides(&self.style_overrides)

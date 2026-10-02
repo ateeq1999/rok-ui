@@ -58,7 +58,7 @@ pub fn H1(
 ) -> impl IntoElement {
     div()
         .sx((&TYPOGRAPHY.h1, &sx))
-        .child(text)
+        .child(crate::components::bidi_text::text(text))
         .apply_style_overrides(&style_overrides)
 }
 
@@ -71,7 +71,7 @@ pub fn H2(
 ) -> impl IntoElement {
     div()
         .sx((&TYPOGRAPHY.h2, &sx))
-        .child(text)
+        .child(crate::components::bidi_text::text(text))
         .apply_style_overrides(&style_overrides)
 }
 
@@ -84,7 +84,7 @@ pub fn H3(
 ) -> impl IntoElement {
     div()
         .sx((&TYPOGRAPHY.h3, &sx))
-        .child(text)
+        .child(crate::components::bidi_text::text(text))
         .apply_style_overrides(&style_overrides)
 }
 
@@ -97,7 +97,7 @@ pub fn H4(
 ) -> impl IntoElement {
     div()
         .sx((&TYPOGRAPHY.h4, &sx))
-        .child(text)
+        .child(crate::components::bidi_text::text(text))
         .apply_style_overrides(&style_overrides)
 }
 
@@ -110,7 +110,7 @@ pub fn P(
 ) -> impl IntoElement {
     div()
         .sx((&TYPOGRAPHY.p, &sx))
-        .child(text)
+        .child(crate::components::bidi_text::text(text))
         .apply_style_overrides(&style_overrides)
 }
 
@@ -123,7 +123,7 @@ pub fn Blockquote(
 ) -> impl IntoElement {
     div()
         .sx((&TYPOGRAPHY.blockquote, &sx))
-        .child(text)
+        .child(crate::components::bidi_text::text(text))
         .apply_style_overrides(&style_overrides)
 }
 
@@ -159,29 +159,37 @@ pub fn InlineCode(text: SharedString, cx: &mut App, #[sx] sx: Sx) -> impl IntoEl
     div()
         .rounded(radius)
         .sx((&TYPOGRAPHY.inline_code, &sx))
-        .child(text)
+        .child(crate::components::bidi_text::text(text))
 }
 
 /// Large muted intro text.
 #[component]
 pub fn Lead(text: SharedString, #[sx] sx: Sx) -> impl IntoElement {
-    div().sx((&TYPOGRAPHY.lead, &sx)).child(text)
+    div()
+        .sx((&TYPOGRAPHY.lead, &sx))
+        .child(crate::components::bidi_text::text(text))
 }
 
 /// 18px semibold.
 #[component]
 pub fn Large(text: SharedString, #[sx] sx: Sx) -> impl IntoElement {
-    div().sx((&TYPOGRAPHY.large, &sx)).child(text)
+    div()
+        .sx((&TYPOGRAPHY.large, &sx))
+        .child(crate::components::bidi_text::text(text))
 }
 
 /// 14px medium, tight line height.
 #[component]
 pub fn Small(text: SharedString, #[sx] sx: Sx) -> impl IntoElement {
-    div().sx((&TYPOGRAPHY.small, &sx)).child(text)
+    div()
+        .sx((&TYPOGRAPHY.small, &sx))
+        .child(crate::components::bidi_text::text(text))
 }
 
 /// 14px muted text.
 #[component]
 pub fn Muted(text: SharedString, #[sx] sx: Sx) -> impl IntoElement {
-    div().sx((&TYPOGRAPHY.muted, &sx)).child(text)
+    div()
+        .sx((&TYPOGRAPHY.muted, &sx))
+        .child(crate::components::bidi_text::text(text))
 }

@@ -22,6 +22,6 @@ pub fn Label(
 ) -> impl IntoElement {
     div()
         .sx((&LABEL.root, disabled.then_some(&LABEL.disabled), &sx))
-        .child(text)
+        .child(crate::components::bidi_text::text(text))
         .apply_style_overrides(&style_overrides)
 }

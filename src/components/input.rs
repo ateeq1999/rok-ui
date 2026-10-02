@@ -104,7 +104,7 @@ pub struct InputState {
     selected_range: Range<usize>,
     selection_reversed: bool,
     marked_range: Option<Range<usize>>,
-    last_layout: Option<ShapedLine>,
+    last_layout: Option<DisplayLine>,
     last_bounds: Option<Bounds<Pixels>>,
     /// Wrapped paragraphs from the last paint of a multi-line field.
     last_wrapped_lines: Vec<WrappedLine>,
@@ -878,10 +878,143 @@ struct InputTextElement {
     selection_color: Hsla,
 }
 
+/// A shaped line of field text and, when it was reordered for display (right-to-left
+/// text on Windows, see [`crate::bidi`]), the map from logical offsets to positions.
+pub(crate) struct DisplayLine {
+    line: ShapedLine,
+    bidi: Option<crate::bidi::VisualLine>,
+}
+
+impl DisplayLine {
+    /// Shape `text` (logical order). `runs` style the logical text and apply as-is
+    /// when no reordering is needed; reordered text is drawn with the first run's style.
+    fn shape(text: SharedString, runs: &[TextRun], font_size: Pixels, window: &Window) -> Self {
+        if crate::bidi::platform_needs_reordering() && crate::bidi::has_rtl(&text) {
+            let direction = if crate::components::direction::is_rtl() {
+                crate::components::direction::TextDirection::Rtl
+            } else {
+                crate::components::direction::TextDirection::Ltr
+            };
+            let visual = crate::bidi::visual_line(&text, direction);
+            let run = TextRun {
+                len: visual.text.len(),
+                ..runs[0].clone()
+            };
+            let line = window.text_system().shape_line(
+                visual.text.clone().into(),
+                font_size,
+                &[run],
+                None,
+            );
+            return Self {
+                line,
+                bidi: Some(visual),
+            };
+        }
+        let line = window.text_system().shape_line(text, font_size, runs, None);
+        Self { line, bidi: None }
+    }
+
+    fn width(&self) -> Pixels {
+        self.line.width
+    }
+
+    /// The left and right edges of each logical character, with whether its run
+    /// reads right to left.
+    fn edges(&self) -> impl Iterator<Item = (&crate::bidi::VisualChar, Pixels, Pixels)> {
+        self.bidi.iter().flat_map(move |bidi| {
+            bidi.chars.iter().map(move |character| {
+                let left = self.line.x_for_index(character.visual.start);
+                let right = self.line.x_for_index(character.visual.end);
+                (character, left.min(right), left.max(right))
+            })
+        })
+    }
+
+    /// Where the caret for logical offset `index` is drawn.
+    fn x_for_index(&self, index: usize) -> Pixels {
+        if self.bidi.is_none() {
+            return self.line.x_for_index(index);
+        }
+        let mut at_end = None;
+        for (character, left, right) in self.edges() {
+            // The caret before a character sits on its reading-start side.
+            if character.logical.start == index {
+                return if character.rtl { right } else { left };
+            }
+            if character.logical.end == index {
+                at_end = Some(if character.rtl { left } else { right });
+            }
+        }
+        at_end.unwrap_or(px(0.))
+    }
+
+    /// The logical offset whose caret position is closest to `x`.
+    fn closest_index_for_x(&self, x: Pixels) -> usize {
+        if self.bidi.is_none() {
+            return self.line.closest_index_for_x(x);
+        }
+        let mut best = (Pixels::MAX, 0);
+        for (character, left, right) in self.edges() {
+            let (left_index, right_index) = if character.rtl {
+                (character.logical.end, character.logical.start)
+            } else {
+                (character.logical.start, character.logical.end)
+            };
+            for (edge, index) in [(left, left_index), (right, right_index)] {
+                let distance = (x - edge).abs();
+                if distance < best.0 {
+                    best = (distance, index);
+                }
+            }
+        }
+        best.1
+    }
+
+    /// The logical offset at `x`, or `None` past either end of the text.
+    fn index_for_x(&self, x: Pixels) -> Option<usize> {
+        if self.bidi.is_none() {
+            return self.line.index_for_x(x);
+        }
+        (x >= px(0.) && x <= self.width()).then(|| self.closest_index_for_x(x))
+    }
+
+    /// Horizontal spans covering the logical `range`. Mixed-direction text can need
+    /// several.
+    fn selection_spans(&self, range: Range<usize>) -> Vec<(Pixels, Pixels)> {
+        if self.bidi.is_none() {
+            return vec![(
+                self.line.x_for_index(range.start),
+                self.line.x_for_index(range.end),
+            )];
+        }
+        let mut spans: Vec<(Pixels, Pixels)> = self
+            .edges()
+            .filter(|(character, _, _)| {
+                character.logical.start >= range.start && character.logical.end <= range.end
+            })
+            .map(|(_, left, right)| (left, right))
+            .collect();
+        spans.sort_by(|a, b| f32::from(a.0).total_cmp(&f32::from(b.0)));
+        let mut merged: Vec<(Pixels, Pixels)> = Vec::new();
+        for (left, right) in spans {
+            match merged.last_mut() {
+                Some(last) if left <= last.1 + px(0.5) => last.1 = last.1.max(right),
+                _ => merged.push((left, right)),
+            }
+        }
+        merged
+    }
+
+    fn paint(&self, origin: Point<Pixels>, line_height: Pixels, window: &mut Window, cx: &mut App) {
+        self.line.paint(origin, line_height, window, cx).ok();
+    }
+}
+
 struct InputTextPrepaintState {
-    line: Option<ShapedLine>,
+    line: Option<DisplayLine>,
     cursor: Option<PaintQuad>,
-    selection: Option<PaintQuad>,
+    selection: Vec<PaintQuad>,
     /// How far the text is shifted right (RTL alignment).
     text_offset: Pixels,
 }
@@ -980,15 +1113,13 @@ impl Element for InputTextElement {
         };
 
         let font_size = text_style.font_size.to_pixels(window.rem_size());
-        let line = window
-            .text_system()
-            .shape_line(display_text, font_size, &runs, None);
+        let line = DisplayLine::shape(display_text, &runs, font_size, window);
 
         // In RTL the text sits against the right edge. Shifting the bounds keeps
         // painting, the cursor, hit testing and IME positions consistent.
         let rtl = crate::components::direction::is_rtl();
         let text_offset = if rtl {
-            (bounds.size.width - line.width).max(px(0.))
+            (bounds.size.width - line.width()).max(px(0.))
         } else {
             px(0.)
         };
@@ -997,7 +1128,7 @@ impl Element for InputTextElement {
         let (selection, cursor) = if selected_range.is_empty() {
             let cursor_x = if content_is_empty {
                 if rtl {
-                    line.width
+                    line.width()
                 } else {
                     px(0.)
                 }
@@ -1005,7 +1136,7 @@ impl Element for InputTextElement {
                 line.x_for_index(cursor_offset)
             };
             (
-                None,
+                Vec::new(),
                 Some(fill(
                     Bounds::new(
                         point(bounds.left() + cursor_x, bounds.top()),
@@ -1016,19 +1147,18 @@ impl Element for InputTextElement {
             )
         } else {
             (
-                Some(fill(
-                    Bounds::from_corners(
-                        point(
-                            bounds.left() + line.x_for_index(selected_range.start),
-                            bounds.top(),
-                        ),
-                        point(
-                            bounds.left() + line.x_for_index(selected_range.end),
-                            bounds.bottom(),
-                        ),
-                    ),
-                    self.selection_color,
-                )),
+                line.selection_spans(selected_range)
+                    .into_iter()
+                    .map(|(start, end)| {
+                        fill(
+                            Bounds::from_corners(
+                                point(bounds.left() + start, bounds.top()),
+                                point(bounds.left() + end, bounds.bottom()),
+                            ),
+                            self.selection_color,
+                        )
+                    })
+                    .collect(),
                 None,
             )
         };
@@ -1057,14 +1187,13 @@ impl Element for InputTextElement {
             ElementInputHandler::new(bounds, self.state.clone()),
             cx,
         );
-        if let Some(selection) = prepaint.selection.take() {
+        for selection in prepaint.selection.drain(..) {
             window.paint_quad(selection)
         }
         let Some(line) = prepaint.line.take() else {
             return;
         };
-        line.paint(bounds.origin, window.line_height(), window, cx)
-            .ok();
+        line.paint(bounds.origin, window.line_height(), window, cx);
 
         if focus_handle.is_focused(window) {
             if let Some(cursor) = prepaint.cursor.take() {
@@ -1092,6 +1221,51 @@ fn shift_bounds(bounds: Bounds<Pixels>, offset: Pixels) -> Bounds<Pixels> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct EmptyView;
+
+    impl Render for EmptyView {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            gpui::div()
+        }
+    }
+
+    #[gpui::test]
+    fn reordered_lines_map_carets_and_clicks(cx: &mut gpui::TestAppContext) {
+        // Only Windows reorders; elsewhere the platform shaper handles direction.
+        if !crate::bidi::platform_needs_reordering() {
+            return;
+        }
+        cx.update(crate::init);
+        let (_view, window_context) = cx.add_window_view(|_, _| EmptyView);
+        window_context.update(|window, _| {
+            let text = SharedString::from("مرحبا");
+            let run = window.text_style().to_run(text.len());
+            let line = crate::components::direction::with_direction(
+                crate::components::TextDirection::Rtl,
+                || DisplayLine::shape(text.clone(), &[run], px(16.), window),
+            );
+            let width = line.width();
+            assert!(width > px(0.));
+            // Right-to-left: the caret starts at the right and ends at the left.
+            let (start, end) = (line.x_for_index(0), line.x_for_index(text.len()));
+            assert!(start > end);
+            // Each letter moves the caret leftward.
+            let mut previous = line.x_for_index(0);
+            for (offset, _) in text.char_indices().skip(1) {
+                let x = line.x_for_index(offset);
+                assert!(x < previous, "caret at {offset} did not move left");
+                previous = x;
+            }
+            // Clicking an end puts the caret at the logical start or end.
+            assert_eq!(line.closest_index_for_x(width + px(5.)), 0);
+            assert_eq!(line.closest_index_for_x(px(-5.)), text.len());
+            // Selecting everything highlights the whole line in one span.
+            let spans = line.selection_spans(0..text.len());
+            assert_eq!(spans.len(), 1);
+            assert!((spans[0].0 - end).abs() < px(0.5) && (spans[0].1 - start).abs() < px(0.5));
+        });
+    }
 
     struct RtlTextareaView(Entity<InputState>);
 

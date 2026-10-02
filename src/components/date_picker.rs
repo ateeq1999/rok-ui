@@ -219,8 +219,12 @@ impl RenderOnce for DatePicker {
                     .color(muted_foreground),
             )
             .child(match label {
-                Some(label) => div().sx(&DATE_PICKER.value).child(label),
-                None => div().sx(&DATE_PICKER.placeholder).child(self.placeholder),
+                Some(label) => div()
+                    .sx(&DATE_PICKER.value)
+                    .child(crate::components::bidi_text::text(label)),
+                None => div()
+                    .sx(&DATE_PICKER.placeholder)
+                    .child(crate::components::bidi_text::text(self.placeholder)),
             })
             .apply_style_overrides(&self.style_overrides);
 
@@ -287,7 +291,7 @@ impl RenderOnce for DatePicker {
             _ => None,
         };
 
-        let panel = popover_surface(cx.theme())
+        let panel = popover_surface()
             .flex_row()
             .children(presets)
             .child(calendar);

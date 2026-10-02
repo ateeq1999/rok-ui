@@ -12,7 +12,7 @@
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{
-    div, prelude::*, px, relative, App, Corner, Div, ElementId, FocusHandle, Pixels, Window,
+    div, prelude::*, px, relative, App, Corner, Div, ElementId, FocusHandle, Pixels, Point, Window,
 };
 
 use super::layer::layer_at_marker;
@@ -22,7 +22,6 @@ use crate::sx::SxStyled;
 use crate::{
     hooks::{EventHandler, State},
     styles,
-    theme::Theme,
 };
 
 /// Which side of the trigger a floating surface opens on. `Left` and `Right`
@@ -60,6 +59,9 @@ pub(crate) struct OverlayMemory {
     pub focus_handle: FocusHandle,
     /// Width of the trigger, measured each frame, for surfaces that match it.
     pub trigger_width: Rc<Cell<Pixels>>,
+    /// When this surface opened relative to the others (see [`next_open_order`]);
+    /// 0 while closed.
+    pub open_order: Rc<Cell<u64>>,
 }
 
 /// Open/closed state for one floating surface. Cheap to clone into handlers.
@@ -118,13 +120,33 @@ pub(crate) fn use_open_state(
         focus_requested: Rc::new(Cell::new(controlled_open == Some(true))),
         focus_handle: cx.focus_handle(),
         trigger_width: Rc::new(Cell::new(px(0.))),
+        open_order: Rc::new(Cell::new(0)),
     });
     let memory = State::from_entity(memory);
-    OpenState {
+    let open_state = OpenState {
         memory,
         controlled_open,
         on_open_change,
+    };
+    if !open_state.is_open(cx) {
+        open_state.memory.read(cx).open_order.set(0);
     }
+    open_state
+}
+
+thread_local! {
+    static OPEN_COUNTER: Cell<u64> = const { Cell::new(0) };
+    /// The latest mouse press that landed inside a floating surface: where it was,
+    /// and the open order of the newest surface under it.
+    static CLAIMED_PRESS: Cell<Option<(Point<Pixels>, u64)>> = const { Cell::new(None) };
+}
+
+/// A number larger than that of every surface opened before.
+fn next_open_order() -> u64 {
+    OPEN_COUNTER.with(|counter| {
+        counter.set(counter.get() + 1);
+        counter.get()
+    })
 }
 
 /// Position `content` against the edge of the element this is a child of. The
@@ -196,6 +218,7 @@ styles! {
             background: popover,
             color: popover_foreground,
             font_family: sans,
+            text: theme,
             shadow: md,
         },
     }
@@ -203,8 +226,8 @@ styles! {
 
 /// The panel style shared by popovers, menus and hover cards (`bg-popover`,
 /// border, `rounded-md`, `shadow-md`).
-pub(crate) fn popover_surface(theme: &Theme) -> Div {
-    div().sx(&OVERLAY.surface).text_size(theme.font_size)
+pub(crate) fn popover_surface() -> Div {
+    div().sx(&OVERLAY.surface)
 }
 
 /// Records the width of the element it is placed in (absolutely, full size) into `width`.
@@ -262,6 +285,11 @@ pub(crate) fn dismissable(
     let focus_handle = open_state.focus_handle(cx);
     let escape_state = open_state.clone();
     let outside_state = open_state.clone();
+    let order_cell = open_state.memory.read(cx).open_order.clone();
+    if order_cell.get() == 0 {
+        order_cell.set(next_open_order());
+    }
+    let order = order_cell.get();
     panel
         .track_focus(&focus_handle)
         .occlude()
@@ -271,7 +299,35 @@ pub(crate) fn dismissable(
                 escape_state.set_open(false, window, cx);
             }
         })
-        .on_mouse_down_out(move |_, window, cx| outside_state.set_open(false, window, cx))
+        // A press inside this surface claims it, so the surfaces it was opened from
+        // (which see the press as outside them) stay open. Nested surfaces paint
+        // later, so their claim lands after an outer surface's outside check runs;
+        // that check is deferred until the whole event has been dispatched.
+        .capture_any_mouse_down(move |event, window, cx| {
+            let position = event.position;
+            CLAIMED_PRESS.with(|claimed| {
+                let newest = match claimed.get() {
+                    Some((at, claimed_order)) if at == position => claimed_order.max(order),
+                    _ => order,
+                };
+                claimed.set(Some((position, newest)));
+            });
+            window.defer(cx, |_, _| CLAIMED_PRESS.with(|claimed| claimed.set(None)));
+        })
+        .on_mouse_down_out(move |event, window, cx| {
+            let position = event.position;
+            let outside_state = outside_state.clone();
+            window.defer(cx, move |window, cx| {
+                let claimed_by_newer = CLAIMED_PRESS.with(|claimed| {
+                    claimed
+                        .get()
+                        .is_some_and(|(at, claimed_order)| at == position && claimed_order > order)
+                });
+                if !claimed_by_newer {
+                    outside_state.set_open(false, window, cx);
+                }
+            });
+        })
 }
 
 /// Floating surfaces fade in while sliding 4px away from their trigger.

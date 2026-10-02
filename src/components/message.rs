@@ -123,10 +123,18 @@ impl RenderOnce for Message {
             div()
                 .sx((&MESSAGE.header, flipped))
                 .when_some(self.name, |header, name| {
-                    header.child(div().sx(&MESSAGE.name).child(name))
+                    header.child(
+                        div()
+                            .sx(&MESSAGE.name)
+                            .child(crate::components::bidi_text::text(name)),
+                    )
                 })
                 .when_some(self.timestamp, |header, timestamp| {
-                    header.child(div().sx(&MESSAGE.timestamp).child(timestamp))
+                    header.child(
+                        div()
+                            .sx(&MESSAGE.timestamp)
+                            .child(crate::components::bidi_text::text(timestamp)),
+                    )
                 })
                 .children(self.header)
         });

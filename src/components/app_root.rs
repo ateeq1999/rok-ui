@@ -4,7 +4,7 @@
 use gpui::{actions, div, prelude::*, AnyElement, App, KeyBinding, StyleRefinement, Window};
 
 use crate::sx::SxStyled;
-use crate::{styles, styles::ApplyStyleOverrides, theme::ActiveTheme};
+use crate::{styles, styles::ApplyStyleOverrides};
 
 styles! {
     APP_ROOT = {
@@ -15,6 +15,7 @@ styles! {
             background: background,
             color: foreground,
             font_family: sans,
+            text: theme,
             text_align: start,
         },
     }
@@ -84,16 +85,15 @@ impl RenderOnce for AppRoot {
             window.defer(cx, move |window, _| window.focus(&focus_handle_to_focus));
         }
 
-        let theme = cx.theme();
         div()
             .id("rok-ui-app-root")
             .track_focus(&root_focus_handle)
             .sx((&APP_ROOT.root, &self.sx))
-            .text_size(theme.font_size)
             .on_action(|_: &FocusNextElement, window, _| window.focus_next())
             .on_action(|_: &FocusPreviousElement, window, _| window.focus_prev())
             .children(self.children)
             .children(toaster())
+            .child(pointer_modality_listener())
             .apply_style_overrides(&self.style_overrides)
     }
 }
@@ -106,4 +106,23 @@ fn toaster() -> Option<gpui::AnyElement> {
 #[cfg(not(feature = "toast"))]
 fn toaster() -> Option<gpui::AnyElement> {
     None
+}
+
+/// Records pointer input anywhere in the window, so focus rings hide after a
+/// click (see [`crate::sx::focus_visible`]). Keyboard input is recorded by an
+/// observer installed in [`crate::init`].
+fn pointer_modality_listener() -> impl IntoElement {
+    gpui::canvas(
+        |_, _, _| {},
+        |_, _, window, _| {
+            window.on_mouse_event(|_: &gpui::MouseDownEvent, phase, window, _| {
+                if phase == gpui::DispatchPhase::Capture && crate::sx::set_keyboard_modality(false)
+                {
+                    window.refresh();
+                }
+            });
+        },
+    )
+    .absolute()
+    .size_0()
 }

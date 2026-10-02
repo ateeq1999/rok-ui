@@ -27,7 +27,9 @@
 // Lets `#[component]` expand to `::rok_ui::…` paths inside this crate too.
 extern crate self as rok_ui;
 
+pub mod bidi;
 pub mod components;
+pub mod fonts;
 pub mod hooks;
 pub mod icon;
 pub mod motion;
@@ -44,6 +46,13 @@ pub use rok_ui_macros::{children, component, keyframes, style, styles, view};
 /// (text editing, Tab focus navigation). Call once at startup.
 pub fn init(cx: &mut gpui::App) {
     theme::init(cx);
+    // Keyboard input makes focus rings visible (see `sx::focus_visible`).
+    cx.observe_keystrokes(|_, window, _| {
+        if sx::set_keyboard_modality(true) {
+            window.refresh();
+        }
+    })
+    .detach();
     components::app_root::bind_focus_navigation_keys(cx);
     #[cfg(feature = "input")]
     components::input::bind_text_editing_keys(cx);

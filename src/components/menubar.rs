@@ -170,7 +170,7 @@ impl RenderOnce for Menubar {
                         hover_memory.update(cx, |memory| memory.open_index = Some(index));
                     }
                 })
-                .child(title);
+                .child(crate::components::bidi_text::text(title));
             if is_open {
                 let close_memory = memory.clone();
                 let panel = render_menu_panel(
@@ -335,9 +335,17 @@ impl RenderOnce for NavigationMenuLink {
             .when_some(self.on_click, |link, handler| {
                 link.on_click(move |_, window, cx| handler(&(), window, cx))
             })
-            .child(div().sx(&NAVIGATION.link_title).child(self.title))
+            .child(
+                div()
+                    .sx(&NAVIGATION.link_title)
+                    .child(crate::components::bidi_text::text(self.title)),
+            )
             .when_some(self.description, |link, description| {
-                link.child(div().sx(&NAVIGATION.link_description).child(description))
+                link.child(
+                    div()
+                        .sx(&NAVIGATION.link_description)
+                        .child(crate::components::bidi_text::text(description)),
+                )
             })
     }
 }
@@ -372,7 +380,7 @@ impl RenderOnce for NavigationMenu {
                     .when_some(on_click, |trigger, handler| {
                         trigger.on_click(move |_, window, cx| handler(&(), window, cx))
                     })
-                    .child(label)
+                    .child(crate::components::bidi_text::text(label))
                     .into_any_element(),
                 NavigationEntry::Panel { label, content } => {
                     let is_open = open_index == Some(index);
@@ -390,7 +398,7 @@ impl RenderOnce for NavigationMenu {
                                 key_state.set(if is_open { None } else { Some(index) }, cx);
                             }
                         })
-                        .child(label)
+                        .child(crate::components::bidi_text::text(label))
                         .child(
                             Icon::new(if is_open {
                                 IconName::ChevronUp
@@ -401,7 +409,7 @@ impl RenderOnce for NavigationMenu {
                             .color(muted_foreground),
                         )
                         .when(is_open, |trigger| {
-                            let panel = popover_surface(cx.theme())
+                            let panel = popover_surface()
                                 .id(("navigation-panel", index))
                                 .occlude()
                                 .sx(&NAVIGATION.panel)

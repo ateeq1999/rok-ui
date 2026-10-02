@@ -227,7 +227,15 @@ impl TextareaTextElement {
         let state = self.state.read(cx);
         let text_style = window.text_style();
         let (text, color) = if state.content.is_empty() {
-            (state.placeholder.clone(), self.placeholder_color)
+            let direction = if crate::components::direction::is_rtl() {
+                crate::components::direction::TextDirection::Rtl
+            } else {
+                crate::components::direction::TextDirection::Ltr
+            };
+            (
+                crate::bidi::display_text(state.placeholder.clone(), direction),
+                self.placeholder_color,
+            )
         } else {
             (state.content.clone(), text_style.color)
         };

@@ -97,10 +97,18 @@ impl PanelContent {
                             centered_header.then_some(&SHEET.header_centered),
                         ))
                         .when_some(self.title, |header, title| {
-                            header.child(div().sx(&SHEET.title).child(title))
+                            header.child(
+                                div()
+                                    .sx(&SHEET.title)
+                                    .child(crate::components::bidi_text::text(title)),
+                            )
                         })
                         .when_some(self.description, |header, description| {
-                            header.child(div().sx(&SHEET.description).child(description))
+                            header.child(
+                                div()
+                                    .sx(&SHEET.description)
+                                    .child(crate::components::bidi_text::text(description)),
+                            )
                         }),
                 )
             })

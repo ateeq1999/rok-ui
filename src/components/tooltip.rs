@@ -46,8 +46,10 @@ impl Tooltip {
 
 impl Render for Tooltip {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .sx(&TOOLTIP.offset)
-            .child(div().sx(&TOOLTIP.pill).child(self.text.clone()))
+        div().sx(&TOOLTIP.offset).child(
+            div()
+                .sx(&TOOLTIP.pill)
+                .child(crate::components::bidi_text::text(self.text.clone())),
+        )
     }
 }

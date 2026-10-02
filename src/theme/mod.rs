@@ -118,17 +118,41 @@ impl Theme {
         cx.refresh_windows();
     }
 
-    /// Switch between light and dark, keeping the current preset.
+    /// Switch between light and dark, keeping the current preset and fonts.
     pub fn toggle_mode(cx: &mut App) {
         let current = Theme::global(cx);
-        let next = Theme::from_preset(current.preset, current.mode.toggled());
+        let next = current.rebuilt(current.preset, current.mode.toggled());
         Theme::set_global(next, cx);
     }
 
-    /// Switch preset, keeping the current mode.
+    /// Switch preset, keeping the current mode and fonts.
     pub fn change_preset(preset: ThemePreset, cx: &mut App) {
-        let mode = Theme::global(cx).mode;
-        Theme::set_global(Theme::from_preset(preset, mode), cx);
+        let current = Theme::global(cx);
+        let next = current.rebuilt(preset, current.mode);
+        Theme::set_global(next, cx);
+    }
+
+    /// Use `family` for all UI text, for example a font registered with
+    /// [`crate::fonts`]. Preset and mode changes keep it.
+    ///
+    /// ```ignore
+    /// rok_ui::fonts::CAIRO.register(cx)?;
+    /// Theme::set_font_family(rok_ui::fonts::CAIRO.family(), cx);
+    /// ```
+    pub fn set_font_family(family: impl Into<SharedString>, cx: &mut App) {
+        let mut theme = Theme::global(cx).clone();
+        theme.font_family = family.into();
+        Theme::set_global(theme, cx);
+    }
+
+    /// The `preset` theme in `mode`, carrying over this theme's fonts.
+    fn rebuilt(&self, preset: ThemePreset, mode: ThemeMode) -> Theme {
+        Theme {
+            font_family: self.font_family.clone(),
+            monospace_font_family: self.monospace_font_family.clone(),
+            font_size: self.font_size,
+            ..Theme::from_preset(preset, mode)
+        }
     }
 
     /// Follow the operating system's light or dark appearance.
@@ -139,8 +163,9 @@ impl Theme {
                 ThemeMode::Light
             }
         };
-        let preset = Theme::global(cx).preset;
-        Theme::set_global(Theme::from_preset(preset, mode), cx);
+        let current = Theme::global(cx);
+        let next = current.rebuilt(current.preset, mode);
+        Theme::set_global(next, cx);
     }
 
     /// `rounded-sm`: radius − 4px, never below zero.

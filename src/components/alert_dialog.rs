@@ -150,9 +150,17 @@ impl RenderOnce for AlertDialog {
             .child(
                 div()
                     .sx(&ALERT_DIALOG.header)
-                    .child(div().sx(&ALERT_DIALOG.title).child(self.title))
+                    .child(
+                        div()
+                            .sx(&ALERT_DIALOG.title)
+                            .child(crate::components::bidi_text::text(self.title)),
+                    )
                     .when_some(self.description, |header, description| {
-                        header.child(div().sx(&ALERT_DIALOG.description).child(description))
+                        header.child(
+                            div()
+                                .sx(&ALERT_DIALOG.description)
+                                .child(crate::components::bidi_text::text(description)),
+                        )
                     }),
             )
             .children(self.children)

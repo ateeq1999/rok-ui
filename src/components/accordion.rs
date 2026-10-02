@@ -185,7 +185,11 @@ impl RenderOnce for Accordion {
                         &ACCORDION.trigger_interactive
                     },
                 ))
-                .child(div().sx(&ACCORDION.title).child(item.title))
+                .child(
+                    div()
+                        .sx(&ACCORDION.title)
+                        .child(crate::components::bidi_text::text(item.title)),
+                )
                 .child(
                     Icon::new(if is_open {
                         IconName::ChevronUp

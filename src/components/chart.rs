@@ -8,7 +8,6 @@ use gpui::{
     PathBuilder, Pixels, Point, SharedString, StyleRefinement, Window,
 };
 
-use super::direction::DirectionalStyled;
 use super::{interaction::measure_bounds, overlay::child_id};
 use crate::sx::SxStyled;
 use crate::{
@@ -240,10 +239,11 @@ struct ChartMemory {
     bounds: Rc<Cell<Bounds<Pixels>>>,
 }
 
-// Charts read left to right in every direction, so their rows use `flex_ltr()`
-// and these styles leave the flex direction alone.
+// Charts read left to right in every direction: every flex container starts from
+// `ltr`, and tables that stack set a column direction after it.
 styles! {
     CHART = {
+        ltr: { display: flex, direction: row_ltr },
         column: { direction: column, width: full },
         full_width: { width: full },
         fill: { position: absolute, top: 0, left: 0, size: full },
@@ -376,21 +376,18 @@ impl RenderOnce for Chart {
         };
         let legend = self.show_legend.then(|| {
             div()
-                .flex_ltr()
-                .sx(&CHART.legend)
+                .sx((&CHART.ltr, &CHART.legend))
                 .children(legend_items.into_iter().map(|(label, color)| {
                     div()
-                        .flex_ltr()
-                        .sx(&CHART.legend_item)
+                        .sx((&CHART.ltr, &CHART.legend_item))
                         .child(div().sx(&CHART.legend_swatch).bg(color))
-                        .child(label)
+                        .child(crate::components::bidi_text::text(label))
                 }))
         });
 
         div()
             .id(self.id.clone())
-            .flex_ltr()
-            .sx((&CHART.column, &self.sx))
+            .sx((&CHART.ltr, &CHART.column, &self.sx))
             .child(plot)
             .children(legend)
             .apply_style_overrides(&self.style_overrides)
@@ -422,17 +419,17 @@ impl Chart {
 
         let marks: AnyElement = match self.kind {
             ChartKind::Bar => div()
-                .flex_ltr()
-                .sx((&CHART.fill, &CHART.bars))
+                .sx((&CHART.ltr, &CHART.fill, &CHART.bars))
                 .children((0..category_count).map(|index| {
                     let is_dimmed = hovered.is_some_and(|hovered| hovered != index);
-                    let column = div().flex_ltr().sx((
+                    let column = div().sx((
+                        &CHART.ltr,
                         &CHART.bar_column,
                         is_dimmed.then_some(&CHART.dimmed),
                         (!self.stacked).then_some(&CHART.grouped),
                     ));
                     if self.stacked {
-                        column.child(div().flex_ltr().sx(&CHART.stack).children(
+                        column.child(div().sx((&CHART.ltr, &CHART.stack)).children(
                             self.series.iter().zip(series_colors).enumerate().map(
                                 |(series_index, (series, color))| {
                                     let is_top = series_index + 1 == self.series.len();
@@ -543,8 +540,7 @@ impl Chart {
                     .zip(series_colors)
                     .map(|(series, color)| {
                         div()
-                            .flex_ltr()
-                            .sx(&CHART.tooltip_row)
+                            .sx((&CHART.ltr, &CHART.tooltip_row))
                             .child(div().sx(&CHART.tooltip_swatch).bg(*color))
                             .child(div().sx(&CHART.tooltip_label).child(series.label.clone()))
                             .child(
@@ -554,14 +550,16 @@ impl Chart {
                             )
                     });
                 let card = div()
-                    .flex_ltr()
-                    .sx((&CHART.tooltip, &CHART.tooltip_card))
-                    .child(div().sx(&CHART.tooltip_value).child(label))
+                    .sx((&CHART.ltr, &CHART.tooltip, &CHART.tooltip_card))
+                    .child(
+                        div()
+                            .sx(&CHART.tooltip_value)
+                            .child(crate::components::bidi_text::text(label)),
+                    )
                     .children(rows);
                 // Show the card on whichever side of the cursor has room.
                 let column = div()
-                    .flex_ltr()
-                    .sx(&CHART.tooltip_anchor)
+                    .sx((&CHART.ltr, &CHART.tooltip_anchor))
                     .left(relative(fraction));
                 if fraction > 0.6 {
                     column
@@ -615,24 +613,22 @@ impl Chart {
         });
 
         let x_labels = div()
-            .flex_ltr()
             .sx((
+                &CHART.ltr,
                 &CHART.x_labels,
                 self.show_y_axis.then_some(&CHART.x_labels_offset),
             ))
-            .children(
-                self.categories
-                    .iter()
-                    .map(|label| div().flex_ltr().sx(&CHART.x_label).child(label.clone())),
-            );
+            .children(self.categories.iter().map(|label| {
+                div()
+                    .sx((&CHART.ltr, &CHART.x_label))
+                    .child(crate::components::bidi_text::text(label.clone()))
+            }));
 
         div()
-            .flex_ltr()
-            .sx(&CHART.column)
+            .sx((&CHART.ltr, &CHART.column))
             .child(
                 div()
-                    .flex_ltr()
-                    .sx(&CHART.full_width)
+                    .sx((&CHART.ltr, &CHART.full_width))
                     .children(y_axis)
                     .child(plot),
             )
@@ -733,19 +729,29 @@ impl Chart {
                 .flatten()
                 .map(|(value, caption)| {
                     div()
-                        .flex_ltr()
-                        .sx((&CHART.fill, &CHART.center_label))
-                        .child(div().sx(&CHART.center_value).child(value))
-                        .child(div().sx(&CHART.center_caption).child(caption))
+                        .sx((&CHART.ltr, &CHART.fill, &CHART.center_label))
+                        .child(
+                            div()
+                                .sx(&CHART.center_value)
+                                .child(crate::components::bidi_text::text(value)),
+                        )
+                        .child(
+                            div()
+                                .sx(&CHART.center_caption)
+                                .child(crate::components::bidi_text::text(caption)),
+                        )
                 });
 
         let tooltip = hovered.filter(|index| *index < values.len()).map(|index| {
             let label = self.categories.get(index).cloned().unwrap_or_default();
             div()
-                .flex_ltr()
-                .sx((&CHART.tooltip, &CHART.pie_tooltip))
+                .sx((&CHART.ltr, &CHART.tooltip, &CHART.pie_tooltip))
                 .child(div().sx(&CHART.tooltip_swatch).bg(palette[index % 5]))
-                .child(div().sx(&CHART.pie_label).child(label))
+                .child(
+                    div()
+                        .sx(&CHART.pie_label)
+                        .child(crate::components::bidi_text::text(label)),
+                )
                 .child(
                     div()
                         .sx(&CHART.tooltip_value)

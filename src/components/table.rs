@@ -113,7 +113,7 @@ pub fn TableHead(
     div()
         .map(|head| column_sizing(head, &style_overrides))
         .sx((&TABLE.head, &sx))
-        .child(text)
+        .child(crate::components::bidi_text::text(text))
         .apply_style_overrides(&style_overrides)
 }
 
@@ -134,7 +134,9 @@ pub fn TableCell(
 /// Muted caption under the table.
 #[component]
 pub fn TableCaption(text: SharedString, #[sx] sx: Sx) -> impl IntoElement {
-    div().sx((&TABLE.caption, &sx)).child(text)
+    div()
+        .sx((&TABLE.caption, &sx))
+        .child(crate::components::bidi_text::text(text))
 }
 
 /// Cells share the row equally unless the caller gives them a width. `flex_1`

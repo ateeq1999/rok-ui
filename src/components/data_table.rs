@@ -435,7 +435,9 @@ impl RenderOnce for DataTable {
                     })
                     .into_any_element()
             } else {
-                div().child(title).into_any_element()
+                div()
+                    .child(crate::components::bidi_text::text(title))
+                    .into_any_element()
             };
             header = header.child(cell(column).child(head));
         }
@@ -484,9 +486,11 @@ impl RenderOnce for DataTable {
                         .cloned()
                         .unwrap_or_default();
                     row = row.child(
-                        cell(column)
-                            .sx(&DATA_TABLE.body_cell)
-                            .child(div().sx(&DATA_TABLE.text).child(text)),
+                        cell(column).sx(&DATA_TABLE.body_cell).child(
+                            div()
+                                .sx(&DATA_TABLE.text)
+                                .child(crate::components::bidi_text::text(text)),
+                        ),
                     );
                 }
                 if let Some(row_actions) = self.row_actions.as_ref() {

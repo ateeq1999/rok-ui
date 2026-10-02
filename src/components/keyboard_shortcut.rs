@@ -32,7 +32,10 @@ styles! {
 pub fn KeyboardShortcut(keys: SharedString, cx: &mut App, #[sx] sx: Sx) -> impl IntoElement {
     // Key caps keep a little rounding even in square themes.
     let radius = cx.theme().radius_small().max(px(3.));
-    div().rounded(radius).sx((&KBD.key, &sx)).child(keys)
+    div()
+        .rounded(radius)
+        .sx((&KBD.key, &sx))
+        .child(crate::components::bidi_text::text(keys))
 }
 
 /// shadcn/ui's name for [`KeyboardShortcut`]: `Kbd::new("⌘")`.

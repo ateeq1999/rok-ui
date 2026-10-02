@@ -46,8 +46,19 @@ impl CalendarDate {
             .then_some(Self { year, month, day })
     }
 
-    /// Today's date in UTC (rok-ui has no time-zone database).
+    /// Today's date in the system's local time zone.
     pub fn today() -> Self {
+        let today = jiff::Zoned::now().date();
+        Self::new(
+            i32::from(today.year()),
+            today.month() as u32,
+            today.day() as u32,
+        )
+        .unwrap_or_else(Self::today_utc)
+    }
+
+    /// Today's date in UTC.
+    pub fn today_utc() -> Self {
         let seconds = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|duration| duration.as_secs() as i64)
@@ -585,6 +596,14 @@ mod tests {
 
     fn date(year: i32, month: u32, day: u32) -> CalendarDate {
         CalendarDate::new(year, month, day).unwrap()
+    }
+
+    #[test]
+    fn today_is_the_local_date() {
+        // Time zones are at most 14 hours from UTC, so the dates differ by at most a day.
+        let difference =
+            CalendarDate::today().days_since_epoch() - CalendarDate::today_utc().days_since_epoch();
+        assert!(difference.abs() <= 1, "{difference}");
     }
 
     #[test]

@@ -320,7 +320,9 @@ impl RenderOnce for Button {
                 button.tooltip(Tooltip::text(text))
             })
             .children(leading_visual)
-            .when_some(self.label, |button, label| button.child(label))
+            .when_some(self.label, |button, label| {
+                button.child(crate::components::bidi_text::text(label))
+            })
             .children(self.children)
             .children(trailing_visual)
             .apply_style_overrides(&self.style_overrides)

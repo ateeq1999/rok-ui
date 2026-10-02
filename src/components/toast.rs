@@ -196,6 +196,7 @@ styles! {
             direction: column,
             gap: 2,
             font_family: sans,
+            text: theme,
             text_align: start,
         },
         card: {
@@ -267,9 +268,17 @@ impl RenderOnce for Toaster {
                 .child(
                     div()
                         .sx(&TOAST.text)
-                        .child(div().sx(&TOAST.title).child(toast.title.clone()))
+                        .child(
+                            div()
+                                .sx(&TOAST.title)
+                                .child(crate::components::bidi_text::text(toast.title.clone())),
+                        )
                         .when_some(toast.description.clone(), |text, description| {
-                            text.child(div().sx(&TOAST.description).child(description))
+                            text.child(
+                                div()
+                                    .sx(&TOAST.description)
+                                    .child(crate::components::bidi_text::text(description)),
+                            )
                         }),
                 )
                 .children(action)
@@ -291,10 +300,7 @@ impl RenderOnce for Toaster {
                 )
         });
 
-        let stack = div()
-            .sx(&TOAST.stack)
-            .text_size(theme.font_size)
-            .children(cards);
+        let stack = div().sx(&TOAST.stack).children(cards);
         // The ending corner: bottom-right in LTR, bottom-left in RTL.
         let (x, corner) = if super::direction::is_rtl() {
             (px(16.), Corner::BottomLeft)

@@ -160,75 +160,80 @@ impl RenderOnce for RadioGroup {
                 .collect(),
         );
 
-        let options =
-            self.options.into_iter().enumerate().map(|(index, option)| {
-                let is_selected = self.value.as_ref() == Some(&option.value);
-                let is_interactive = !option.disabled && !self.disabled;
-                let indicator = div()
-                    .sx((
-                        &RADIO.indicator,
-                        is_selected.then_some(&RADIO.indicator_selected),
-                    ))
-                    .when(is_selected, |indicator| {
-                        indicator.child(div().sx(&RADIO.dot))
-                    });
+        let options = self.options.into_iter().enumerate().map(|(index, option)| {
+            let is_selected = self.value.as_ref() == Some(&option.value);
+            let is_interactive = !option.disabled && !self.disabled;
+            let indicator = div()
+                .sx((
+                    &RADIO.indicator,
+                    is_selected.then_some(&RADIO.indicator_selected),
+                ))
+                .when(is_selected, |indicator| {
+                    indicator.child(div().sx(&RADIO.dot))
+                });
 
-                let on_change = self.on_change.clone();
-                let key_on_change = self.on_change.clone();
-                let value = option.value.clone();
-                let enabled_values = enabled_values.clone();
-                let horizontal = self.horizontal;
-                // Captured while rendering: handlers run outside the `Direction` scope.
-                let rtl = super::direction::is_rtl();
-                div()
-                    .id(index)
-                    .sx((
-                        &RADIO.option,
-                        if is_interactive {
-                            &RADIO.interactive
-                        } else {
-                            &RADIO.inert
-                        },
-                    ))
-                    .child(indicator)
-                    .child(div().sx(&RADIO.text).child(option.label).when_some(
-                        option.description,
-                        |text, description| {
-                            text.child(div().sx(&RADIO.description).child(description))
-                        },
-                    ))
-                    .when(is_interactive, |row| {
-                        row.tab_index(0)
-                            .on_click({
-                                let value = value.clone();
-                                move |_, window, cx| {
-                                    if let Some(handler) = on_change.as_ref() {
-                                        handler(&value, window, cx);
-                                    }
+            let on_change = self.on_change.clone();
+            let key_on_change = self.on_change.clone();
+            let value = option.value.clone();
+            let enabled_values = enabled_values.clone();
+            let horizontal = self.horizontal;
+            // Captured while rendering: handlers run outside the `Direction` scope.
+            let rtl = super::direction::is_rtl();
+            div()
+                .id(index)
+                .sx((
+                    &RADIO.option,
+                    if is_interactive {
+                        &RADIO.interactive
+                    } else {
+                        &RADIO.inert
+                    },
+                ))
+                .child(indicator)
+                .child(
+                    div()
+                        .sx(&RADIO.text)
+                        .child(crate::components::bidi_text::text(option.label))
+                        .when_some(option.description, |text, description| {
+                            text.child(
+                                div()
+                                    .sx(&RADIO.description)
+                                    .child(crate::components::bidi_text::text(description)),
+                            )
+                        }),
+                )
+                .when(is_interactive, |row| {
+                    row.tab_index(0)
+                        .on_click({
+                            let value = value.clone();
+                            move |_, window, cx| {
+                                if let Some(handler) = on_change.as_ref() {
+                                    handler(&value, window, cx);
                                 }
-                            })
-                            .on_key_down(move |event, window, cx| {
-                                let step: isize = match (event.keystroke.key.as_str(), horizontal) {
-                                    ("down", false) | ("right", true) => 1,
-                                    ("up", false) | ("left", true) => -1,
-                                    _ => return,
-                                };
-                                // A horizontal group runs right to left in RTL.
-                                let step = if horizontal && rtl { -step } else { step };
-                                let Some(position) =
-                                    enabled_values.iter().position(|enabled| *enabled == value)
-                                else {
-                                    return;
-                                };
-                                cx.stop_propagation();
-                                let count = enabled_values.len() as isize;
-                                let next = (position as isize + step).rem_euclid(count) as usize;
-                                if let Some(handler) = key_on_change.as_ref() {
-                                    handler(&enabled_values[next], window, cx);
-                                }
-                            })
-                    })
-            });
+                            }
+                        })
+                        .on_key_down(move |event, window, cx| {
+                            let step: isize = match (event.keystroke.key.as_str(), horizontal) {
+                                ("down", false) | ("right", true) => 1,
+                                ("up", false) | ("left", true) => -1,
+                                _ => return,
+                            };
+                            // A horizontal group runs right to left in RTL.
+                            let step = if horizontal && rtl { -step } else { step };
+                            let Some(position) =
+                                enabled_values.iter().position(|enabled| *enabled == value)
+                            else {
+                                return;
+                            };
+                            cx.stop_propagation();
+                            let count = enabled_values.len() as isize;
+                            let next = (position as isize + step).rem_euclid(count) as usize;
+                            if let Some(handler) = key_on_change.as_ref() {
+                                handler(&enabled_values[next], window, cx);
+                            }
+                        })
+                })
+        });
 
         div()
             .id(self.id)

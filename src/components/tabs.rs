@@ -125,7 +125,7 @@ impl RenderOnce for Tabs {
                     .when_some(on_change, |trigger, handler| {
                         trigger.on_click(move |_, window, cx| handler(&tab_index, window, cx))
                     })
-                    .child(label)
+                    .child(crate::components::bidi_text::text(label))
             });
 
         div()

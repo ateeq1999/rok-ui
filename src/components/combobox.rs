@@ -177,8 +177,12 @@ impl RenderOnce for Combobox {
             ))
             .when(!self.disabled, |trigger| trigger.tab_index(0))
             .child(match selected_label {
-                Some(label) => div().sx(&COMBOBOX.value).child(label),
-                None => div().sx(&COMBOBOX.placeholder).child(self.placeholder),
+                Some(label) => div()
+                    .sx(&COMBOBOX.value)
+                    .child(crate::components::bidi_text::text(label)),
+                None => div()
+                    .sx(&COMBOBOX.placeholder)
+                    .child(crate::components::bidi_text::text(self.placeholder)),
             })
             .child(
                 Icon::new(IconName::ChevronsUpDown)
@@ -232,7 +236,7 @@ impl RenderOnce for Combobox {
             window,
             cx,
         );
-        let panel = popover_surface(cx.theme())
+        let panel = popover_surface()
             .sx(&COMBOBOX.panel)
             .w(trigger_width.get().max(px(200.)))
             .child(command);

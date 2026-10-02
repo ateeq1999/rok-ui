@@ -24,7 +24,10 @@
 //! (`gap(6.)` is 24px). Use `px(..)` for exact pixels and `relative(..)` for
 //! fractions.
 
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+};
 
 use gpui::{
     px, relative, AbsoluteLength, AlignItems, AlignSelf, CursorStyle, DefiniteLength, Div,
@@ -59,6 +62,43 @@ pub fn current_theme() -> Rc<Theme> {
             .get_or_insert_with(|| Rc::new(Theme::default()))
             .clone()
     })
+}
+
+// ---------------------------------------------------------------------------
+// Focus visibility, like CSS `:focus-visible`.
+
+/// When `focus:` styles (focus rings) show.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum FocusRingMode {
+    /// Only after keyboard input, like CSS `:focus-visible`: clicking a button
+    /// focuses it without a ring, tabbing to it shows one.
+    #[default]
+    KeyboardOnly,
+    /// Whenever the element is focused, however focus got there.
+    Always,
+}
+
+thread_local! {
+    static FOCUS_RING_MODE: Cell<FocusRingMode> = const { Cell::new(FocusRingMode::KeyboardOnly) };
+    /// Whether the most recent input was the keyboard (rather than a pointer).
+    static KEYBOARD_MODALITY: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Choose when focus rings show. The default is [`FocusRingMode::KeyboardOnly`].
+pub fn set_focus_ring_mode(mode: FocusRingMode) {
+    FOCUS_RING_MODE.with(|current| current.set(mode));
+}
+
+/// Whether `focus:` styles apply right now. Text inputs show their ring whenever
+/// they are focused, as browsers do, and do not depend on this.
+pub fn focus_visible() -> bool {
+    FOCUS_RING_MODE.with(Cell::get) == FocusRingMode::Always || KEYBOARD_MODALITY.with(Cell::get)
+}
+
+/// Record whether the latest input came from the keyboard. Returns whether that
+/// changed, in which case the window needs a redraw.
+pub(crate) fn set_keyboard_modality(keyboard: bool) -> bool {
+    KEYBOARD_MODALITY.with(|current| current.replace(keyboard) != keyboard)
 }
 
 // ---------------------------------------------------------------------------
@@ -281,6 +321,8 @@ pub enum SxShadow {
 /// Text sizes matching Tailwind's scale.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SxText {
+    /// The theme's base size (`theme.font_size`).
+    Theme,
     Xs,
     Sm,
     Base,
@@ -395,10 +437,13 @@ pub enum SxDisplay {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SxDirection {
+    /// A row in the reading direction: right to left in RTL.
     Row,
     Column,
     RowReverse,
     ColumnReverse,
+    /// A row that runs left to right in every direction (charts, codes, numbers).
+    RowLtr,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -492,6 +537,7 @@ pub enum Decl {
     Italic,
     Underline,
     LineThrough,
+    BorderStyle(gpui::BorderStyle),
 }
 
 /// Wraps a refinement so the GPUI `Styled` helpers can write into it.
@@ -546,6 +592,7 @@ impl Decl {
             Decl::Direction(SxDirection::Column) => layer.flex_col(),
             Decl::Direction(SxDirection::RowReverse) => layer.flex_row_reverse(),
             Decl::Direction(SxDirection::ColumnReverse) => layer.flex_col_reverse(),
+            Decl::Direction(SxDirection::RowLtr) => layer.flex_row(),
             Decl::Wrap(true) => layer.flex_wrap(),
             Decl::Wrap(false) => layer.flex_nowrap(),
             Decl::Flex(SxFlex::One) => layer.flex_1(),
@@ -716,6 +763,7 @@ impl Decl {
             Decl::Opacity(opacity) => layer.opacity(*opacity),
             Decl::Cursor(cursor) => layer.cursor(*cursor),
             Decl::Text(text) => match text {
+                SxText::Theme => layer.text_size(theme.font_size),
                 SxText::Xs => layer.text_xs(),
                 SxText::Sm => layer.text_sm(),
                 SxText::Base => layer.text_base(),
@@ -742,6 +790,11 @@ impl Decl {
             Decl::Italic => layer.italic(),
             Decl::Underline => layer.underline(),
             Decl::LineThrough => layer.line_through(),
+            Decl::BorderStyle(border_style) => {
+                let mut layer = layer;
+                layer.0.border_style = Some(*border_style);
+                layer
+            }
         }
     }
 }
@@ -892,6 +945,7 @@ impl Sx {
         italic() => Decl::Italic;
         underline() => Decl::Underline;
         line_through() => Decl::LineThrough;
+        border_style(border_style: gpui::BorderStyle) => Decl::BorderStyle(border_style);
     }
 }
 
@@ -1009,7 +1063,7 @@ fn apply_to_interactive<E: Styled + InteractiveElement>(mut element: E, sx: Sx) 
         let hover = resolve(&sx.hover, &theme);
         element = element.hover(move |style| style.refined(hover));
     }
-    if !sx.focus.is_empty() {
+    if !sx.focus.is_empty() && focus_visible() {
         let focus = resolve(&sx.focus, &theme);
         element = element.focus(move |style| style.refined(focus));
     }

@@ -10,7 +10,6 @@ use crate::{
     hooks::{use_keyed_state, State},
     styles,
     styles::ApplyStyleOverrides,
-    theme::ActiveTheme,
 };
 
 struct HoverMemory {
@@ -153,7 +152,7 @@ impl RenderOnce for HoverCard {
         }
 
         let card_memory = memory.clone();
-        let card = popover_surface(cx.theme())
+        let card = popover_surface()
             .id(child_id(&self.id, "card"))
             .occlude()
             .sx((&HOVER_CARD.card, &self.sx))

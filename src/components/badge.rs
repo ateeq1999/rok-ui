@@ -101,7 +101,7 @@ impl RenderOnce for Badge {
             .when_some(self.icon, |badge, icon| {
                 badge.child(Icon::new(icon).size(px(12.)).color(icon_color))
             })
-            .child(self.label)
+            .child(crate::components::bidi_text::text(self.label))
             .apply_style_overrides(&self.style_overrides)
     }
 }

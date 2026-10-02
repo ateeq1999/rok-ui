@@ -175,6 +175,7 @@ styles! {
             align: center,
             padding_x: 4,
             font_family: sans,
+            text: theme,
             text_align: start,
         },
         dialog_panel: { width: full, max_width: 128, shadow: lg },
@@ -224,7 +225,11 @@ pub(crate) fn render_command(
         }
         let mut section = div().sx(&COMMAND.group);
         if let Some(heading) = group.heading.clone() {
-            section = section.child(div().sx(&COMMAND.heading).child(heading));
+            section = section.child(
+                div()
+                    .sx(&COMMAND.heading)
+                    .child(crate::components::bidi_text::text(heading)),
+            );
         }
         for item in matching {
             let flat_index = visible_items.len();
@@ -258,9 +263,17 @@ pub(crate) fn render_command(
                     .when_some(item.icon, |row, icon| {
                         row.child(Icon::new(icon).size(px(16.)).color(muted_foreground))
                     })
-                    .child(div().sx(&COMMAND.item_label).child(item.label.clone()))
+                    .child(
+                        div()
+                            .sx(&COMMAND.item_label)
+                            .child(crate::components::bidi_text::text(item.label.clone())),
+                    )
                     .when_some(item.shortcut.clone(), |row, shortcut| {
-                        row.child(div().sx(&COMMAND.shortcut).child(shortcut))
+                        row.child(
+                            div()
+                                .sx(&COMMAND.shortcut)
+                                .child(crate::components::bidi_text::text(shortcut)),
+                        )
                     })
                     .when_some(item.checked, |row, checked| {
                         row.child(div().sx(&COMMAND.check_slot).when(checked, |slot| {
@@ -505,11 +518,11 @@ impl RenderOnce for CommandDialog {
         }
 
         let theme = cx.theme();
-        let (overlay, font_size) = (theme.colors.overlay, theme.font_size);
+        let overlay = theme.colors.overlay;
         let viewport_size = window.viewport_size();
         let escape_close = close.clone();
         let backdrop_close = close.clone();
-        let panel = div()
+        let panel = super::interaction::trap_focus(div(), &focus_container)
             .track_focus(&focus_container)
             .sx(&COMMAND.dialog_panel)
             .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
@@ -529,7 +542,6 @@ impl RenderOnce for CommandDialog {
             .sx(&COMMAND.dialog_scrim)
             .pt(viewport_size.height * 0.2)
             .bg(overlay.opacity(progress))
-            .text_size(font_size)
             .on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
                 backdrop_close(window, cx)
             })

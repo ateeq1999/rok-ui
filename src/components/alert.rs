@@ -112,12 +112,16 @@ impl RenderOnce for Alert {
             .child(
                 div()
                     .sx(&ALERT.content)
-                    .child(div().sx(&ALERT.title).child(self.title))
+                    .child(
+                        div()
+                            .sx(&ALERT.title)
+                            .child(crate::components::bidi_text::text(self.title)),
+                    )
                     .when_some(self.description, |content, description| {
                         content.child(
                             div()
                                 .sx((&ALERT.description, ALERT.description_color(self.variant)))
-                                .child(description),
+                                .child(crate::components::bidi_text::text(description)),
                         )
                     }),
             )

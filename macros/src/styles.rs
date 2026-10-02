@@ -366,6 +366,7 @@ fn text_size(value: &TokenStream) -> syn::Result<TokenStream> {
     }
     if let Some(ident) = single_ident(value) {
         let variant = match ident.to_string().as_str() {
+            "theme" => Some(quote!(Theme)),
             "xs" => Some(quote!(Xs)),
             "sm" => Some(quote!(Sm)),
             "base" => Some(quote!(Base)),
@@ -485,6 +486,7 @@ const PROPERTIES: &[&str] = &[
     "color",
     "text_color",
     "border_color",
+    "border_style",
     "border",
     "border_x",
     "border_y",
@@ -557,6 +559,7 @@ fn property_call(name: &Ident, value: &TokenStream) -> syn::Result<TokenStream> 
                     ("col", quote!(Column)),
                     ("row_reverse", quote!(RowReverse)),
                     ("column_reverse", quote!(ColumnReverse)),
+                    ("row_ltr", quote!(RowLtr)),
                 ],
             )?;
             quote!(.direction(#sx::SxDirection::#direction))
@@ -724,6 +727,17 @@ fn property_call(name: &Ident, value: &TokenStream) -> syn::Result<TokenStream> 
         "border_color" => {
             let color = color(value)?;
             quote!(.border_color(#color))
+        }
+        "border_style" => {
+            let border_style = keyword(
+                value,
+                "border_style",
+                &[
+                    ("solid", quote!(::rok_ui::gpui::BorderStyle::Solid)),
+                    ("dashed", quote!(::rok_ui::gpui::BorderStyle::Dashed)),
+                ],
+            )?;
+            quote!(.border_style(#border_style))
         }
         "border" => {
             let width = pixel_width(value)?;
