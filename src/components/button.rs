@@ -326,10 +326,3 @@ impl RenderOnce for Button {
             .apply_style_overrides(&self.style_overrides)
     }
 }
-
-impl SxStyled for Button {
-    fn apply_sx(mut self, sx: Sx) -> Self {
-        self.sx.merge(&sx);
-        self
-    }
-}

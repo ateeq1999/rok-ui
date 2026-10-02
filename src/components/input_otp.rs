@@ -9,6 +9,7 @@ use gpui::{
 
 use super::direction::DirectionalStyled;
 use super::{focus_ring_outline, overlay::child_id};
+use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
@@ -66,6 +67,7 @@ pub struct InputOtp {
     invalid: bool,
     on_change: Option<EventHandler<SharedString>>,
     on_complete: Option<EventHandler<SharedString>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -83,6 +85,7 @@ impl InputOtp {
             invalid: false,
             on_change: None,
             on_complete: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -268,6 +271,7 @@ impl RenderOnce for InputOtp {
                     })
             })
             .children(children)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

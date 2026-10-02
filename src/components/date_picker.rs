@@ -10,11 +10,12 @@ use gpui::{
 use super::direction::DirectionalStyled;
 use super::{
     calendar::{Calendar, CalendarDate, DateRange},
-    extra_small_shadow, focus_ring_shadow,
+    extra_small_shadow,
     overlay::{
         dismissable, floating, popover_surface, trigger_wrapper, use_open_state, Align, Side,
     },
 };
+use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
@@ -55,6 +56,7 @@ pub struct DatePicker {
     presets: Vec<(SharedString, CalendarDate)>,
     number_of_months: usize,
     disabled: bool,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -72,6 +74,7 @@ impl DatePicker {
             presets: Vec::new(),
             number_of_months: 1,
             disabled: false,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -155,11 +158,23 @@ impl DatePicker {
 
 impl RenderOnce for DatePicker {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        // The component's own interaction styles, merged with the caller's `sx` in one
+        // call (GPUI allows a single hover / focus style per element).
+        let own_states = if self.disabled {
+            crate::sx::Sx::new()
+        } else {
+            crate::sx::Sx::new()
+                .hover(|state| state.bg(crate::sx::ColorToken::Accent))
+                .focus(|state| {
+                    state
+                        .border_color(crate::sx::ColorToken::Ring)
+                        .shadow(crate::sx::SxShadow::Ring)
+                })
+        };
         let open_state = use_open_state(&self.id, None, None, window, cx);
         let is_open = open_state.is_open(cx);
         let theme = cx.theme();
         let colors = theme.colors.clone();
-        let ring_color = colors.ring;
 
         let label: Option<String> = match &self.value {
             PickerValue::Single { date, .. } => date.map(CalendarDate::format_long),
@@ -182,15 +197,7 @@ impl RenderOnce for DatePicker {
             .font_weight(FontWeight::MEDIUM)
             .shadow(extra_small_shadow())
             .when(!self.disabled, |trigger| {
-                trigger
-                    .tab_index(0)
-                    .cursor(CursorStyle::PointingHand)
-                    .hover(|style| style.bg(colors.accent))
-                    .focus(move |style| {
-                        style
-                            .border_color(ring_color)
-                            .shadow(focus_ring_shadow(ring_color))
-                    })
+                trigger.tab_index(0).cursor(CursorStyle::PointingHand)
             })
             .when(self.disabled, |trigger| trigger.opacity(0.5))
             .child(
@@ -205,6 +212,7 @@ impl RenderOnce for DatePicker {
                     .text_color(colors.muted_foreground)
                     .child(self.placeholder),
             })
+            .sx((&own_states, &self.sx))
             .apply_style_overrides(&self.style_overrides);
 
         let wrapper =

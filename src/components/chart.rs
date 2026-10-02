@@ -10,6 +10,7 @@ use gpui::{
 
 use super::direction::DirectionalStyled;
 use super::{interaction::measure_bounds, overlay::child_id};
+use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, State},
     styles::ApplyStyleOverrides,
@@ -122,6 +123,7 @@ pub struct Chart {
     stacked: bool,
     center_label: Option<(SharedString, SharedString)>,
     value_format: Rc<dyn Fn(f32) -> SharedString>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -141,6 +143,7 @@ impl Chart {
             stacked: false,
             center_label: None,
             value_format: Rc::new(|value| format_number(value).into()),
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -330,6 +333,7 @@ impl RenderOnce for Chart {
             .w_full()
             .child(plot)
             .children(legend)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

@@ -9,6 +9,7 @@ use gpui::{
 
 use super::direction::DirectionalStyled;
 use super::{interaction::on_activate, overlay::child_id};
+use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler},
     icon::{Icon, IconName},
@@ -62,6 +63,7 @@ pub struct Accordion {
     default_open: Vec<usize>,
     open_items: Option<Vec<usize>>,
     on_change: Option<EventHandler<Vec<usize>>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -76,6 +78,7 @@ impl Accordion {
             default_open: Vec::new(),
             open_items: None,
             on_change: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -208,6 +211,7 @@ impl RenderOnce for Accordion {
             .flex_col()
             .w_full()
             .children(items)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

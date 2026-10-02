@@ -13,6 +13,7 @@ use super::{
     interaction::{measure_bounds, track_drag},
     overlay::child_id,
 };
+use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, State},
     icon::{Icon, IconName},
@@ -123,6 +124,7 @@ pub struct ResizablePanelGroup {
     direction: ResizableDirection,
     panels: Vec<ResizablePanel>,
     with_handle: bool,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -135,6 +137,7 @@ impl ResizablePanelGroup {
             direction: ResizableDirection::Horizontal,
             panels: Vec::new(),
             with_handle: false,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -343,6 +346,7 @@ impl RenderOnce for ResizablePanelGroup {
                 }),
                 Rc::new(move |_, cx| end_memory.update(cx, |memory| memory.dragging_handle = None)),
             ))
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

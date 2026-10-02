@@ -1022,6 +1022,12 @@ impl SxStyled for Div {
     }
 }
 
+impl SxStyled for gpui::Svg {
+    fn apply_sx(self, sx: Sx) -> Self {
+        apply_to_interactive(self, sx)
+    }
+}
+
 impl SxStyled for Stateful<Div> {
     fn apply_sx(self, sx: Sx) -> Self {
         use gpui::StatefulInteractiveElement;

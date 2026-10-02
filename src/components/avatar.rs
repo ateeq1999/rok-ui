@@ -3,7 +3,7 @@
 use gpui::{div, img, prelude::*, px, App, FontWeight, ImageSource, Pixels, SharedString, Window};
 
 use super::direction::DirectionalStyled;
-use crate::theme::ActiveTheme;
+use crate::{styles::ApplyStyleOverrides, sx::SxStyled, theme::ActiveTheme};
 
 /// `Avatar::new("AT")` shows initials; add `.image(..)` to show a picture,
 /// falling back to the initials if it fails to load.
@@ -12,7 +12,11 @@ pub struct Avatar {
     fallback_initials: SharedString,
     image: Option<ImageSource>,
     size: Pixels,
+    sx: crate::sx::Sx,
+    style_overrides: gpui::StyleRefinement,
 }
+
+crate::implement_style_overrides!(Avatar);
 
 impl Avatar {
     pub fn new(fallback_initials: impl Into<SharedString>) -> Self {
@@ -20,6 +24,8 @@ impl Avatar {
             fallback_initials: fallback_initials.into(),
             image: None,
             size: px(32.),
+            sx: crate::sx::Sx::new(),
+            style_overrides: gpui::StyleRefinement::default(),
         }
     }
 
@@ -72,5 +78,7 @@ impl RenderOnce for Avatar {
                     .into_any_element(),
                 None => initials(self.fallback_initials).into_any_element(),
             })
+            .sx(&self.sx)
+            .apply_style_overrides(&self.style_overrides)
     }
 }

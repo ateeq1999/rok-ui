@@ -3,6 +3,7 @@
 use gpui::{div, prelude::*, AnyElement, StyleRefinement};
 
 use super::direction::DirectionalStyled;
+use crate::sx::SxStyled;
 use crate::{component, styles::ApplyStyleOverrides};
 
 /// Fills the available width and sets its height from `ratio` (width / height).
@@ -16,6 +17,7 @@ pub fn AspectRatio(
     ratio: f32,
     #[children] children: Vec<AnyElement>,
     #[style] style_overrides: StyleRefinement,
+    #[sx] sx: crate::sx::Sx,
 ) -> impl IntoElement {
     let mut frame = div().relative().w_full().overflow_hidden();
     frame.style().aspect_ratio = Some(ratio);
@@ -29,5 +31,6 @@ pub fn AspectRatio(
                 .flex_dir()
                 .children(children),
         )
+        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }

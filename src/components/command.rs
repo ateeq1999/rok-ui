@@ -15,6 +15,7 @@ use super::{
     interaction::Callback,
     overlay::child_id,
 };
+use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler},
     icon::{Icon, IconName},
@@ -331,6 +332,7 @@ pub struct Command {
     placeholder: SharedString,
     empty_text: SharedString,
     groups: Vec<CommandGroup>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -343,6 +345,7 @@ impl Command {
             placeholder: "Type a command or search…".into(),
             empty_text: "No results found.".into(),
             groups: Vec::new(),
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -408,6 +411,7 @@ impl Command {
         .border_color(border)
         .bg(popover)
         .text_color(popover_foreground)
+        .sx(&self.sx)
         .apply_style_overrides(&self.style_overrides)
     }
 }

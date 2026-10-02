@@ -14,16 +14,22 @@
 use gpui::{div, prelude::*, px, App, FontWeight, SharedString, StyleRefinement};
 
 use super::direction::DirectionalStyled;
+use crate::sx::SxStyled;
 use crate::{component, styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// Page title: 36px extra-bold.
 #[component]
-pub fn H1(text: SharedString, #[style] style_overrides: StyleRefinement) -> impl IntoElement {
+pub fn H1(
+    text: SharedString,
+    #[style] style_overrides: StyleRefinement,
+    #[sx] sx: crate::sx::Sx,
+) -> impl IntoElement {
     div()
         .text_size(px(36.))
         .line_height(px(40.))
         .font_weight(FontWeight::EXTRA_BOLD)
         .child(text)
+        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
@@ -32,6 +38,7 @@ pub fn H1(text: SharedString, #[style] style_overrides: StyleRefinement) -> impl
 pub fn H2(
     text: SharedString,
     #[style] style_overrides: StyleRefinement,
+    #[sx] sx: crate::sx::Sx,
     cx: &mut App,
 ) -> impl IntoElement {
     div()
@@ -42,38 +49,54 @@ pub fn H2(
         .line_height(px(36.))
         .font_weight(FontWeight::SEMIBOLD)
         .child(text)
+        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
 /// 24px semibold.
 #[component]
-pub fn H3(text: SharedString, #[style] style_overrides: StyleRefinement) -> impl IntoElement {
+pub fn H3(
+    text: SharedString,
+    #[style] style_overrides: StyleRefinement,
+    #[sx] sx: crate::sx::Sx,
+) -> impl IntoElement {
     div()
         .text_size(px(24.))
         .line_height(px(32.))
         .font_weight(FontWeight::SEMIBOLD)
         .child(text)
+        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
 /// 20px semibold.
 #[component]
-pub fn H4(text: SharedString, #[style] style_overrides: StyleRefinement) -> impl IntoElement {
+pub fn H4(
+    text: SharedString,
+    #[style] style_overrides: StyleRefinement,
+    #[sx] sx: crate::sx::Sx,
+) -> impl IntoElement {
     div()
         .text_size(px(20.))
         .line_height(px(28.))
         .font_weight(FontWeight::SEMIBOLD)
         .child(text)
+        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
 /// Body paragraph with relaxed line height.
 #[component]
-pub fn P(text: SharedString, #[style] style_overrides: StyleRefinement) -> impl IntoElement {
+pub fn P(
+    text: SharedString,
+    #[style] style_overrides: StyleRefinement,
+    #[sx] sx: crate::sx::Sx,
+) -> impl IntoElement {
     div()
         .text_base()
         .line_height(px(28.))
         .child(text)
+        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
@@ -82,6 +105,7 @@ pub fn P(text: SharedString, #[style] style_overrides: StyleRefinement) -> impl 
 pub fn Blockquote(
     text: SharedString,
     #[style] style_overrides: StyleRefinement,
+    #[sx] sx: crate::sx::Sx,
     cx: &mut App,
 ) -> impl IntoElement {
     div()
@@ -96,6 +120,7 @@ pub fn Blockquote(
         .border_color(cx.theme().colors.border)
         .italic()
         .child(text)
+        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
@@ -105,6 +130,7 @@ pub fn List(
     items: Vec<SharedString>,
     #[prop(optional)] ordered: bool,
     #[style] style_overrides: StyleRefinement,
+    #[sx] sx: crate::sx::Sx,
 ) -> impl IntoElement {
     div()
         .flex_dir()
@@ -123,57 +149,73 @@ pub fn List(
                 .child(div().flex_none().min_w(px(12.)).child(marker))
                 .child(item)
         }))
+        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
 /// Monospace code inside running text.
 #[component]
-pub fn InlineCode(text: SharedString, cx: &mut App) -> impl IntoElement {
-    let theme = cx.theme();
-    div()
-        .px(px(5.))
-        .py(px(2.))
-        .rounded(theme.radius_small().max(px(3.)))
-        .bg(theme.colors.muted)
-        .font_family(theme.monospace_font_family.clone())
-        .text_sm()
-        .font_weight(FontWeight::SEMIBOLD)
-        .child(text)
+pub fn InlineCode(text: SharedString, cx: &mut App, #[sx] sx: crate::sx::Sx) -> impl IntoElement {
+    let element = {
+        let theme = cx.theme();
+        div()
+            .px(px(5.))
+            .py(px(2.))
+            .rounded(theme.radius_small().max(px(3.)))
+            .bg(theme.colors.muted)
+            .font_family(theme.monospace_font_family.clone())
+            .text_sm()
+            .font_weight(FontWeight::SEMIBOLD)
+            .child(text)
+    };
+    element.sx(&sx)
 }
 
 /// Large muted intro text.
 #[component]
-pub fn Lead(text: SharedString, cx: &mut App) -> impl IntoElement {
-    div()
-        .text_xl()
-        .text_color(cx.theme().colors.muted_foreground)
-        .child(text)
+pub fn Lead(text: SharedString, cx: &mut App, #[sx] sx: crate::sx::Sx) -> impl IntoElement {
+    let element = {
+        div()
+            .text_xl()
+            .text_color(cx.theme().colors.muted_foreground)
+            .child(text)
+    };
+    element.sx(&sx)
 }
 
 /// 18px semibold.
 #[component]
-pub fn Large(text: SharedString) -> impl IntoElement {
-    div()
-        .text_lg()
-        .font_weight(FontWeight::SEMIBOLD)
-        .child(text)
+pub fn Large(text: SharedString, #[sx] sx: crate::sx::Sx) -> impl IntoElement {
+    let element = {
+        div()
+            .text_lg()
+            .font_weight(FontWeight::SEMIBOLD)
+            .child(text)
+    };
+    element.sx(&sx)
 }
 
 /// 14px medium, tight line height.
 #[component]
-pub fn Small(text: SharedString) -> impl IntoElement {
-    div()
-        .text_sm()
-        .font_weight(FontWeight::MEDIUM)
-        .line_height(px(14.))
-        .child(text)
+pub fn Small(text: SharedString, #[sx] sx: crate::sx::Sx) -> impl IntoElement {
+    let element = {
+        div()
+            .text_sm()
+            .font_weight(FontWeight::MEDIUM)
+            .line_height(px(14.))
+            .child(text)
+    };
+    element.sx(&sx)
 }
 
 /// 14px muted text.
 #[component]
-pub fn Muted(text: SharedString, cx: &mut App) -> impl IntoElement {
-    div()
-        .text_sm()
-        .text_color(cx.theme().colors.muted_foreground)
-        .child(text)
+pub fn Muted(text: SharedString, cx: &mut App, #[sx] sx: crate::sx::Sx) -> impl IntoElement {
+    let element = {
+        div()
+            .text_sm()
+            .text_color(cx.theme().colors.muted_foreground)
+            .child(text)
+    };
+    element.sx(&sx)
 }

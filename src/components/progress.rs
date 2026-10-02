@@ -3,6 +3,7 @@
 use gpui::{div, prelude::*, px, relative, App, StyleRefinement};
 
 use super::direction::DirectionalStyled;
+use crate::sx::SxStyled;
 use crate::{component, styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// `Progress::new(66.0)`: `value` is a percentage from 0 to 100 (clamped).
@@ -10,6 +11,7 @@ use crate::{component, styles::ApplyStyleOverrides, theme::ActiveTheme};
 pub fn Progress(
     value: f32,
     #[style] style_overrides: StyleRefinement,
+    #[sx] sx: crate::sx::Sx,
     cx: &mut App,
 ) -> impl IntoElement {
     let colors = &cx.theme().colors;
@@ -30,5 +32,6 @@ pub fn Progress(
                 .rounded_full()
                 .bg(colors.primary),
         )
+        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }

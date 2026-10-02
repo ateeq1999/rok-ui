@@ -10,6 +10,7 @@ use gpui::{
 
 use super::direction::DirectionalStyled;
 use super::{button::Button, overlay::child_id};
+use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler},
     icon::IconName,
@@ -254,6 +255,7 @@ pub struct Calendar {
     max: Option<CalendarDate>,
     disabled_dates: Option<DateFilter>,
     today: CalendarDate,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -273,6 +275,7 @@ impl Calendar {
             max: None,
             disabled_dates: None,
             today: CalendarDate::today(),
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -555,6 +558,7 @@ impl RenderOnce for Calendar {
             .gap(px(16.))
             .p(px(12.))
             .children(months)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

@@ -3,6 +3,7 @@
 use gpui::{div, prelude::*, px, App, FontWeight, SharedString, StyleRefinement, Window};
 
 use super::direction::DirectionalStyled;
+use crate::sx::SxStyled;
 use crate::{
     icon::{Icon, IconName},
     styles::ApplyStyleOverrides,
@@ -25,6 +26,7 @@ pub struct Badge {
     label: SharedString,
     icon: Option<IconName>,
     variant: BadgeVariant,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -36,6 +38,7 @@ impl Badge {
             label: label.into(),
             icon: None,
             variant: BadgeVariant::Primary,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -88,6 +91,7 @@ impl RenderOnce for Badge {
                 badge.child(Icon::new(icon).size(px(12.)).color(text))
             })
             .child(self.label)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

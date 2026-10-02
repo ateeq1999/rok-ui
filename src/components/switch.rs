@@ -7,7 +7,7 @@ use gpui::{
 };
 
 use super::direction::DirectionalStyled;
-use super::focus_ring_shadow;
+use crate::sx::SxStyled;
 use crate::{hooks::EventHandler, styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// Controlled like [`super::Checkbox`]: pass `checked`, update it in `on_change`.
@@ -25,6 +25,7 @@ pub struct Switch {
     label: Option<SharedString>,
     disabled: bool,
     on_change: Option<EventHandler<bool>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -38,6 +39,7 @@ impl Switch {
             label: None,
             disabled: false,
             on_change: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -66,10 +68,16 @@ impl Switch {
 
 impl RenderOnce for Switch {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+        // The component's own interaction styles, merged with the caller's `sx` in one
+        // call (GPUI allows a single hover / focus style per element).
+        let own_states = if self.disabled {
+            crate::sx::Sx::new()
+        } else {
+            crate::sx::Sx::new().focus(|state| state.shadow(crate::sx::SxShadow::Ring))
+        };
         let theme = cx.theme();
         let colors = &theme.colors;
         let checked = self.checked;
-        let ring_color = colors.ring;
         let is_interactive = !self.disabled;
 
         let track_width = px(32.);
@@ -112,13 +120,13 @@ impl RenderOnce for Switch {
             .when(is_interactive, |row| {
                 row.tab_index(0)
                     .cursor(CursorStyle::PointingHand)
-                    .focus(move |style| style.shadow(focus_ring_shadow(ring_color)))
                     .when_some(self.on_change, |row, handler| {
                         row.on_click(move |_, window, cx| handler(&!checked, window, cx))
                     })
             })
             .when(!is_interactive, |row| row.opacity(0.5))
             .rounded_full()
+            .sx((&own_states, &self.sx))
             .apply_style_overrides(&self.style_overrides)
     }
 }

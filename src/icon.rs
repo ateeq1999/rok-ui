@@ -7,6 +7,7 @@ use gpui::{
     prelude::*, px, svg, App, AssetSource, Hsla, Pixels, SharedString, StyleRefinement, Window,
 };
 
+use crate::sx::SxStyled;
 use crate::{styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 macro_rules! define_icons {
@@ -112,6 +113,7 @@ pub struct Icon {
     name: IconName,
     size: Pixels,
     color: Option<Hsla>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -123,6 +125,7 @@ impl Icon {
             name,
             size: px(16.),
             color: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -148,6 +151,7 @@ impl RenderOnce for Icon {
             .flex_none()
             .size(self.size)
             .text_color(color)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

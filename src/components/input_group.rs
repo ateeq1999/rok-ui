@@ -7,6 +7,7 @@ use super::{
     focus_ring_outline,
     input::{Input, InputState, Textarea},
 };
+use crate::sx::SxStyled;
 use crate::{
     icon::{Icon, IconName},
     styles::ApplyStyleOverrides,
@@ -35,6 +36,7 @@ pub struct InputGroup {
     block_end: Vec<AnyElement>,
     disabled: bool,
     invalid: bool,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -50,6 +52,7 @@ impl InputGroup {
             block_end: Vec::new(),
             disabled: false,
             invalid: false,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -208,6 +211,7 @@ impl RenderOnce for InputGroup {
             .when(!self.block_end.is_empty(), |group| {
                 group.child(addon_row(self.block_end).pb(px(8.)))
             })
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

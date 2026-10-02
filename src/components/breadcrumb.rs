@@ -12,6 +12,7 @@ use super::{
     direction::ActiveDirection,
     menu::{DropdownMenu, Menu},
 };
+use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
@@ -40,6 +41,7 @@ pub struct Breadcrumb {
     id: ElementId,
     entries: Vec<BreadcrumbEntry>,
     separator: Option<SharedString>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -51,6 +53,7 @@ impl Breadcrumb {
             id: id.into(),
             entries: Vec::new(),
             separator: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -168,6 +171,7 @@ impl RenderOnce for Breadcrumb {
             .text_sm()
             .text_color(colors.muted_foreground)
             .children(children)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

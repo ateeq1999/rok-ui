@@ -5,6 +5,7 @@ use gpui::{
 };
 
 use super::direction::DirectionalStyled;
+use crate::sx::SxStyled;
 use crate::{
     icon::{Icon, IconName},
     styles::ApplyStyleOverrides,
@@ -26,6 +27,7 @@ pub struct Empty {
     description: Option<SharedString>,
     children: Vec<AnyElement>,
     bordered: bool,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -40,6 +42,7 @@ impl Empty {
             description: None,
             children: Vec::new(),
             bordered: false,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -146,6 +149,7 @@ impl RenderOnce for Empty {
                         .children(self.children),
                 )
             })
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

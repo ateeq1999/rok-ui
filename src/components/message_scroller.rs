@@ -15,6 +15,7 @@ use gpui::{
 
 use super::button::{Button, IconPosition};
 use super::direction::DirectionalStyled;
+use crate::sx::SxStyled;
 use crate::{icon::IconName, styles::ApplyStyleOverrides};
 
 /// Scroll position and message count of a [`MessageScroller`]. Keep it in your
@@ -108,6 +109,7 @@ pub struct MessageScroller {
     render_message: RenderMessage,
     on_reach_top: Option<crate::hooks::EventHandler<()>>,
     jump_label: gpui::SharedString,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -123,6 +125,7 @@ impl MessageScroller {
             render_message: Rc::new(render_message),
             on_reach_top: None,
             jump_label: "Jump to latest".into(),
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -195,6 +198,7 @@ impl RenderOnce for MessageScroller {
                         ),
                 )
             })
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

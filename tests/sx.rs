@@ -174,3 +174,188 @@ fn styled_views_render_in_every_theme(cx: &mut gpui::TestAppContext) {
         }
     }
 }
+
+styles! {
+    OVERRIDE = {
+        loud: { background: accent, padding_x: 3, radius: full, hover: { background: primary/20 } },
+        wide: { width: full, margin_top: 2 },
+    }
+}
+
+/// Every kind of component accepts `.sx(..)`: structs, `#[component]`s with and
+/// without `#[style]`, form controls and icons.
+struct OverrideView {
+    name: Entity<InputState>,
+    notes: Entity<InputState>,
+}
+
+impl Render for OverrideView {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        AppRoot::new()
+            .child(Badge::new("New").sx(&OVERRIDE.loud))
+            .child(Alert::new("Heads up").sx((&OVERRIDE.wide, &OVERRIDE.loud)))
+            .child(Input::new(&self.name).sx(&OVERRIDE.wide))
+            .child(Textarea::new(&self.notes).sx(&OVERRIDE.wide))
+            .child(Select::new("select").option("a", "A").sx(&OVERRIDE.wide))
+            .child(Item::new("item").title("Item").sx(&OVERRIDE.loud))
+            .child(Checkbox::new("check").label("Check").sx(&OVERRIDE.loud))
+            .child(Switch::new("switch").sx(&OVERRIDE.loud))
+            .child(Tabs::new("tabs").tab("One").sx(&OVERRIDE.wide))
+            .child(Label::new("Label").sx(&OVERRIDE.loud))
+            .child(Separator::new().sx(&OVERRIDE.wide))
+            .child(Kbd::new("K").sx(&OVERRIDE.loud))
+            .child(InlineCode::new("code").sx(&OVERRIDE.loud))
+            .child(FieldError::new("Required").sx(&OVERRIDE.wide))
+            .child(
+                Table::new().sx(&OVERRIDE.wide).child(
+                    TableBody::new().sx(&OVERRIDE.loud).child(
+                        TableRow::new().child(TableCell::new().sx(&OVERRIDE.loud).child("x")),
+                    ),
+                ),
+            )
+            .child(Icon::new(IconName::Bell).sx(&OVERRIDE.loud))
+            .child(Skeleton::new("skeleton").sx(&OVERRIDE.wide))
+            .child(Progress::new(40_f32).sx(&OVERRIDE.wide))
+            .child(Slider::new("slider").value(10.).sx(&OVERRIDE.wide))
+            .child(Toggle::new("toggle").label("B").sx(&OVERRIDE.loud))
+            .child(Pagination::new("pages", 3).sx(&OVERRIDE.wide))
+    }
+}
+
+#[gpui::test]
+fn every_kind_of_component_takes_sx_overrides(cx: &mut gpui::TestAppContext) {
+    cx.update(rok_ui::init);
+    for preset in ThemePreset::ALL {
+        for mode in [ThemeMode::Light, ThemeMode::Dark] {
+            cx.update(|cx| Theme::set_global(Theme::from_preset(preset, mode), cx));
+            let (_view, window_context) = cx.add_window_view(|_, cx| OverrideView {
+                name: cx.new(InputState::new),
+                notes: cx.new(|cx| InputState::new(cx).with_multiline(true)),
+            });
+            window_context.run_until_parked();
+        }
+    }
+}
+
+styles! {
+    STATES = {
+        all: { hover: { background: accent }, focus: { border_color: ring } },
+    }
+}
+
+/// Hover and focus overrides on every component. GPUI panics if an element gets
+/// two hover (or focus) styles, so components must merge their own with these.
+struct StatesView {
+    input: Entity<InputState>,
+    scroller: MessageScrollerState,
+}
+
+impl Render for StatesView {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        let all = &STATES.all;
+        let today = CalendarDate::new(2026, 10, 2).unwrap();
+        let menu = || Menu::new().item(MenuItem::new("Item"));
+        AppRoot::new()
+            .sx(all)
+            .child(
+                Accordion::new("accordion")
+                    .item(AccordionItem::new("A"))
+                    .sx(all),
+            )
+            .child(Alert::new("Alert").sx(all))
+            .child(AspectRatio::new(2_f32).sx(all))
+            .child(
+                Attachment::new("attachment", "a.pdf")
+                    .on_open(|_, _, _| {})
+                    .sx(all),
+            )
+            .child(Badge::new("Badge").sx(all))
+            .child(Breadcrumb::new("crumbs").text("Home").page("Page").sx(all))
+            .child(Bubble::new("bubble").child("Hi").sx(all))
+            .child(Button::new("button").label("Button").sx(all))
+            .child(
+                ButtonGroup::new()
+                    .item(Button::new("b1").label("1"))
+                    .sx(all),
+            )
+            .child(Calendar::new("calendar").today(today).sx(all))
+            .child(Card::new().sx(all).child(CardHeader::new().sx(all)))
+            .child(Carousel::new("carousel").item("1").sx(all))
+            .child(Chart::new("chart", ChartKind::Bar).sx(all))
+            .child(Checkbox::new("checkbox").sx(all))
+            .child(Collapsible::new("collapsible").sx(all))
+            .child(Combobox::new("combobox").option("a", "A").sx(all))
+            .child(
+                Command::new("command")
+                    .items([CommandItem::new("A")])
+                    .sx(all),
+            )
+            .child(ContextMenu::new("context").menu(menu()).child("x").sx(all))
+            .child(
+                DataTable::new("table")
+                    .column(DataColumn::new("a", "A"))
+                    .sx(all),
+            )
+            .child(DatePicker::new("date").sx(all))
+            .child(
+                DropdownMenu::new("dropdown")
+                    .trigger("Open")
+                    .menu(menu())
+                    .sx(all),
+            )
+            .child(Empty::new().title("Empty").sx(all))
+            .child(Field::new().sx(all).child(FieldLabel::new("Field").sx(all)))
+            .child(HoverCard::new("hover").trigger("Hover").sx(all))
+            .child(Input::new(&self.input).sx(all))
+            .child(InputGroup::new(&self.input).sx(all))
+            .child(InputOtp::new("otp", 4).sx(all))
+            .child(Item::new("item").on_click(|_, _, _| {}).sx(all))
+            .child(Marker::note("Note").sx(all))
+            .child(Menubar::new("menubar").menu("File", menu()).sx(all))
+            .child(Message::new().child("Hi").sx(all))
+            .child(MessageScroller::new(&self.scroller, |_, _, _| div().into_any_element()).sx(all))
+            .child(
+                NavigationMenu::new("nav")
+                    .link("Docs", |_, _, _| {})
+                    .sx(all),
+            )
+            .child(Pagination::new("pages", 3).sx(all))
+            .child(Popover::new("popover").trigger("Open").sx(all))
+            .child(Progress::new(10_f32).sx(all))
+            .child(
+                Questionnaire::new("q")
+                    .question(Question::freeform("a", "A"))
+                    .sx(all),
+            )
+            .child(RadioGroup::new("radio").option("a", "A").sx(all))
+            .child(
+                ResizablePanelGroup::new("resize")
+                    .panel(ResizablePanel::new())
+                    .sx(all),
+            )
+            .child(ScrollArea::new("scroll").sx(all))
+            .child(Select::new("select").option("a", "A").sx(all))
+            .child(Sidebar::new("sidebar").sx(all))
+            .child(Skeleton::new("skeleton").sx(all))
+            .child(Slider::new("slider").sx(all))
+            .child(Switch::new("switch").sx(all))
+            .child(Tabs::new("tabs").tab("A").sx(all))
+            .child(Toggle::new("toggle").label("T").sx(all))
+            .child(ToggleGroup::new("toggles").item("a", "A").sx(all))
+            .child(H1::new("Title").sx(all))
+            .child(Muted::new("Muted").sx(all))
+            .child(Avatar::new("AL").sx(all))
+            .child(Spinner::new().sx(all))
+            .child(Icon::new(IconName::Bell).sx(all))
+    }
+}
+
+#[gpui::test]
+fn hover_and_focus_overrides_merge_on_every_component(cx: &mut gpui::TestAppContext) {
+    cx.update(rok_ui::init);
+    let (_view, window_context) = cx.add_window_view(|_, cx| StatesView {
+        input: cx.new(InputState::new),
+        scroller: MessageScrollerState::new(3),
+    });
+    window_context.run_until_parked();
+}

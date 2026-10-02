@@ -3,6 +3,7 @@
 use gpui::{div, prelude::*, px, AnyElement, App, SharedString, StyleRefinement, Styled, Window};
 
 use super::direction::DirectionalStyled;
+use crate::sx::SxStyled;
 use crate::{styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// Direction of a [`ButtonGroup`].
@@ -37,6 +38,7 @@ type GroupItem = Box<dyn FnOnce(GroupPosition, ButtonGroupOrientation) -> AnyEle
 pub struct ButtonGroup {
     items: Vec<GroupItem>,
     orientation: ButtonGroupOrientation,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -47,6 +49,7 @@ impl ButtonGroup {
         Self {
             items: Vec::new(),
             orientation: ButtonGroupOrientation::Horizontal,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -125,6 +128,7 @@ impl RenderOnce for ButtonGroup {
                 group
             })
             .children(children)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }
@@ -133,6 +137,7 @@ impl RenderOnce for ButtonGroup {
 #[derive(IntoElement)]
 pub struct ButtonGroupText {
     text: SharedString,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -142,6 +147,7 @@ impl ButtonGroupText {
     pub fn new(text: impl Into<SharedString>) -> Self {
         Self {
             text: text.into(),
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -161,6 +167,7 @@ impl RenderOnce for ButtonGroupText {
             .text_sm()
             .font_weight(gpui::FontWeight::MEDIUM)
             .child(self.text)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

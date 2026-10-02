@@ -11,7 +11,7 @@ use gpui::{
 use super::direction::DirectionalStyled;
 use super::{
     command::{render_command, CommandGroup, CommandItem},
-    extra_small_shadow, focus_ring_shadow,
+    extra_small_shadow,
     input::use_input_state,
     interaction::Callback,
     overlay::{
@@ -19,6 +19,7 @@ use super::{
         use_open_state, Align, Side,
     },
 };
+use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
@@ -48,6 +49,7 @@ pub struct Combobox {
     empty_text: SharedString,
     disabled: bool,
     on_change: Option<EventHandler<Option<SharedString>>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -64,6 +66,7 @@ impl Combobox {
             empty_text: "No results found.".into(),
             disabled: false,
             on_change: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -116,6 +119,19 @@ impl Combobox {
 
 impl RenderOnce for Combobox {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        // The component's own interaction styles, merged with the caller's `sx` in one
+        // call (GPUI allows a single hover / focus style per element).
+        let own_states = if self.disabled {
+            crate::sx::Sx::new()
+        } else {
+            crate::sx::Sx::new()
+                .hover(|state| state.bg(crate::sx::ColorToken::Accent))
+                .focus(|state| {
+                    state
+                        .border_color(crate::sx::ColorToken::Ring)
+                        .shadow(crate::sx::SxShadow::Ring)
+                })
+        };
         let open_state = use_open_state(&self.id, None, None, window, cx);
         let is_open = open_state.is_open(cx);
         let trigger_width = open_state.trigger_width(cx);
@@ -126,7 +142,6 @@ impl RenderOnce for Combobox {
         let theme = cx.theme();
         let colors = theme.colors.clone();
         let radius = theme.radius_medium();
-        let ring_color = colors.ring;
 
         let selected_label = self.value.as_ref().and_then(|value| {
             self.options
@@ -153,15 +168,7 @@ impl RenderOnce for Combobox {
             .font_weight(FontWeight::MEDIUM)
             .shadow(extra_small_shadow())
             .when(!self.disabled, |trigger| {
-                trigger
-                    .tab_index(0)
-                    .cursor(CursorStyle::PointingHand)
-                    .hover(|style| style.bg(colors.accent))
-                    .focus(move |style| {
-                        style
-                            .border_color(ring_color)
-                            .shadow(focus_ring_shadow(ring_color))
-                    })
+                trigger.tab_index(0).cursor(CursorStyle::PointingHand)
             })
             .when(self.disabled, |trigger| trigger.opacity(0.5))
             .child(match selected_label {
@@ -177,6 +184,7 @@ impl RenderOnce for Combobox {
                     .color(colors.muted_foreground),
             )
             .child(measure_width(trigger_width.clone()))
+            .sx((&own_states, &self.sx))
             .apply_style_overrides(&self.style_overrides);
 
         let wrapper =

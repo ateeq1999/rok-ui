@@ -16,6 +16,7 @@ use super::{
     overlay::child_id,
     progress::Progress,
 };
+use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler, State},
     icon::{Icon, IconName},
@@ -159,6 +160,7 @@ pub struct Questionnaire {
     id: ElementId,
     questions: Vec<Question>,
     on_complete: Option<EventHandler<Vec<QuestionnaireAnswer>>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -170,6 +172,7 @@ impl Questionnaire {
             id: id.into(),
             questions: Vec::new(),
             on_complete: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -314,6 +317,7 @@ impl RenderOnce for Questionnaire {
                             }),
                     ),
                 )
+                .sx(&self.sx)
                 .apply_style_overrides(&self.style_overrides);
         }
 
@@ -563,6 +567,7 @@ impl RenderOnce for Questionnaire {
                     .children(skip)
                     .child(next),
             )
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

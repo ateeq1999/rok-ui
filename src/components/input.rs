@@ -26,6 +26,7 @@ pub use textarea::{use_textarea_state, Textarea};
 
 use super::direction::DirectionalStyled;
 use super::focus_ring_outline;
+use crate::sx::SxStyled;
 use crate::{
     icon::{Icon, IconName},
     styles::ApplyStyleOverrides,
@@ -676,6 +677,7 @@ pub struct Input {
     disabled: bool,
     invalid: bool,
     focus_ring: bool,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -689,6 +691,7 @@ impl Input {
             disabled: false,
             invalid: false,
             focus_ring: true,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -804,6 +807,7 @@ impl RenderOnce for Input {
                 cursor_color: colors.foreground,
                 selection_color: colors.ring.opacity(0.3),
             }))
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }
@@ -1066,4 +1070,3 @@ mod tests {
         );
     }
 }
-

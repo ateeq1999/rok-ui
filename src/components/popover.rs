@@ -7,6 +7,7 @@ use gpui::{prelude::*, px, AnyElement, App, ElementId, StyleRefinement, Window};
 use super::overlay::{
     dismissable, floating, popover_surface, trigger_wrapper, use_open_state, Align, Side,
 };
+use crate::sx::SxStyled;
 use crate::{hooks::EventHandler, styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// Uncontrolled by default: clicking the trigger opens it, Escape or a click
@@ -27,6 +28,7 @@ pub struct Popover {
     align: Align,
     open: Option<bool>,
     on_open_change: Option<EventHandler<bool>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -42,6 +44,7 @@ impl Popover {
             align: Align::Start,
             open: None,
             on_open_change: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -98,6 +101,7 @@ impl RenderOnce for Popover {
             .p(px(16.))
             .gap(px(12.))
             .children(self.children)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides);
         let panel = dismissable(panel, &open_state, window, cx);
         wrapper.child(floating(self.side, self.align, panel, cx))

@@ -16,6 +16,7 @@ use super::{
     menu::{DropdownMenu, Menu, MenuItem},
     overlay::{child_id, Align},
 };
+use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler, State},
     icon::IconName,
@@ -171,6 +172,7 @@ pub struct DataTable {
     page_size: usize,
     row_actions: Option<RowActions>,
     on_selection_change: Option<EventHandler<Vec<usize>>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -187,6 +189,7 @@ impl DataTable {
             page_size: 10,
             row_actions: None,
             on_selection_change: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -595,6 +598,7 @@ impl RenderOnce for DataTable {
                     .children(body),
             )
             .child(footer)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

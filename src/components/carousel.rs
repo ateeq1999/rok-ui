@@ -9,6 +9,7 @@ use gpui::{
 
 use super::direction::DirectionalStyled;
 use super::{button::Button, direction::ActiveDirection, overlay::child_id};
+use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler, State},
     icon::IconName,
@@ -52,6 +53,7 @@ pub struct Carousel {
     show_dots: bool,
     index: Option<usize>,
     on_index_change: Option<EventHandler<usize>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -68,6 +70,7 @@ impl Carousel {
             show_dots: true,
             index: None,
             on_index_change: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -136,6 +139,10 @@ fn go_to(
 
 impl RenderOnce for Carousel {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        // The component's own interaction styles, merged with the caller's `sx` in one
+        // call (GPUI allows a single hover / focus style per element).
+        let own_states =
+            crate::sx::Sx::new().focus(|state| state.border_color(crate::sx::ColorToken::Ring));
         let memory: State<CarouselMemory> =
             use_keyed_state(child_id(&self.id, "carousel"), window, cx, || {
                 CarouselMemory {
@@ -164,7 +171,6 @@ impl RenderOnce for Carousel {
             )
         };
         let colors = cx.theme().colors.clone();
-        let ring_color = colors.ring;
         let per_view = self.items_per_view as f32;
         let is_horizontal = self.orientation == CarouselOrientation::Horizontal;
         let is_rtl = cx.direction().is_rtl() && is_horizontal;
@@ -307,7 +313,6 @@ impl RenderOnce for Carousel {
             .tab_index(0)
             .border_1()
             .border_color(gpui::transparent_black())
-            .focus(move |style| style.border_color(ring_color))
             .on_key_down(move |event, window, cx| {
                 let forward_key = if is_horizontal { "right" } else { "down" };
                 let back_key = if is_horizontal { "left" } else { "up" };
@@ -340,6 +345,7 @@ impl RenderOnce for Carousel {
                     .child(next_button),
             )
             .children(dots)
+            .sx((&own_states, &self.sx))
             .apply_style_overrides(&self.style_overrides)
     }
 }

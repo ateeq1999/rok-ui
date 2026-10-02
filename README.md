@@ -213,6 +213,9 @@ Tokens resolve against the active theme when the style is applied, so the same s
 follows light/dark and preset switches. Unknown properties, tokens and keywords are compile
 errors pointing at the mistake, with a suggestion when there is a close match.
 
+Every rok-ui component accepts `.sx(..)`. The caller's styles are applied last, so they win,
+including hover and focus states.
+
 For one-off or dynamic values, use `style! { width: {px(width)}, background: accent }`.
 Your own `#[component]`s accept overrides with an `#[sx] sx: Sx` parameter: apply it last,
 `div().sx((&MY.base, &sx))`.

@@ -6,6 +6,7 @@ use gpui::{
 
 use super::bubble::BubbleAlign;
 use super::direction::DirectionalStyled;
+use crate::sx::SxStyled;
 use crate::{styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// ```ignore
@@ -28,6 +29,7 @@ pub struct Message {
     header: Vec<AnyElement>,
     footer: Vec<AnyElement>,
     children: Vec<AnyElement>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -43,6 +45,7 @@ impl Message {
             header: Vec::new(),
             footer: Vec::new(),
             children: Vec::new(),
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -164,6 +167,7 @@ impl RenderOnce for Message {
                     .children(self.children)
                     .children(footer),
             )
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

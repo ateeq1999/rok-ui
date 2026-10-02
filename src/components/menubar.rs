@@ -12,6 +12,7 @@ use super::{
     menu::{render_menu_panel, Menu},
     overlay::{child_id, floating, popover_surface, Align, Side},
 };
+use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler, State},
     icon::{Icon, IconName},
@@ -38,6 +39,7 @@ struct MenubarMemory {
 pub struct Menubar {
     id: ElementId,
     menus: Vec<(SharedString, Menu)>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -48,6 +50,7 @@ impl Menubar {
         Self {
             id: id.into(),
             menus: Vec::new(),
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -178,6 +181,7 @@ impl RenderOnce for Menubar {
                 cx.stop_propagation();
                 key_memory.update(cx, |memory| memory.open_index = next);
             })
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }
@@ -207,6 +211,7 @@ enum NavigationEntry {
 pub struct NavigationMenu {
     id: ElementId,
     entries: Vec<NavigationEntry>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -217,6 +222,7 @@ impl NavigationMenu {
         Self {
             id: id.into(),
             entries: Vec::new(),
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -425,6 +431,7 @@ impl RenderOnce for NavigationMenu {
             .when(open_index.is_some(), |bar| {
                 bar.on_mouse_down_out(move |_, _, cx| leave_state.set(None, cx))
             })
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

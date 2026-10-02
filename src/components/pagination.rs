@@ -9,6 +9,7 @@ use super::{
     button::{Button, IconPosition},
     direction::ActiveDirection,
 };
+use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
@@ -68,6 +69,7 @@ pub struct Pagination {
     current_page: usize,
     siblings: usize,
     on_change: Option<EventHandler<usize>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -81,6 +83,7 @@ impl Pagination {
             current_page: 1,
             siblings: 1,
             on_change: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -180,6 +183,7 @@ impl RenderOnce for Pagination {
             .child(previous)
             .children(pages)
             .child(next)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

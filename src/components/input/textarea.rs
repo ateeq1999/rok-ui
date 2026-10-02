@@ -9,6 +9,7 @@ use gpui::{
 
 use super::{forward_to_state, InputState, INPUT_KEY_CONTEXT, TEXTAREA_KEY_CONTEXT};
 use crate::components::direction::DirectionalStyled;
+use crate::sx::SxStyled;
 use crate::{components::focus_ring_outline, styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// `useRef`-style hook for a multi-line [`InputState`].
@@ -38,6 +39,7 @@ pub struct Textarea {
     disabled: bool,
     invalid: bool,
     focus_ring: bool,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -52,6 +54,7 @@ impl Textarea {
             disabled: false,
             invalid: false,
             focus_ring: true,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -155,6 +158,7 @@ impl RenderOnce for Textarea {
                 cursor_color: colors.foreground,
                 selection_color: colors.ring.opacity(0.3),
             })
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides);
 
         // Up / Down bindings live in this outer context so plain inputs keep them free.

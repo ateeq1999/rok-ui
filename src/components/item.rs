@@ -8,6 +8,7 @@ use gpui::{
 };
 
 use super::direction::DirectionalStyled;
+use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
@@ -47,6 +48,7 @@ pub struct Item {
     actions: Vec<AnyElement>,
     children: Vec<AnyElement>,
     on_click: Option<EventHandler<ClickEvent>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -65,6 +67,7 @@ impl Item {
             actions: Vec::new(),
             children: Vec::new(),
             on_click: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -136,6 +139,13 @@ impl ParentElement for Item {
 
 impl RenderOnce for Item {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+        // The component's own interaction styles, merged with the caller's `sx` in one
+        // call (GPUI allows a single hover / focus style per element).
+        let own_states = if self.on_click.is_some() {
+            crate::sx::Sx::new().hover(|state| state.bg(crate::sx::ColorToken::Accent.alpha(0.5)))
+        } else {
+            crate::sx::Sx::new()
+        };
         let theme = cx.theme();
         let colors = theme.colors.clone();
         let (padding_x, padding_y, gap) = if self.small {
@@ -162,7 +172,6 @@ impl RenderOnce for Item {
             })
             .when_some(self.on_click, |item, handler| {
                 item.cursor(CursorStyle::PointingHand)
-                    .hover(|style| style.bg(colors.accent.opacity(0.5)))
                     .on_click(move |event, window, cx| handler(event, window, cx))
             })
             .when_some(self.icon, |item, icon| {
@@ -217,6 +226,7 @@ impl RenderOnce for Item {
                         .children(self.actions),
                 )
             })
+            .sx((&own_states, &self.sx))
             .apply_style_overrides(&self.style_overrides)
     }
 }
@@ -225,6 +235,7 @@ impl RenderOnce for Item {
 #[derive(IntoElement)]
 pub struct ItemGroup {
     items: Vec<AnyElement>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -234,6 +245,7 @@ impl ItemGroup {
     pub fn new() -> Self {
         Self {
             items: Vec::new(),
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -267,6 +279,7 @@ impl RenderOnce for ItemGroup {
             .flex_col()
             .w_full()
             .children(children)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

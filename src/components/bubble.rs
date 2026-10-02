@@ -9,6 +9,7 @@ use gpui::{
 
 use super::direction::DirectionalStyled;
 use super::overlay::child_id;
+use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler},
     styles::ApplyStyleOverrides,
@@ -91,6 +92,7 @@ pub struct Bubble {
     on_reaction: Option<EventHandler<SharedString>>,
     collapse_after: Option<Pixels>,
     children: Vec<AnyElement>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -107,6 +109,7 @@ impl Bubble {
             on_reaction: None,
             collapse_after: None,
             children: Vec::new(),
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -304,6 +307,7 @@ impl RenderOnce for Bubble {
             })
             .child(bubble)
             .children(reactions)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

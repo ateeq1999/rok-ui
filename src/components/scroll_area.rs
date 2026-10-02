@@ -9,6 +9,7 @@ use gpui::{
 
 use super::direction::DirectionalStyled;
 use super::{interaction::track_drag, overlay::child_id};
+use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, State},
     styles::ApplyStyleOverrides,
@@ -58,6 +59,7 @@ pub struct ScrollArea {
     id: ElementId,
     axis: ScrollAxis,
     children: Vec<AnyElement>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -69,6 +71,7 @@ impl ScrollArea {
             id: id.into(),
             axis: ScrollAxis::Vertical,
             children: Vec::new(),
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -228,6 +231,7 @@ impl RenderOnce for ScrollArea {
                 }),
                 Rc::new(move |_, cx| end_memory.update(cx, |memory| memory.drag = None)),
             ))
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

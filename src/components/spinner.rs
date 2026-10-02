@@ -7,20 +7,26 @@ use gpui::{
     Window,
 };
 
-use crate::{icon::IconName, theme::ActiveTheme};
+use crate::{icon::IconName, styles::ApplyStyleOverrides, sx::SxStyled, theme::ActiveTheme};
 
 /// An indeterminate loading indicator. Used by `Button::loading(true)`.
 #[derive(IntoElement)]
 pub struct Spinner {
     size: Pixels,
     color: Option<Hsla>,
+    sx: crate::sx::Sx,
+    style_overrides: gpui::StyleRefinement,
 }
+
+crate::implement_style_overrides!(Spinner);
 
 impl Spinner {
     pub fn new() -> Self {
         Self {
             size: px(16.),
             color: None,
+            sx: crate::sx::Sx::new(),
+            style_overrides: gpui::StyleRefinement::default(),
         }
     }
 
@@ -49,6 +55,8 @@ impl RenderOnce for Spinner {
             .flex_none()
             .size(self.size)
             .text_color(color)
+            .sx(&self.sx)
+            .apply_style_overrides(&self.style_overrides)
             .with_animation(
                 "rok-ui-spinner-rotation",
                 Animation::new(Duration::from_millis(900)).repeat(),

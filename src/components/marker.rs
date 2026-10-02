@@ -5,6 +5,7 @@ use gpui::{div, prelude::*, px, App, Hsla, SharedString, StyleRefinement, Window
 
 use super::direction::DirectionalStyled;
 use super::spinner::Spinner;
+use crate::sx::SxStyled;
 use crate::{
     icon::{Icon, IconName},
     styles::ApplyStyleOverrides,
@@ -31,6 +32,7 @@ pub struct Marker {
     text: SharedString,
     detail: Option<SharedString>,
     icon: Option<IconName>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -43,6 +45,7 @@ impl Marker {
             text: text.into(),
             detail: None,
             icon: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -155,6 +158,7 @@ impl RenderOnce for Marker {
                 .child(self.text)
                 .child(div().flex_1().h(px(1.)).bg(colors.border)),
         }
+        .sx(&self.sx)
         .apply_style_overrides(&self.style_overrides)
     }
 }

@@ -10,6 +10,7 @@ use gpui::{
 
 use super::direction::DirectionalStyled;
 use super::focus_ring_shadow;
+use crate::sx::SxStyled;
 use crate::{hooks::EventHandler, styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// ```ignore
@@ -28,6 +29,7 @@ pub struct Tabs {
     tab_labels: Vec<SharedString>,
     selected_index: usize,
     on_change: Option<EventHandler<usize>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -40,6 +42,7 @@ impl Tabs {
             tab_labels: Vec::new(),
             selected_index: 0,
             on_change: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -124,6 +127,7 @@ impl RenderOnce for Tabs {
             .bg(colors.muted)
             .text_color(colors.muted_foreground)
             .children(triggers)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

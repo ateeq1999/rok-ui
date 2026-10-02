@@ -3,6 +3,7 @@
 use gpui::{div, prelude::*, px, App, FontWeight, SharedString, StyleRefinement, Window};
 
 use super::direction::DirectionalStyled;
+use crate::sx::SxStyled;
 use crate::{
     icon::{Icon, IconName},
     styles::ApplyStyleOverrides,
@@ -28,6 +29,7 @@ pub struct Alert {
     description: Option<SharedString>,
     icon: Option<IconName>,
     variant: AlertVariant,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -40,6 +42,7 @@ impl Alert {
             description: None,
             icon: None,
             variant: AlertVariant::Default,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -118,6 +121,7 @@ impl RenderOnce for Alert {
                         )
                     }),
             )
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

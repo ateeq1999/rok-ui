@@ -7,12 +7,14 @@ use gpui::{
     Window,
 };
 
+use crate::sx::SxStyled;
 use crate::{styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// Size it like the content it stands in for: `Skeleton::new("title").h(px(16.)).w(px(200.))`.
 #[derive(IntoElement)]
 pub struct Skeleton {
     id: ElementId,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -22,6 +24,7 @@ impl Skeleton {
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -33,6 +36,7 @@ impl RenderOnce for Skeleton {
         div()
             .rounded(theme.radius_medium())
             .bg(theme.colors.muted)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
             .with_animation(
                 self.id,

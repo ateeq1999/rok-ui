@@ -12,6 +12,7 @@ use super::{
     menu::{close_handler, render_menu_panel, Menu, MenuItem},
     overlay::{dismissable, floating, measure_width, trigger_wrapper, use_open_state, Align, Side},
 };
+use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
@@ -53,6 +54,7 @@ pub struct Select {
     small: bool,
     native: bool,
     on_change: Option<EventHandler<SharedString>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -70,6 +72,7 @@ impl Select {
             small: false,
             native: false,
             on_change: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -260,6 +263,7 @@ impl RenderOnce for Select {
             .flex_col()
             .when(self.native, |wrapper| wrapper.w_full())
             .child(trigger)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides);
         if !is_open {
             return wrapper;

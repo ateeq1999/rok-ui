@@ -27,6 +27,7 @@ use super::overlay::{
     child_id, dismissable, floating, popover_surface, trigger_wrapper, use_open_state, Align,
     OpenState, Side,
 };
+use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler},
     icon::{Icon, IconName},
@@ -453,6 +454,7 @@ pub struct DropdownMenu {
     align: Align,
     open: Option<bool>,
     on_open_change: Option<EventHandler<bool>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -468,6 +470,7 @@ impl DropdownMenu {
             align: Align::Start,
             open: None,
             on_open_change: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -523,6 +526,7 @@ impl RenderOnce for DropdownMenu {
             window,
             cx,
         )
+        .sx(&self.sx)
         .apply_style_overrides(&self.style_overrides);
         let panel = dismissable(panel, &open_state, window, cx);
         wrapper.child(floating(self.side, self.align, panel, cx))
@@ -541,6 +545,7 @@ pub struct ContextMenu {
     id: ElementId,
     menu: Menu,
     children: Vec<AnyElement>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -552,6 +557,7 @@ impl ContextMenu {
             id: id.into(),
             menu: Menu::new(),
             children: Vec::new(),
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -585,6 +591,7 @@ impl RenderOnce for ContextMenu {
                 opener.set_open(true, window, cx);
             })
             .children(self.children)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides);
         if !is_open {
             return area;

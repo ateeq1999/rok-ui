@@ -9,6 +9,7 @@ use gpui::{
 
 use super::direction::DirectionalStyled;
 use super::{button::Button, direction::ActiveDirection, overlay::child_id, tooltip::Tooltip};
+use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler},
     icon::{Icon, IconName},
@@ -137,6 +138,7 @@ pub struct Sidebar {
     footer: Vec<AnyElement>,
     groups: Vec<SidebarGroup>,
     children: Vec<AnyElement>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -152,6 +154,7 @@ impl Sidebar {
             footer: Vec::new(),
             groups: Vec::new(),
             children: Vec::new(),
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -387,6 +390,7 @@ impl RenderOnce for Sidebar {
                         .children(self.footer),
                 )
             })
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

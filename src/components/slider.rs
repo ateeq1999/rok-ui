@@ -13,6 +13,7 @@ use super::{
     interaction::{measure_bounds, track_drag},
     overlay::child_id,
 };
+use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler, State},
     styles::ApplyStyleOverrides,
@@ -36,6 +37,7 @@ pub struct Slider {
     step: f32,
     disabled: bool,
     on_change: Option<EventHandler<Vec<f32>>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -51,6 +53,7 @@ impl Slider {
             step: 1.,
             disabled: false,
             on_change: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -313,6 +316,7 @@ impl RenderOnce for Slider {
                         }),
                     ))
             })
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

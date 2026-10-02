@@ -20,6 +20,7 @@
 use gpui::{div, prelude::*, px, AnyElement, App, FontWeight, SharedString, StyleRefinement};
 
 use super::direction::DirectionalStyled;
+use crate::sx::SxStyled;
 use crate::{component, styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// The table container.
@@ -27,6 +28,7 @@ use crate::{component, styles::ApplyStyleOverrides, theme::ActiveTheme};
 pub fn Table(
     #[children] children: Vec<AnyElement>,
     #[style] style_overrides: StyleRefinement,
+    #[sx] sx: crate::sx::Sx,
 ) -> impl IntoElement {
     div()
         .flex_dir()
@@ -34,38 +36,57 @@ pub fn Table(
         .w_full()
         .text_sm()
         .children(children)
+        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
 /// The header rows.
 #[component]
-pub fn TableHeader(#[children] children: Vec<AnyElement>, cx: &mut App) -> impl IntoElement {
-    div()
-        .flex_dir()
-        .flex_col()
-        .border_b_1()
-        .border_color(cx.theme().colors.border)
-        .children(children)
+pub fn TableHeader(
+    #[children] children: Vec<AnyElement>,
+    cx: &mut App,
+    #[sx] sx: crate::sx::Sx,
+) -> impl IntoElement {
+    let element = {
+        div()
+            .flex_dir()
+            .flex_col()
+            .border_b_1()
+            .border_color(cx.theme().colors.border)
+            .children(children)
+    };
+    element.sx(&sx)
 }
 
 /// The body rows. Each row but the last draws a bottom border.
 #[component]
-pub fn TableBody(#[children] children: Vec<AnyElement>) -> impl IntoElement {
-    div().flex_dir().flex_col().children(children)
+pub fn TableBody(
+    #[children] children: Vec<AnyElement>,
+    #[sx] sx: crate::sx::Sx,
+) -> impl IntoElement {
+    let element = { div().flex_dir().flex_col().children(children) };
+    element.sx(&sx)
 }
 
 /// Summary rows under the body, on a muted background.
 #[component]
-pub fn TableFooter(#[children] children: Vec<AnyElement>, cx: &mut App) -> impl IntoElement {
-    let colors = &cx.theme().colors;
-    div()
-        .flex_dir()
-        .flex_col()
-        .border_t_1()
-        .border_color(colors.border)
-        .bg(colors.muted.opacity(0.5))
-        .font_weight(FontWeight::MEDIUM)
-        .children(children)
+pub fn TableFooter(
+    #[children] children: Vec<AnyElement>,
+    cx: &mut App,
+    #[sx] sx: crate::sx::Sx,
+) -> impl IntoElement {
+    let element = {
+        let colors = &cx.theme().colors;
+        div()
+            .flex_dir()
+            .flex_col()
+            .border_t_1()
+            .border_color(colors.border)
+            .bg(colors.muted.opacity(0.5))
+            .font_weight(FontWeight::MEDIUM)
+            .children(children)
+    };
+    element.sx(&sx)
 }
 
 /// One row. `selected(true)` highlights it.
@@ -74,6 +95,7 @@ pub fn TableRow(
     #[prop(optional)] selected: bool,
     #[children] children: Vec<AnyElement>,
     #[style] style_overrides: StyleRefinement,
+    #[sx] sx: crate::sx::Sx,
     cx: &mut App,
 ) -> impl IntoElement {
     let colors = &cx.theme().colors;
@@ -86,6 +108,7 @@ pub fn TableRow(
         .border_color(colors.border)
         .when(selected, |row| row.bg(muted))
         .children(children)
+        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
@@ -94,6 +117,7 @@ pub fn TableRow(
 pub fn TableHead(
     text: SharedString,
     #[style] style_overrides: StyleRefinement,
+    #[sx] sx: crate::sx::Sx,
     cx: &mut App,
 ) -> impl IntoElement {
     div()
@@ -107,6 +131,7 @@ pub fn TableHead(
         .text_color(cx.theme().colors.foreground)
         .whitespace_nowrap()
         .child(text)
+        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
@@ -115,6 +140,7 @@ pub fn TableHead(
 pub fn TableCell(
     #[children] children: Vec<AnyElement>,
     #[style] style_overrides: StyleRefinement,
+    #[sx] sx: crate::sx::Sx,
 ) -> impl IntoElement {
     div()
         .map(|cell| column_sizing(cell, &style_overrides))
@@ -123,18 +149,22 @@ pub fn TableCell(
         .whitespace_nowrap()
         .overflow_hidden()
         .children(children)
+        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
 /// Muted caption under the table.
 #[component]
-pub fn TableCaption(text: SharedString, cx: &mut App) -> impl IntoElement {
-    div()
-        .mt(px(16.))
-        .text_center()
-        .text_sm()
-        .text_color(cx.theme().colors.muted_foreground)
-        .child(text)
+pub fn TableCaption(text: SharedString, cx: &mut App, #[sx] sx: crate::sx::Sx) -> impl IntoElement {
+    let element = {
+        div()
+            .mt(px(16.))
+            .text_center()
+            .text_sm()
+            .text_color(cx.theme().colors.muted_foreground)
+            .child(text)
+    };
+    element.sx(&sx)
 }
 
 /// Cells share the row equally unless the caller gives them a width. `flex_1`

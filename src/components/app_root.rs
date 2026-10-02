@@ -4,6 +4,7 @@
 use gpui::{actions, div, prelude::*, AnyElement, App, KeyBinding, StyleRefinement, Window};
 
 use super::direction::DirectionalStyled;
+use crate::sx::SxStyled;
 use crate::{styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 actions!(rok_ui, [FocusNextElement, FocusPreviousElement]);
@@ -28,6 +29,7 @@ pub(crate) fn bind_focus_navigation_keys(cx: &mut App) {
 #[derive(IntoElement)]
 pub struct AppRoot {
     children: Vec<AnyElement>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -37,6 +39,7 @@ impl AppRoot {
     pub fn new() -> Self {
         Self {
             children: Vec::new(),
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -84,6 +87,7 @@ impl RenderOnce for AppRoot {
             .on_action(|_: &FocusPreviousElement, window, _| window.focus_prev())
             .children(self.children)
             .children(toaster())
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

@@ -9,6 +9,7 @@ use gpui::{
 
 use super::direction::DirectionalStyled;
 use super::extra_small_shadow;
+use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
@@ -51,6 +52,7 @@ pub struct Toggle {
     disabled: bool,
     tooltip_text: Option<SharedString>,
     on_change: Option<EventHandler<bool>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -68,6 +70,7 @@ impl Toggle {
             disabled: false,
             tooltip_text: None,
             on_change: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -121,11 +124,23 @@ impl Toggle {
 
 impl RenderOnce for Toggle {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+        // The component's own interaction styles, merged with the caller's `sx` in one
+        // call (GPUI allows a single hover / focus style per element).
+        let own_states = if self.disabled {
+            crate::sx::Sx::new()
+        } else {
+            crate::sx::Sx::new()
+                .hover(|state| {
+                    state
+                        .bg(crate::sx::ColorToken::Muted)
+                        .text_color(crate::sx::ColorToken::MutedForeground)
+                })
+                .focus(|state| state.border_color(crate::sx::ColorToken::Ring))
+        };
         let theme = cx.theme();
         let colors = theme.colors.clone();
         let height = toggle_height(self.size);
         let pressed = self.pressed;
-        let ring_color = colors.ring;
         let text_color = if pressed {
             colors.accent_foreground
         } else {
@@ -161,8 +176,6 @@ impl RenderOnce for Toggle {
                 toggle
                     .tab_index(0)
                     .cursor(CursorStyle::PointingHand)
-                    .hover(|style| style.bg(colors.muted).text_color(colors.muted_foreground))
-                    .focus(move |style| style.border_color(ring_color))
                     .when_some(self.on_change, |toggle, handler| {
                         toggle.on_click(move |_, window, cx| handler(&!pressed, window, cx))
                     })
@@ -175,6 +188,7 @@ impl RenderOnce for Toggle {
                 toggle.child(Icon::new(icon).size(px(16.)).color(text_color))
             })
             .when_some(self.label, |toggle, label| toggle.child(label))
+            .sx((&own_states, &self.sx))
             .apply_style_overrides(&self.style_overrides)
     }
 }
@@ -209,6 +223,7 @@ pub struct ToggleGroup {
     size: ComponentSize,
     disabled: bool,
     on_change: Option<EventHandler<Vec<SharedString>>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -225,6 +240,7 @@ impl ToggleGroup {
             size: ComponentSize::Medium,
             disabled: false,
             on_change: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -373,6 +389,7 @@ impl RenderOnce for ToggleGroup {
                 group.rounded(radius).shadow(extra_small_shadow())
             })
             .children(toggles)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

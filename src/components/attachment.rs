@@ -9,6 +9,7 @@ use gpui::{
 
 use super::direction::DirectionalStyled;
 use super::{button::Button, spinner::Spinner};
+use crate::sx::SxStyled;
 use crate::{
     hooks::EventHandler,
     icon::{Icon, IconName},
@@ -47,6 +48,7 @@ pub struct Attachment {
     on_open: Option<EventHandler<()>>,
     on_remove: Option<EventHandler<()>>,
     on_retry: Option<EventHandler<()>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -66,6 +68,7 @@ impl Attachment {
             on_open: None,
             on_remove: None,
             on_retry: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -127,6 +130,13 @@ pub fn icon_for_file_name(name: &str) -> IconName {
 
 impl RenderOnce for Attachment {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+        // The component's own interaction styles, merged with the caller's `sx` in one
+        // call (GPUI allows a single hover / focus style per element).
+        let own_states = if self.on_open.is_some() {
+            crate::sx::Sx::new().hover(|state| state.bg(crate::sx::ColorToken::Accent.alpha(0.5)))
+        } else {
+            crate::sx::Sx::new()
+        };
         let theme = cx.theme();
         let colors = theme.colors.clone();
         let failed = matches!(self.state, AttachmentState::Failed(_));
@@ -246,7 +256,6 @@ impl RenderOnce for Attachment {
             .when_some(self.on_open, |attachment, handler| {
                 attachment
                     .cursor(CursorStyle::PointingHand)
-                    .hover(|style| style.bg(colors.accent.opacity(0.5)))
                     .on_click(move |_, window, cx| handler(&(), window, cx))
             })
             .child(media)
@@ -268,6 +277,7 @@ impl RenderOnce for Attachment {
             )
             .children(retry)
             .children(remove)
+            .sx((&own_states, &self.sx))
             .apply_style_overrides(&self.style_overrides)
     }
 }

@@ -8,6 +8,7 @@ use gpui::{
 
 use super::direction::DirectionalStyled;
 use super::extra_small_shadow;
+use crate::sx::SxStyled;
 use crate::{hooks::EventHandler, styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 #[derive(Clone)]
@@ -37,6 +38,7 @@ pub struct RadioGroup {
     horizontal: bool,
     disabled: bool,
     on_change: Option<EventHandler<SharedString>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -51,6 +53,7 @@ impl RadioGroup {
             horizontal: false,
             disabled: false,
             on_change: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -223,6 +226,7 @@ impl RenderOnce for RadioGroup {
             .gap(px(12.))
             .when(!self.horizontal, |group| group.flex_col())
             .children(options)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

@@ -2,6 +2,7 @@
 
 use gpui::{div, prelude::*, px, App};
 
+use crate::sx::SxStyled;
 use crate::{component, theme::ActiveTheme};
 
 /// Direction of a [`Separator`].
@@ -18,10 +19,14 @@ pub enum SeparatorOrientation {
 pub fn Separator(
     #[prop(optional)] orientation: SeparatorOrientation,
     cx: &mut App,
+    #[sx] sx: crate::sx::Sx,
 ) -> impl IntoElement {
-    let line = div().flex_none().bg(cx.theme().colors.border);
-    match orientation {
-        SeparatorOrientation::Horizontal => line.h(px(1.)).w_full(),
-        SeparatorOrientation::Vertical => line.w(px(1.)).h_full(),
-    }
+    let element = {
+        let line = div().flex_none().bg(cx.theme().colors.border);
+        match orientation {
+            SeparatorOrientation::Horizontal => line.h(px(1.)).w_full(),
+            SeparatorOrientation::Vertical => line.w(px(1.)).h_full(),
+        }
+    };
+    element.sx(&sx)
 }

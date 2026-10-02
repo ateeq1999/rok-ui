@@ -5,6 +5,7 @@ use std::time::Duration;
 use gpui::{div, prelude::*, px, AnyElement, App, ElementId, StyleRefinement, Task, Window};
 
 use super::overlay::{child_id, floating, popover_surface, Align, Side};
+use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, State},
     styles::ApplyStyleOverrides,
@@ -36,6 +37,7 @@ pub struct HoverCard {
     align: Align,
     open_delay: Duration,
     close_delay: Duration,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -51,6 +53,7 @@ impl HoverCard {
             align: Align::Start,
             open_delay: Duration::from_millis(500),
             close_delay: Duration::from_millis(200),
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -156,6 +159,7 @@ impl RenderOnce for HoverCard {
                 schedule(&card_memory, close_delay, cx);
             })
             .children(self.children)
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides);
         wrapper.child(floating(self.side, self.align, card, cx))
     }

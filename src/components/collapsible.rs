@@ -6,6 +6,7 @@ use gpui::{div, prelude::*, px, AnyElement, App, ElementId, StyleRefinement, Win
 
 use super::direction::DirectionalStyled;
 use super::{interaction::on_activate, overlay::child_id};
+use crate::sx::SxStyled;
 use crate::{
     hooks::{use_keyed_state, EventHandler},
     styles::ApplyStyleOverrides,
@@ -29,6 +30,7 @@ pub struct Collapsible {
     default_open: bool,
     open: Option<bool>,
     on_open_change: Option<EventHandler<bool>>,
+    sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
 }
 
@@ -44,6 +46,7 @@ impl Collapsible {
             default_open: false,
             open: None,
             on_open_change: None,
+            sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
     }
@@ -107,6 +110,7 @@ impl RenderOnce for Collapsible {
             })
             .children(self.always_visible)
             .when(is_open, |collapsible| collapsible.children(self.children))
+            .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
 }

@@ -18,6 +18,7 @@
 use gpui::{div, prelude::*, px, AnyElement, App, FontWeight, SharedString, StyleRefinement};
 
 use super::direction::DirectionalStyled;
+use crate::sx::SxStyled;
 use crate::{component, styles::ApplyStyleOverrides, theme::ActiveTheme};
 
 /// Label above the control, or beside it when horizontal.
@@ -36,6 +37,7 @@ pub fn Field(
     #[prop(optional)] invalid: bool,
     #[children] children: Vec<AnyElement>,
     #[style] style_overrides: StyleRefinement,
+    #[sx] sx: crate::sx::Sx,
     cx: &mut App,
 ) -> impl IntoElement {
     let destructive_text = cx.theme().colors.destructive_text;
@@ -50,6 +52,7 @@ pub fn Field(
         .when(disabled, |field| field.opacity(0.5))
         .when(invalid, |field| field.text_color(destructive_text))
         .children(children)
+        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
@@ -58,19 +61,22 @@ pub fn Field(
 pub fn FieldLabel(
     text: SharedString,
     #[style] style_overrides: StyleRefinement,
+    #[sx] sx: crate::sx::Sx,
 ) -> impl IntoElement {
     div()
         .text_sm()
         .font_weight(FontWeight::MEDIUM)
         .line_height(px(16.))
         .child(text)
+        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
 /// A bolder title for fields whose control is a card or a choice group.
 #[component]
-pub fn FieldTitle(text: SharedString) -> impl IntoElement {
-    div().text_sm().font_weight(FontWeight::MEDIUM).child(text)
+pub fn FieldTitle(text: SharedString, #[sx] sx: crate::sx::Sx) -> impl IntoElement {
+    let element = { div().text_sm().font_weight(FontWeight::MEDIUM).child(text) };
+    element.sx(&sx)
 }
 
 /// Help text under the control.
@@ -78,33 +84,44 @@ pub fn FieldTitle(text: SharedString) -> impl IntoElement {
 pub fn FieldDescription(
     text: SharedString,
     #[style] style_overrides: StyleRefinement,
+    #[sx] sx: crate::sx::Sx,
     cx: &mut App,
 ) -> impl IntoElement {
     div()
         .text_sm()
         .text_color(cx.theme().colors.muted_foreground)
         .child(text)
+        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
 /// Validation message, in the error color.
 #[component]
-pub fn FieldError(text: SharedString, cx: &mut App) -> impl IntoElement {
-    div()
-        .text_sm()
-        .text_color(cx.theme().colors.destructive_text)
-        .child(text)
+pub fn FieldError(text: SharedString, cx: &mut App, #[sx] sx: crate::sx::Sx) -> impl IntoElement {
+    let element = {
+        div()
+            .text_sm()
+            .text_color(cx.theme().colors.destructive_text)
+            .child(text)
+    };
+    element.sx(&sx)
 }
 
 /// Stacks label and description next to a horizontal control.
 #[component]
-pub fn FieldContent(#[children] children: Vec<AnyElement>) -> impl IntoElement {
-    div()
-        .flex_dir()
-        .flex_col()
-        .flex_1()
-        .gap(px(6.))
-        .children(children)
+pub fn FieldContent(
+    #[children] children: Vec<AnyElement>,
+    #[sx] sx: crate::sx::Sx,
+) -> impl IntoElement {
+    let element = {
+        div()
+            .flex_dir()
+            .flex_col()
+            .flex_1()
+            .gap(px(6.))
+            .children(children)
+    };
+    element.sx(&sx)
 }
 
 /// A vertical stack of fields.
@@ -112,6 +129,7 @@ pub fn FieldContent(#[children] children: Vec<AnyElement>) -> impl IntoElement {
 pub fn FieldGroup(
     #[children] children: Vec<AnyElement>,
     #[style] style_overrides: StyleRefinement,
+    #[sx] sx: crate::sx::Sx,
 ) -> impl IntoElement {
     div()
         .flex_dir()
@@ -119,6 +137,7 @@ pub fn FieldGroup(
         .w_full()
         .gap(px(28.))
         .children(children)
+        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
@@ -127,23 +146,28 @@ pub fn FieldGroup(
 pub fn FieldSet(
     #[children] children: Vec<AnyElement>,
     #[style] style_overrides: StyleRefinement,
+    #[sx] sx: crate::sx::Sx,
 ) -> impl IntoElement {
     div()
         .flex_dir()
         .flex_col()
         .gap(px(24.))
         .children(children)
+        .sx(&sx)
         .apply_style_overrides(&style_overrides)
 }
 
 /// The heading of a [`FieldSet`].
 #[component]
-pub fn FieldLegend(text: SharedString) -> impl IntoElement {
-    div()
-        .mb(px(-12.))
-        .text_base()
-        .font_weight(FontWeight::MEDIUM)
-        .child(text)
+pub fn FieldLegend(text: SharedString, #[sx] sx: crate::sx::Sx) -> impl IntoElement {
+    let element = {
+        div()
+            .mb(px(-12.))
+            .text_base()
+            .font_weight(FontWeight::MEDIUM)
+            .child(text)
+    };
+    element.sx(&sx)
 }
 
 /// A divider between fields, with optional centered text ("Or continue with").
@@ -151,23 +175,27 @@ pub fn FieldLegend(text: SharedString) -> impl IntoElement {
 pub fn FieldSeparator(
     #[prop(optional)] text: Option<SharedString>,
     cx: &mut App,
+    #[sx] sx: crate::sx::Sx,
 ) -> impl IntoElement {
-    let colors = cx.theme().colors.clone();
-    let line = || div().flex_1().h(px(1.)).bg(colors.border);
-    div()
-        .flex_dir()
-        .items_center()
-        .gap(px(8.))
-        .h(px(20.))
-        .child(line())
-        .when_some(text, |separator, text| {
-            separator
-                .child(
-                    div()
-                        .text_sm()
-                        .text_color(colors.muted_foreground)
-                        .child(text),
-                )
-                .child(line())
-        })
+    let element = {
+        let colors = cx.theme().colors.clone();
+        let line = || div().flex_1().h(px(1.)).bg(colors.border);
+        div()
+            .flex_dir()
+            .items_center()
+            .gap(px(8.))
+            .h(px(20.))
+            .child(line())
+            .when_some(text, |separator, text| {
+                separator
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(colors.muted_foreground)
+                            .child(text),
+                    )
+                    .child(line())
+            })
+    };
+    element.sx(&sx)
 }
