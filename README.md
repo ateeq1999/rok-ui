@@ -28,11 +28,11 @@ These are real renders of `cargo run --example gallery` on Linux.
 
 ```toml
 [dependencies]
-rok-ui = "0.1"
+rok-ui = "0.2"
 gpui = "0.2.2"   # rok-ui re-exports it as rok_ui::gpui; keep the versions in step
 ```
 
-rok-ui 0.1 targets **gpui 0.2.2** from crates.io and Rust 1.85 or newer.
+rok-ui 0.2 targets **gpui 0.2.2** from crates.io and Rust 1.85 or newer.
 
 ### Picking components
 
@@ -40,7 +40,7 @@ Every component is a Cargo feature. The default, `full`, enables all of them. To
 what you use, turn off the defaults and list the components you want:
 
 ```toml
-rok-ui = { version = "0.1", default-features = false, features = ["button", "dialog", "select"] }
+rok-ui = { version = "0.2", default-features = false, features = ["button", "dialog", "select"] }
 ```
 
 - **Dependencies:** a feature pulls in the components it is built from (`combobox` enables
@@ -457,7 +457,7 @@ cargo publish -p rok-ui-macros
 cargo publish -p rok-ui
 ```
 
-## Known limitations (0.1)
+## Known limitations (0.2)
 
 - Focus rings show after mouse clicks as well as keyboard focus. GPUI 0.2.2 has no
   `:focus-visible` equivalent.
