@@ -159,6 +159,8 @@ impl RenderOnce for RadioGroup {
             let value = option.value.clone();
             let enabled_values = enabled_values.clone();
             let horizontal = self.horizontal;
+            // Captured while rendering: handlers run outside the `Direction` scope.
+            let rtl = super::direction::is_rtl();
             div()
                 .id(index)
                 .flex_dir()
@@ -197,6 +199,8 @@ impl RenderOnce for RadioGroup {
                                 ("up", false) | ("left", true) => -1,
                                 _ => return,
                             };
+                            // A horizontal group runs right to left in RTL.
+                            let step = if horizontal && rtl { -step } else { step };
                             let Some(position) =
                                 enabled_values.iter().position(|enabled| *enabled == value)
                             else {

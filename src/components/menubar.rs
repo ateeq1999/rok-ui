@@ -142,6 +142,7 @@ impl RenderOnce for Menubar {
 
         let outside_memory = memory.clone();
         let key_memory = memory.clone();
+        let rtl = super::direction::is_rtl();
         div()
             .id(self.id)
             .track_focus(&focus_handle)
@@ -167,8 +168,11 @@ impl RenderOnce for Menubar {
                 };
                 let next = match event.keystroke.key.as_str() {
                     "escape" => None,
-                    "right" => Some((open + 1) % menu_count),
-                    "left" => Some((open + menu_count - 1) % menu_count),
+                    // Menus run right to left in RTL.
+                    "right" | "left" if (event.keystroke.key == "right") != rtl => {
+                        Some((open + 1) % menu_count)
+                    }
+                    "right" | "left" => Some((open + menu_count - 1) % menu_count),
                     _ => return,
                 };
                 cx.stop_propagation();

@@ -258,6 +258,43 @@ The syntax:
 - **Children:** `{ … }` holds children: elements, `"text"`, `{expr}`, `if`, `if let`, `match`
   and `for`.
 
+## Right-to-left layouts
+
+```rust
+set_text_direction(TextDirection::from_locale("ar-EG"), cx);   // the whole app
+set_text_direction(TextDirection::Rtl, cx);                    // or explicitly
+
+Direction::new(TextDirection::Rtl).child(Settings::new())      // one subtree
+Direction::build(TextDirection::Rtl, || view! { div(sx = ROW.base) { .. } })
+```
+
+In RTL, every component mirrors the way CSS `dir="rtl"` mirrors a page:
+
+- **Rows and text:** rows flow right to left and text aligns right.
+- **Icons:** directional icons flip (submenu chevrons, back and forward arrows, calendar and
+  carousel navigation).
+- **Floating surfaces:** they align to the trigger's right edge, and submenus open to the left.
+- **Panels:** sheets and sidebars swap sides, close buttons and scrollbars move left, and
+  toasts appear bottom-left.
+- **Values and keys:** sliders, progress bars and resizable panels run right to left, and arrow
+  keys follow.
+- **Text inputs:** single-line inputs right-align their text.
+
+In your own code:
+
+- **Builder code:** use the direction-aware helpers from `DirectionalStyled`: `flex_dir()` for
+  rows, `ps`/`pe`, `ms`/`me`, `inset_start`/`inset_end`, `border_s_1`, `rounded_s`/`rounded_e`
+  and `text_start`. Use `IconName::ArrowRight.for_direction()` for directional icons and
+  `flex_ltr()` for content that stays left to right, such as codes and charts.
+- **`styles!`:** `display: flex` rows mirror automatically. The logical properties are
+  `padding_start`, `margin_end`, `border_start`, `inset_start`, `radius_top_start`,
+  `text_align: start`, and so on.
+- **Detection:** `TextDirection::from_locale` recognizes Arabic, Hebrew, Persian, Urdu, Pashto,
+  Sindhi, Kurdish (Sorani), Uyghur, Yiddish, Dhivehi and others.
+
+Plain elements built in the same expression as a `Direction` are created before it lays out.
+Use `Direction::build`, or set the app direction, so they mirror too.
+
 ## Motion
 
 Keyframe animations, transitions and enter/exit presence.
@@ -337,7 +374,7 @@ Every component in shadcn/ui's catalog has a rok-ui counterpart.
 | Data Table | `DataTable`, `DataColumn` | Filter, sort, row selection, column visibility, pagination, row actions. |
 | Date Picker | `DatePicker` | Calendar in a popover; single or range, with presets. |
 | Dialog | `Dialog` | Closes on Escape, backdrop click or the close button. |
-| Direction | `Direction`, `TextDirection` | RTL subtree: mirrors breadcrumbs, pagination, carousels and sidebars. See limitations. |
+| Direction | `Direction`, `TextDirection`, `set_text_direction` | App-wide or per-subtree RTL: every component mirrors. See "Right-to-left layouts". |
 | Drawer | `Drawer` | Bottom sheet with a grab handle. |
 | Dropdown Menu | `DropdownMenu`, `Menu`, `MenuItem` | Icons, shortcuts, checkbox and radio items, submenus, labels, keyboard navigation. |
 | Empty | `Empty` | Icon or media, title, description and actions; optional dashed border. |
@@ -463,8 +500,9 @@ cargo publish -p rok-ui
   `:focus-visible` equivalent.
 - Dialogs move focus into the panel, but they do not trap Tab yet. Focus does not jump to the
   first field automatically.
-- GPUI shapes text left to right only. `Direction` mirrors layouts and arrows but does not
-  reorder bidirectional text.
+- GPUI shapes each line of text left to right. RTL mirrors layouts, icons and alignment but
+  does not reorder mixed-direction (bidirectional) text. Multi-line `Textarea` text stays
+  left-aligned in RTL.
 - `CalendarDate::today()` is the UTC date; rok-ui has no time-zone database.
 - Floating surfaces (popovers, menus, selects) dismiss on a click outside themselves, so a popover
   nested inside another popover closes its parent when clicked.

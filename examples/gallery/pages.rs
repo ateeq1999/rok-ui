@@ -17,11 +17,11 @@ fn demo(title: &'static str, description: &'static str, content: impl IntoElemen
 }
 
 fn column() -> Div {
-    div().flex().flex_col().flex_1().min_w_0().gap(px(16.))
+    div().flex_dir().flex_col().flex_1().min_w_0().gap(px(16.))
 }
 
 fn row() -> Div {
-    div().flex().flex_wrap().items_center().gap(px(8.))
+    div().flex_dir().flex_wrap().items_center().gap(px(8.))
 }
 
 /// Text inputs, choices and pickers.
@@ -114,7 +114,7 @@ pub fn FormsPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
             "Input Group",
             "Addons inside the field's border.",
             div()
-                .flex()
+                .flex_dir()
                 .flex_col()
                 .gap(px(12.))
                 .child(
@@ -130,7 +130,7 @@ pub fn FormsPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                 .child(
                     InputGroup::new(&prompt).block_end(
                         div()
-                            .flex()
+                            .flex_dir()
                             .w_full()
                             .items_center()
                             .gap(px(8.))
@@ -160,7 +160,7 @@ pub fn FormsPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
             "Input OTP",
             "Type or paste a code.",
             div()
-                .flex()
+                .flex_dir()
                 .flex_col()
                 .gap(px(8.))
                 .child(
@@ -183,7 +183,7 @@ pub fn FormsPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
             "Select, Native Select and Combobox",
             "Pick one value from a list.",
             div()
-                .flex()
+                .flex_dir()
                 .flex_col()
                 .gap(px(12.))
                 .child(
@@ -237,7 +237,7 @@ pub fn FormsPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
             "Radio Group, Slider and Toggles",
             "Choices and ranges.",
             div()
-                .flex()
+                .flex_dir()
                 .flex_col()
                 .gap(px(16.))
                 .child(
@@ -258,7 +258,7 @@ pub fn FormsPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                 .child(Separator::new())
                 .child(
                     div()
-                        .flex()
+                        .flex_dir()
                         .justify_between()
                         .text_sm()
                         .child("Volume")
@@ -270,7 +270,7 @@ pub fn FormsPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                 }))
                 .child(
                     div()
-                        .flex()
+                        .flex_dir()
                         .justify_between()
                         .text_sm()
                         .child("Price range")
@@ -332,7 +332,7 @@ pub fn FormsPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
             "Date Picker and Calendar",
             "Single dates, ranges and presets.",
             div()
-                .flex()
+                .flex_dir()
                 .flex_col()
                 .gap(px(12.))
                 .child(
@@ -370,7 +370,7 @@ pub fn FormsPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
         ));
 
     div()
-        .flex()
+        .flex_dir()
         .items_start()
         .gap(px(24.))
         .child(left)
@@ -504,7 +504,7 @@ pub fn OverlaysPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                         .trigger(Button::new("open-popover").outline().label("Open popover"))
                         .child(
                             div()
-                                .flex()
+                                .flex_dir()
                                 .flex_col()
                                 .gap(px(4.))
                                 .child(Large::new("Dimensions"))
@@ -521,9 +521,9 @@ pub fn OverlaysPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                     HoverCard::new("nextjs")
                         .trigger(Button::new("hover-trigger").link().label("@nextjs"))
                         .child(
-                            div().flex().gap(px(12.)).child(Avatar::new("N")).child(
+                            div().flex_dir().gap(px(12.)).child(Avatar::new("N")).child(
                                 div()
-                                    .flex()
+                                    .flex_dir()
                                     .flex_col()
                                     .gap(px(4.))
                                     .child(Small::new("@nextjs"))
@@ -539,7 +539,7 @@ pub fn OverlaysPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
             "Dropdown Menu and Context Menu",
             "Icons, shortcuts, checkbox and radio items, submenus. Try the arrow keys.",
             div()
-                .flex()
+                .flex_dir()
                 .flex_col()
                 .gap(px(12.))
                 .child(
@@ -550,7 +550,7 @@ pub fn OverlaysPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                 .child(
                     ContextMenu::new("canvas-menu").menu(account_menu).child(
                         div()
-                            .flex()
+                            .flex_dir()
                             .items_center()
                             .justify_center()
                             .h(px(120.))
@@ -567,7 +567,7 @@ pub fn OverlaysPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
             "Menubar and Navigation Menu",
             "Desktop menus and website navigation.",
             div()
-                .flex()
+                .flex_dir()
                 .flex_col()
                 .gap(px(16.))
                 .child(
@@ -606,7 +606,7 @@ pub fn OverlaysPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                         .panel(
                             "Getting started",
                             div()
-                                .flex()
+                                .flex_dir()
                                 .flex_col()
                                 .w(px(320.))
                                 .child(
@@ -621,7 +621,7 @@ pub fn OverlaysPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                         .panel(
                             "Components",
                             div()
-                                .flex()
+                                .flex_dir()
                                 .flex_col()
                                 .w(px(320.))
                                 .child(
@@ -729,7 +729,7 @@ pub fn OverlaysPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
     div()
         .child(
             div()
-                .flex()
+                .flex_dir()
                 .items_start()
                 .gap(px(24.))
                 .child(left)
@@ -777,7 +777,7 @@ pub fn OverlaysPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                 .description("Set your daily activity goal.")
                 .child(
                     div()
-                        .flex()
+                        .flex_dir()
                         .items_center()
                         .justify_between()
                         .child(
@@ -792,7 +792,7 @@ pub fn OverlaysPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                         )
                         .child(
                             div()
-                                .flex()
+                                .flex_dir()
                                 .flex_col()
                                 .items_center()
                                 .child(H1::new(goal_value.to_string()))
@@ -856,7 +856,7 @@ pub fn LayoutPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
     let slide = move |number: usize| {
         div()
             .h(px(140.))
-            .flex()
+            .flex_dir()
             .items_center()
             .justify_center()
             .rounded(radius)
@@ -890,7 +890,7 @@ pub fn LayoutPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
             Collapsible::new("starred-repos")
                 .trigger(
                     div()
-                        .flex()
+                        .flex_dir()
                         .items_center()
                         .justify_between()
                         .child(Small::new("@peduarte starred 3 repositories"))
@@ -910,7 +910,7 @@ pub fn LayoutPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
             "Breadcrumb and Pagination",
             "Where you are, and where you can go.",
             div()
-                .flex()
+                .flex_dir()
                 .flex_col()
                 .gap(px(16.))
                 .child(
@@ -950,7 +950,7 @@ pub fn LayoutPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
             "Typography",
             "shadcn/ui's text styles.",
             div()
-                .flex()
+                .flex_dir()
                 .flex_col()
                 .gap(px(12.))
                 .child(H1::new("The Joke Tax Chronicles"))
@@ -1018,7 +1018,7 @@ pub fn LayoutPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
             "Scroll Area and Aspect Ratio",
             "A themed scrollbar, and a box that keeps its shape.",
             div()
-                .flex()
+                .flex_dir()
                 .gap(px(16.))
                 .child(
                     ScrollArea::new("tags")
@@ -1029,7 +1029,7 @@ pub fn LayoutPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                         .border_color(cx.theme().colors.border)
                         .child(
                             div()
-                                .flex()
+                                .flex_dir()
                                 .flex_col()
                                 .p(px(16.))
                                 .gap(px(8.))
@@ -1054,7 +1054,7 @@ pub fn LayoutPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
             "Item, Button Group and Kbd",
             "Rows, joined controls and key caps.",
             div()
-                .flex()
+                .flex_dir()
                 .flex_col()
                 .gap(px(12.))
                 .child(
@@ -1102,7 +1102,7 @@ pub fn LayoutPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
         ));
 
     div()
-        .flex()
+        .flex_dir()
         .items_start()
         .gap(px(24.))
         .child(left)
@@ -1127,7 +1127,7 @@ fn RepositoryRow(name: SharedString, cx: &mut App) -> impl IntoElement {
 fn centered(text: &'static str) -> impl IntoElement {
     div()
         .size_full()
-        .flex()
+        .flex_dir()
         .items_center()
         .justify_center()
         .text_sm()
@@ -1158,7 +1158,7 @@ pub fn DataPage() -> impl IntoElement {
     ];
 
     div()
-        .flex()
+        .flex_dir()
         .flex_col()
         .gap(px(16.))
         .child(demo(
@@ -1196,7 +1196,7 @@ pub fn DataPage() -> impl IntoElement {
         ))
         .child(
             div()
-                .flex()
+                .flex_dir()
                 .items_start()
                 .gap(px(16.))
                 .child(
@@ -1236,7 +1236,7 @@ pub fn DataPage() -> impl IntoElement {
         )
         .child(
             div()
-                .flex()
+                .flex_dir()
                 .items_start()
                 .gap(px(16.))
                 .child(
@@ -1289,7 +1289,7 @@ pub fn DataPage() -> impl IntoElement {
                             )
                             .child(TableCell::new().child(*status))
                             .child(TableCell::new().child(*method))
-                            .child(TableCell::new().flex().justify_end().child(*amount))
+                            .child(TableCell::new().flex_dir().justify_end().child(*amount))
                     },
                 )))
                 .child(
@@ -1297,7 +1297,7 @@ pub fn DataPage() -> impl IntoElement {
                         TableRow::new()
                             .border_b_0()
                             .child(TableCell::new().child("Total"))
-                            .child(TableCell::new().flex().justify_end().child("$1,200.00")),
+                            .child(TableCell::new().flex_dir().justify_end().child("$1,200.00")),
                     ),
                 )
                 .child(TableCaption::new("A list of your recent invoices.")),
@@ -1369,7 +1369,7 @@ fn render_chat_entry(index: usize, entry: &ChatEntry) -> AnyElement {
             .align(BubbleAlign::End)
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .gap(px(8.))
                     .child(
@@ -1445,7 +1445,7 @@ pub fn ChatPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
     let jump_scroller = scroller.clone();
 
     div()
-        .flex()
+        .flex_dir()
         .items_start()
         .gap(px(24.))
         .child(
@@ -1453,7 +1453,7 @@ pub fn ChatPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                 "Message Scroller",
                 "Messages, bubbles, markers and attachments. Scroll up to load history.",
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .gap(px(8.))
                     .child(

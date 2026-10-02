@@ -1073,6 +1073,44 @@ mod tests {
     }
 
     #[test]
+    fn rtl_mirrors_rows_and_logical_properties() {
+        use crate::components::direction::{with_direction, TextDirection};
+        use gpui::FlexDirection;
+
+        let row = Sx::new()
+            .flex()
+            .padding(Edges::Start, 2.)
+            .margin(Edges::End, 1.)
+            .text_align(SxTextAlign::Start);
+        let column = Sx::new().flex_col().flex();
+        let theme = theme();
+
+        let ltr = row.resolve_base(&theme);
+        assert_eq!(ltr.flex_direction, None);
+        assert_eq!(
+            ltr.padding.left,
+            Some(DefiniteLength::Absolute(AbsoluteLength::Pixels(px(8.))))
+        );
+        assert_eq!(ltr.padding.right, None);
+
+        with_direction(TextDirection::Rtl, || {
+            let rtl = row.resolve_base(&theme);
+            assert_eq!(rtl.flex_direction, Some(FlexDirection::RowReverse));
+            assert_eq!(
+                rtl.padding.right,
+                Some(DefiniteLength::Absolute(AbsoluteLength::Pixels(px(8.))))
+            );
+            assert_eq!(rtl.padding.left, None);
+            assert_eq!(rtl.margin.left, Some(Length::Definite(px(4.).into())));
+            // An explicit column stays a column.
+            assert_eq!(
+                column.resolve_base(&theme).flex_direction,
+                Some(FlexDirection::Column)
+            );
+        });
+    }
+
+    #[test]
     fn numbers_follow_the_four_pixel_scale() {
         let style = Sx::new()
             .gap(6.)

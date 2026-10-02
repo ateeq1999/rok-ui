@@ -186,6 +186,8 @@ pub(crate) fn floating(side: Side, align: Align, content: impl IntoElement, cx: 
 /// border, `rounded-md`, `shadow-md`).
 pub(crate) fn popover_surface(theme: &Theme) -> Div {
     div()
+        // Layers lay out apart from the window root, so set RTL alignment here.
+        .when(super::direction::is_rtl(), |surface| surface.text_right())
         .flex_dir()
         .flex_col()
         .rounded(theme.radius_medium())

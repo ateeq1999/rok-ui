@@ -177,6 +177,7 @@ pub(crate) fn render_modal(
         .font_family(theme.font_family.clone())
         .text_size(theme.font_size)
         .text_color(theme.colors.foreground)
+        .when(super::direction::is_rtl(), |scrim| scrim.text_right())
         .map(|scrim| match placement {
             ModalPlacement::Center => scrim.items_center().justify_center().p(px(16.)),
             ModalPlacement::Top => scrim.flex_col().justify_start(),

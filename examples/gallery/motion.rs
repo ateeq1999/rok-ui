@@ -68,7 +68,7 @@ pub fn MotionPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
         .enumerate()
         .map(|(index, (label, easing))| {
             div()
-                .flex()
+                .flex_dir()
                 .items_center()
                 .gap(px(12.))
                 .child(div().w(px(96.)).text_sm().child(label))
@@ -110,7 +110,7 @@ pub fn MotionPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                     )}
                 {div()
                     .size(px(96.))
-                    .flex()
+                    .flex_dir()
                     .items_center()
                     .justify_center()
                     .text_sm()
@@ -128,7 +128,7 @@ pub fn MotionPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
     };
 
     let presets_demo = div()
-        .flex()
+        .flex_dir()
         .items_center()
         .gap(px(24.))
         .child(Badge::new("Live").motion("pulse", motion::pulse()))
@@ -149,7 +149,7 @@ pub fn MotionPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
         );
 
     let transition_demo = div()
-        .flex()
+        .flex_dir()
         .flex_col()
         .gap(px(12.))
         .child(
@@ -170,7 +170,7 @@ pub fn MotionPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
         );
 
     let presence_demo = div()
-        .flex()
+        .flex_dir()
         .flex_col()
         .gap(px(12.))
         .child(
@@ -194,12 +194,12 @@ pub fn MotionPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
         }));
 
     div()
-        .flex()
+        .flex_dir()
         .items_start()
         .gap(px(24.))
         .child(
             div()
-                .flex()
+                .flex_dir()
                 .flex_col()
                 .flex_1()
                 .min_w_0()
@@ -212,12 +212,16 @@ pub fn MotionPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                 .child(demo(
                     "Easing",
                     "The same motion with each timing function.",
-                    div().flex().flex_col().gap(px(12.)).children(easing_rows),
+                    div()
+                        .flex_dir()
+                        .flex_col()
+                        .gap(px(12.))
+                        .children(easing_rows),
                 )),
         )
         .child(
             div()
-                .flex()
+                .flex_dir()
                 .flex_col()
                 .flex_1()
                 .min_w_0()

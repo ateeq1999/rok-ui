@@ -593,3 +593,25 @@ fn nested_floating_layers_render(cx: &mut gpui::TestAppContext) {
     window_context.update(|window, _| window.refresh());
     window_context.run_until_parked();
 }
+
+#[gpui::test]
+fn shadcn_parity_components_render_right_to_left(cx: &mut gpui::TestAppContext) {
+    cx.update(rok_ui::init);
+    cx.update(|cx| set_text_direction(TextDirection::Rtl, cx));
+    for mode in [ThemeMode::Light, ThemeMode::Dark] {
+        cx.update(|cx| Theme::set_global(Theme::from_preset(ThemePreset::Rok, mode), cx));
+        let (_view, window_context) = cx.add_window_view(|_, cx| ShadcnParityView {
+            notes: cx.new(|cx| {
+                InputState::new(cx)
+                    .with_multiline(true)
+                    .with_text("سطر أول\nسطر ثان")
+            }),
+            prompt: cx.new(|cx| InputState::new(cx).with_placeholder("example.com")),
+            scroller: MessageScrollerState::new(50),
+        });
+        window_context.run_until_parked();
+        window_context.update(|window, _| window.refresh());
+        window_context.run_until_parked();
+    }
+    cx.update(|cx| set_text_direction(TextDirection::Ltr, cx));
+}

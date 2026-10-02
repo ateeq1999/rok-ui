@@ -204,6 +204,7 @@ impl RenderOnce for Dialog {
             .bg(colors.overlay.opacity(progress))
             .font_family(theme.font_family.clone())
             .text_size(theme.font_size)
+            .when(super::direction::is_rtl(), |layer| layer.text_right())
             .on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
                 close_from_backdrop(window, cx)
             })

@@ -530,6 +530,7 @@ impl RenderOnce for CommandDialog {
             .bg(overlay.opacity(progress))
             .font_family(font_family)
             .text_size(font_size)
+            .when(super::direction::is_rtl(), |layer| layer.text_right())
             .on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
                 backdrop_close(window, cx)
             })

@@ -290,6 +290,7 @@ impl RenderOnce for Toaster {
             .gap(px(8.))
             .font_family(theme.font_family.clone())
             .text_size(theme.font_size)
+            .when(super::direction::is_rtl(), |layer| layer.text_right())
             .children(cards);
         // The ending corner: bottom-right in LTR, bottom-left in RTL.
         let (x, corner) = if super::direction::is_rtl() {

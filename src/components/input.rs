@@ -829,6 +829,8 @@ struct InputTextPrepaintState {
     line: Option<ShapedLine>,
     cursor: Option<PaintQuad>,
     selection: Option<PaintQuad>,
+    /// How far the text is shifted right (RTL alignment).
+    text_offset: Pixels,
 }
 
 impl IntoElement for InputTextElement {
@@ -929,9 +931,23 @@ impl Element for InputTextElement {
             .text_system()
             .shape_line(display_text, font_size, &runs, None);
 
+        // In RTL the text sits against the right edge. Shifting the bounds keeps
+        // painting, the cursor, hit testing and IME positions consistent.
+        let rtl = crate::components::direction::is_rtl();
+        let text_offset = if rtl {
+            (bounds.size.width - line.width).max(px(0.))
+        } else {
+            px(0.)
+        };
+        let bounds = shift_bounds(bounds, text_offset);
+
         let (selection, cursor) = if selected_range.is_empty() {
             let cursor_x = if content_is_empty {
-                px(0.)
+                if rtl {
+                    line.width
+                } else {
+                    px(0.)
+                }
             } else {
                 line.x_for_index(cursor_offset)
             };
@@ -967,6 +983,7 @@ impl Element for InputTextElement {
             line: Some(line),
             cursor,
             selection,
+            text_offset,
         }
     }
 
@@ -980,6 +997,7 @@ impl Element for InputTextElement {
         window: &mut Window,
         cx: &mut App,
     ) {
+        let bounds = shift_bounds(bounds, prepaint.text_offset);
         let focus_handle = self.state.read(cx).focus_handle.clone();
         window.handle_input(
             &focus_handle,
@@ -1008,6 +1026,14 @@ impl Element for InputTextElement {
             state.last_bounds = Some(bounds);
         });
     }
+}
+
+/// `bounds` with its left edge moved right by `offset`.
+fn shift_bounds(bounds: Bounds<Pixels>, offset: Pixels) -> Bounds<Pixels> {
+    Bounds::new(
+        point(bounds.left() + offset, bounds.top()),
+        size(bounds.size.width - offset, bounds.size.height),
+    )
 }
 
 #[cfg(test)]
@@ -1040,3 +1066,4 @@ mod tests {
         );
     }
 }
+

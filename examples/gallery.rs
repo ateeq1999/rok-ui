@@ -1,7 +1,7 @@
 //! Every rok-ui component, page by page, with live theme switching.
 //!
 //! Run with `cargo run --example gallery`.
-//! Options: `--dark`, `--preset neutral`, `--open-dialog`,
+//! Options: `--dark`, `--rtl`, `--preset neutral`, `--open-dialog`,
 //! `--page overview|forms|overlays|layout|data|chat|motion`.
 
 #[path = "gallery/motion.rs"]
@@ -74,6 +74,7 @@ impl GalleryPage {
 
 struct GalleryOptions {
     start_in_dark_mode: bool,
+    start_right_to_left: bool,
     preset: ThemePreset,
     open_dialog_on_start: bool,
     page: GalleryPage,
@@ -92,6 +93,7 @@ fn parse_gallery_options() -> GalleryOptions {
     };
     GalleryOptions {
         start_in_dark_mode: arguments.iter().any(|argument| argument == "--dark"),
+        start_right_to_left: arguments.iter().any(|argument| argument == "--rtl"),
         preset,
         open_dialog_on_start: arguments.iter().any(|argument| argument == "--open-dialog"),
         page: arguments
@@ -172,7 +174,7 @@ fn CreateAccountCard(window: &mut Window, cx: &mut App) -> impl IntoElement {
 
 fn form_field(label: &'static str, control: impl IntoElement) -> impl IntoElement {
     div()
-        .flex()
+        .flex_dir()
         .flex_col()
         .gap(px(8.))
         .child(Label::new(label))
@@ -221,7 +223,7 @@ impl Gallery {
             .unwrap_or(0);
 
         div()
-            .flex()
+            .flex_dir()
             .flex_none()
             .items_center()
             .justify_between()
@@ -232,7 +234,7 @@ impl Gallery {
             .bg(colors.background)
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .items_center()
                     .gap(px(12.))
                     .child(rok_logo_mark(colors.primary, colors.primary_foreground))
@@ -246,7 +248,7 @@ impl Gallery {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .items_center()
                     .gap(px(12.))
                     .child(
@@ -273,6 +275,21 @@ impl Gallery {
                                 "Switch to dark"
                             })
                             .on_click(|_, _, cx| Theme::toggle_mode(cx)),
+                    )
+                    .child(
+                        Button::new("toggle-direction")
+                            .outline()
+                            .icon(IconName::Globe)
+                            .label(if is_rtl() { "RTL" } else { "LTR" })
+                            .tooltip("Switch reading direction")
+                            .on_click(|_, _, cx| {
+                                let next = if is_rtl() {
+                                    TextDirection::Ltr
+                                } else {
+                                    TextDirection::Rtl
+                                };
+                                set_text_direction(next, cx);
+                            }),
                     ),
             )
     }
@@ -290,7 +307,7 @@ impl Gallery {
                 CardContent::new()
                     .child(
                         div()
-                            .flex()
+                            .flex_dir()
                             .flex_wrap()
                             .gap(px(8.))
                             .child(Button::new("primary").label("Primary"))
@@ -302,7 +319,7 @@ impl Gallery {
                     )
                     .child(
                         div()
-                            .flex()
+                            .flex_dir()
                             .flex_wrap()
                             .items_center()
                             .gap(px(8.))
@@ -318,7 +335,7 @@ impl Gallery {
                     )
                     .child(
                         div()
-                            .flex()
+                            .flex_dir()
                             .flex_wrap()
                             .items_center()
                             .gap(px(8.))
@@ -331,7 +348,7 @@ impl Gallery {
                                 Button::new("continue")
                                     .secondary()
                                     .label("Continue")
-                                    .icon(IconName::ArrowRight)
+                                    .icon(IconName::ArrowRight.for_direction())
                                     .icon_position(IconPosition::End),
                             )
                             .child(Button::new("loading").loading(true).label("Please wait"))
@@ -353,7 +370,7 @@ impl Gallery {
                 CardContent::new()
                     .child(
                         div()
-                            .flex()
+                            .flex_dir()
                             .flex_wrap()
                             .gap(px(8.))
                             .child(Badge::new("Primary"))
@@ -373,13 +390,13 @@ impl Gallery {
                     .child(Separator::new())
                     .child(
                         div()
-                            .flex()
+                            .flex_dir()
                             .items_center()
                             .gap(px(12.))
                             .child(Avatar::new("AL"))
                             .child(
                                 div()
-                                    .flex()
+                                    .flex_dir()
                                     .flex_col()
                                     .flex_1()
                                     .child(
@@ -397,7 +414,7 @@ impl Gallery {
                             )
                             .child(
                                 div()
-                                    .flex()
+                                    .flex_dir()
                                     .items_center()
                                     .gap(px(4.))
                                     .child(KeyboardShortcut::new("Ctrl"))
@@ -407,12 +424,12 @@ impl Gallery {
                     .child(Separator::new())
                     .child(
                         div()
-                            .flex()
+                            .flex_dir()
                             .flex_col()
                             .gap(px(8.))
                             .child(
                                 div()
-                                    .flex()
+                                    .flex_dir()
                                     .justify_between()
                                     .text_sm()
                                     .child("Uploading assets")
@@ -426,7 +443,7 @@ impl Gallery {
                     )
                     .child(
                         div()
-                            .flex()
+                            .flex_dir()
                             .items_center()
                             .gap(px(12.))
                             .child(
@@ -436,7 +453,7 @@ impl Gallery {
                             )
                             .child(
                                 div()
-                                    .flex()
+                                    .flex_dir()
                                     .flex_col()
                                     .gap(px(8.))
                                     .child(
@@ -455,7 +472,7 @@ impl Gallery {
         let muted_foreground = cx.theme().colors.muted_foreground;
         let tab_panel = match self.selected_tab_index {
             0 => div()
-                .flex()
+                .flex_dir()
                 .flex_col()
                 .gap(px(16.))
                 .child(form_field(
@@ -487,7 +504,7 @@ impl Gallery {
                         .label("Security alerts (required)"),
                 ),
             _ => div()
-                .flex()
+                .flex_dir()
                 .flex_col()
                 .items_start()
                 .gap(px(12.))
@@ -534,7 +551,7 @@ impl Gallery {
 
     fn alerts_column(&self) -> impl IntoElement {
         div()
-            .flex()
+            .flex_dir()
             .flex_col()
             .gap(px(12.))
             .child(
@@ -594,7 +611,7 @@ fn rok_logo_mark(background: Hsla, bar_color: Hsla) -> impl IntoElement {
             .opacity(opacity)
     };
     div()
-        .flex()
+        .flex_dir()
         .flex_col()
         .justify_center()
         .gap(px(2.))
@@ -621,7 +638,7 @@ impl Render for Gallery {
             .child(self.header(cx))
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_1()
                     .min_h_0()
                     .child(self.sidebar(cx))
@@ -633,13 +650,13 @@ impl Render for Gallery {
                             .overflow_y_scroll()
                             .child(
                                 div()
-                                    .flex()
+                                    .flex_dir()
                                     .flex_col()
                                     .gap(px(16.))
                                     .p(px(32.))
                                     .child(
                                         div()
-                                            .flex()
+                                            .flex_dir()
                                             .items_center()
                                             .gap(px(8.))
                                             .child(SidebarTrigger::new("toggle-sidebar").on_toggle(
@@ -701,11 +718,11 @@ impl Gallery {
 
     fn overview(&self, cx: &mut Context<Self>) -> impl IntoElement {
         div()
-            .flex()
+            .flex_dir()
             .gap(px(24.))
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .flex_1()
                     .gap(px(16.))
@@ -718,7 +735,7 @@ impl Gallery {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_dir()
                     .flex_col()
                     .flex_1()
                     .gap(px(16.))
@@ -743,6 +760,9 @@ fn main() {
                 ThemeMode::Light
             };
             Theme::set_global(Theme::from_preset(options.preset, mode), cx);
+            if options.start_right_to_left {
+                set_text_direction(TextDirection::Rtl, cx);
+            }
 
             let bounds = Bounds::centered(None, gpui::size(px(1200.), px(900.)), cx);
             cx.open_window(
