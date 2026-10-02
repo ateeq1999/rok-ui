@@ -1,5 +1,11 @@
 # rok-ui
 
+[![Crates.io](https://img.shields.io/crates/v/rok-ui.svg)](https://crates.io/crates/rok-ui)
+[![Docs.rs](https://docs.rs/rok-ui/badge.svg)](https://docs.rs/rok-ui)
+[![CI](https://github.com/ateeq1999/rok-ui/actions/workflows/ci.yml/badge.svg)](https://github.com/ateeq1999/rok-ui/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![MSRV](https://img.shields.io/badge/rustc-1.88+-orange.svg)](Cargo.toml)
+
 A [shadcn/ui](https://ui.shadcn.com)-style component system for desktop apps built with
 [GPUI](https://gpui.rs), the GPU-accelerated UI framework from the Zed team, with a React-like
 developer experience.
@@ -32,7 +38,7 @@ rok-ui = "0.2"
 gpui = "0.2.2"   # rok-ui re-exports it as rok_ui::gpui; keep the versions in step
 ```
 
-rok-ui 0.2 targets **gpui 0.2.2** from crates.io and Rust 1.85 or newer.
+rok-ui 0.2 targets **gpui 0.2.2** from crates.io and Rust 1.88 or newer.
 
 ### Picking components
 
@@ -464,21 +470,24 @@ Application::new().with_assets(rok_ui::Assets::with_fallback(MyAssets))
 
 ## Project layout
 
-```
+```text
 rok-ui/
-├── Cargo.toml              workspace + the rok-ui crate
-├── macros/                 rok-ui-macros: the #[component] attribute
+├── Cargo.toml              workspace, the rok-ui crate and its feature list
+├── macros/                 rok-ui-macros: #[component], styles!, style!, keyframes!, children!, view!
 ├── assets/icons/           built-in SVG icons (embedded at compile time)
 ├── src/
 │   ├── lib.rs              init(), re-exports
 │   ├── prelude.rs          use rok_ui::prelude::*
 │   ├── theme/              Theme, ThemeColors, presets, ActiveTheme
+│   ├── sx.rs               Sx, the style values behind styles! and .sx(..)
+│   ├── motion.rs           Motion, keyframes, transitions, presence
 │   ├── hooks.rs            use_state, use_keyed_state, State, EventHandler
 │   ├── styles.rs           ApplyStyleOverrides, ComponentSize
 │   ├── icon.rs             Icon, IconName, Assets
-│   └── components/         one file per component
-├── examples/               counter.rs, gallery.rs (+ gallery/pages.rs)
-├── tests/components.rs     macro API, hooks, full render under every theme
+│   └── components/         one file per component, plus shared layers, overlays and direction
+├── examples/               counter.rs, gallery.rs (+ gallery/)
+├── tests/                  component renders, sx, motion, macro compile errors
+├── scripts/                check-features.sh
 └── docs/screenshots/
 ```
 
@@ -488,14 +497,17 @@ rok-ui/
 cargo fmt --all --check
 cargo clippy --all-targets -- -D warnings
 cargo test
+scripts/check-features.sh   # every Cargo feature builds on its own
+cargo run --example gallery
 ```
 
-To publish, release the macro crate first, then the main crate:
+## Contributing
 
-```sh
-cargo publish -p rok-ui-macros
-cargo publish -p rok-ui
-```
+Contributions are welcome: bug reports, fixes, new components and docs. Read
+[CONTRIBUTING.md](CONTRIBUTING.md) for setup, conventions and the release process, and
+[CHANGELOG.md](CHANGELOG.md) for what changed in each version. Everyone taking part follows the
+[Code of Conduct](CODE_OF_CONDUCT.md). Report security problems privately as described in
+[SECURITY.md](SECURITY.md).
 
 ## Known limitations (0.2)
 
@@ -513,4 +525,4 @@ cargo publish -p rok-ui
 
 ## License
 
-MIT
+rok-ui is licensed under the [MIT License](LICENSE).

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/ateeq1999/rok-ui/security/advisories/new
+    about: Please report security problems privately, not as a public issue.
+  - name: API documentation
+    url: https://docs.rs/rok-ui
+    about: Reference docs for every component and macro.

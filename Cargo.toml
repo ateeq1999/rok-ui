@@ -6,7 +6,7 @@ resolver = "2"
 version = "0.2.0"
 edition = "2021"
 license = "MIT"
-rust-version = "1.85"
+rust-version = "1.88"
 
 [package]
 name = "rok-ui"
@@ -22,8 +22,8 @@ documentation = "https://docs.rs/rok-ui"
 keywords = ["gpui", "ui", "desktop", "components", "shadcn"]
 categories = ["gui"]
 # README links to screenshots on raw.githubusercontent.com, so they stay out of
-# the .crate tarball.
-exclude = ["docs/screenshots"]
+# the .crate tarball, along with repository tooling.
+exclude = ["docs/screenshots", ".github", "scripts", ".gitattributes", ".gitignore"]
 
 [dependencies]
 gpui = "0.2.2"

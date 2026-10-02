@@ -3,7 +3,16 @@
 Procedural macros for [`rok-ui`](https://crates.io/crates/rok-ui), the shadcn/ui-style component
 system for [GPUI](https://gpui.rs) desktop apps.
 
-You normally do not depend on this crate directly. `rok-ui` re-exports the one macro it provides:
+You normally do not depend on this crate directly. `rok-ui` re-exports every macro it provides:
+
+| Macro | What it does |
+|---|---|
+| `#[component]` | Turns a function into a component with a builder API. |
+| `styles!` | Defines a table of named styles, with states and enum-keyed variants. |
+| `style!` | Defines a single style. |
+| `keyframes!` | Defines a keyframe animation for `Motion`. |
+| `children!` | Builds a list of children, with `if`, `for` and `match` mixed in. |
+| `view!` | JSX-like markup for element trees. |
 
 ```rust
 use rok_ui::prelude::*;
@@ -23,9 +32,11 @@ fn Greeting(
 Greeting::new("Ada").excited(true).child("Welcome back");
 ```
 
-See the [rok-ui README](https://github.com/ateeq1999/rok-ui#writing-a-component) for the full
-parameter rules and the `#[prop]` and `#[children]` attributes.
+The [rok-ui README](https://github.com/ateeq1999/rok-ui#writing-a-component) covers the
+`#[component]` parameter rules, and its
+[Styling and markup](https://github.com/ateeq1999/rok-ui#styling-and-markup) section covers
+`styles!`, `children!` and `view!`.
 
 ## License
 
-MIT
+Licensed under the [MIT License](LICENSE).

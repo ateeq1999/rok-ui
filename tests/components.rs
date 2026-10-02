@@ -628,7 +628,11 @@ impl Render for ButtonGroupWidthView {
                 move |bounds, _, _| {
                     let (group, row) = widths.get();
                     let width = f32::from(bounds.size.width);
-                    widths.set(if slot == 0 { (width, row) } else { (group, width) });
+                    widths.set(if slot == 0 {
+                        (width, row)
+                    } else {
+                        (group, width)
+                    });
                 },
                 |_, _, _, _| {},
             )
@@ -672,5 +676,8 @@ fn button_group_is_as_wide_as_its_items(cx: &mut gpui::TestAppContext) {
     let (group, row) = widths.get();
     // Joined items share a border, so the group is at most a few pixels narrower.
     assert!(row > 200., "buttons measured {row}px");
-    assert!((row - group).abs() <= 3., "group {group}px vs buttons {row}px");
+    assert!(
+        (row - group).abs() <= 3.,
+        "group {group}px vs buttons {row}px"
+    );
 }

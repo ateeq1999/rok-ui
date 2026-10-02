@@ -1,6 +1,6 @@
 [package]
 name = "rok-ui-macros"
-description = "Procedural macros for rok-ui: the #[component] attribute."
+description = "Procedural macros for rok-ui: #[component], styles!, keyframes!, children! and view!."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

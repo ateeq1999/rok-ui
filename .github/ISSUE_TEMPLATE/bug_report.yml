@@ -1,0 +1,46 @@
+name: Bug report
+description: Something renders or behaves wrongly.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you saw, and what you expected instead. Screenshots help for visual bugs.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: The smallest snippet or gallery steps that show the problem.
+      render: rust
+    validations:
+      required: true
+  - type: input
+    id: component
+    attributes:
+      label: Component
+      placeholder: e.g. Select, Dialog, styles!
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: rok-ui, gpui and Rust (`rustc --version`).
+      placeholder: rok-ui 0.2.0, gpui 0.2.2, rustc 1.90.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      multiple: true
+      options: [Linux (X11), Linux (Wayland), macOS, Windows]
+    validations:
+      required: true
+  - type: checkboxes
+    id: direction
+    attributes:
+      label: Layout direction
+      options:
+        - label: The bug only happens in right-to-left (RTL) mode
