@@ -378,3 +378,47 @@ fn windows_keep_their_own_histories(cx: &mut TestAppContext) {
         Some("/settings")
     );
 }
+
+fn slow_note(id: u64) -> rok_ui::query::QueryOptions<String> {
+    rok_ui::query::QueryOptions::new(rok_ui::query_key!["slow-note", id], move |_| async move {
+        rok_ui::gpui::Timer::after(std::time::Duration::from_millis(150)).await;
+        Ok::<_, rok_ui::query::QueryError>(format!("Note {id}"))
+    })
+}
+
+struct SlowLoading;
+
+impl Render for SlowLoading {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        Router::new()
+            .route_to(|note: NoteRoute, _, _| div().child(note.id.to_string()))
+            .route("/elsewhere", |_, _, _| div())
+            .loader_to(|note: &NoteRoute, cx| {
+                rok_ui::query::prefetch_query(cx, &slow_note(note.id));
+            })
+    }
+}
+
+#[gpui::test]
+fn navigating_away_cancels_the_loader(cx: &mut TestAppContext) {
+    use rok_ui::query::{self, QueryKey};
+
+    cx.update(rok_ui::init);
+    let (_, window) = cx.add_window_view(|_, _| SlowLoading);
+    window.update(|_, cx| router::navigate_to(&NoteRoute { id: 1 }, cx));
+    window.run_until_parked();
+    window.update(|_, cx| assert_eq!(query::fetching_count(cx, &QueryKey::root()), 1));
+
+    window.update(|_, cx| router::navigate("/elsewhere", cx));
+    window.run_until_parked();
+    window.update(|_, cx| assert_eq!(query::fetching_count(cx, &QueryKey::root()), 0));
+
+    // The cancelled fetch never lands in the cache.
+    std::thread::sleep(std::time::Duration::from_millis(250));
+    window.run_until_parked();
+    window.update(|_, cx| {
+        assert!(
+            query::get_query_data::<String>(cx, &rok_ui::query_key!["slow-note", 1_u64]).is_none()
+        );
+    });
+}

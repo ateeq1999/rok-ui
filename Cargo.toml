@@ -267,7 +267,7 @@ required-features = ["full", "query"]
 
 [[test]]
 name = "router"
-required-features = ["full", "router"]
+required-features = ["full", "router", "query"]
 
 [[test]]
 name = "form"

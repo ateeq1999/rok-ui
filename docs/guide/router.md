@@ -311,7 +311,9 @@ let link = Link::to(&NoteRoute { id: 3 }).preload(true).child("Open");
 ```
 
 The page reads the same query (with `use_suspense_query` in a `Suspense`, or `use_query`), so
-it finds the data cached or in flight. `router::preload(path, cx)` runs loaders by hand.
+it finds the data cached or in flight. `router::preload(path, cx)` runs loaders by hand. If the
+user navigates away before a loader's fetches finish, they are cancelled (with the `query`
+feature).
 
 ## Blocking navigation
 

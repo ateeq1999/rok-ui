@@ -174,8 +174,62 @@ fn run_loader_once(route: &RouteMatch, loader: &Loader, cx: &mut App) {
         .default_global::<Loaders>()
         .last_loaded
         .insert(route.pattern.clone(), href.clone());
-    if last.as_ref() != Some(&href) {
-        loader(route, cx);
+    if last.as_ref() == Some(&href) {
+        return;
+    }
+    #[cfg(feature = "query")]
+    let fetching_before = fetching_keys(cx);
+    loader(route, cx);
+    #[cfg(feature = "query")]
+    {
+        let started: Vec<_> = fetching_keys(cx)
+            .into_iter()
+            .filter(|key| !fetching_before.contains(key))
+            .collect();
+        let window = CURRENT_WINDOW.with(Cell::get);
+        cx.default_global::<Loaders>()
+            .started
+            .entry(window)
+            .or_insert_with(|| (href.clone(), Vec::new()))
+            .1
+            .extend(started);
+    }
+}
+
+#[cfg(feature = "query")]
+fn fetching_keys(cx: &App) -> Vec<crate::query::QueryKey> {
+    crate::query::queries(cx)
+        .into_iter()
+        .filter(|query| query.is_fetching)
+        .map(|query| query.key)
+        .collect()
+}
+
+/// When this window shows a new location, cancel the fetches the previous location's loader
+/// started and that are still running (the user navigated away before they finished).
+#[cfg(feature = "query")]
+fn cancel_stale_loads(location: &Location, cx: &mut App) {
+    let href = location.href();
+    let window = CURRENT_WINDOW.with(Cell::get);
+    let previous = {
+        let loaders = cx.default_global::<Loaders>();
+        match loaders.started.get_mut(&window) {
+            Some((shown, _)) if *shown == href => return,
+            Some((shown, keys)) => {
+                *shown = href;
+                std::mem::take(keys)
+            }
+            None => {
+                loaders.started.insert(window, (href, Vec::new()));
+                return;
+            }
+        }
+    };
+    let still_fetching = fetching_keys(cx);
+    for key in previous {
+        if still_fetching.contains(&key) {
+            crate::query::cancel_queries(cx, &key);
+        }
     }
 }
 
@@ -598,6 +652,10 @@ impl RouteEntry {
 struct Loaders {
     registered: Vec<(Pattern, Loader)>,
     last_loaded: HashMap<SharedString, SharedString>,
+    /// Per window (or for the app): the location shown last, and the query fetches its loader
+    /// started, cancelled when the location changes.
+    #[cfg(feature = "query")]
+    started: HashMap<Option<AnyWindowHandle>, (SharedString, Vec<crate::query::QueryKey>)>,
 }
 
 impl Global for Loaders {}
@@ -948,6 +1006,8 @@ impl Router {
             location = self::location(cx);
         }
         self.register_loaders(cx);
+        #[cfg(feature = "query")]
+        cancel_stale_loads(&location, cx);
         let content =
             match self
                 .resolve(&location)
