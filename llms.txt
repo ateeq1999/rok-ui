@@ -1,81 +1,148 @@
 # rok-ui
 
-> shadcn/ui-style components and an app framework for GPUI desktop apps (Rust). React-like
-> components, TanStack-style data, routing and forms. Docs: https://docs.rs/rok-ui. Guides:
-> docs/guide/*.md (also the module docs). Plan: enhance.md. Progress: roadmap.md.
+> A shadcn/ui-style component system and app framework for GPUI desktop apps, with a React-like
+> developer experience: `#[component]` functions, hooks, StyleX-style `styles!`, JSX-like
+> `view!` markup, right-to-left layouts, motion, app shells, reactive state, a router, a
+> TanStack Query-style data layer and PostgreSQL through rok-db.
+
+This file is a dense digest for coding agents. Read `AGENTS.md` for the task skills, and the
+guides in `docs/guide/` for detail. Crates: `rok-ui` (facade, `src/`), `rok-ui-macros`
+(`macros/`, proc-macro entry points only), `rok-ui-grammar` (macro parsing and codegen, tested in
+`rok-ui-grammar/tests`), `rok-ui-build` (the file-route generator), `rok-ui-cli` (`cargo rok-ui`). MSRV: `rust-version` in `Cargo.toml`. License: MIT.
 
 ## Setup
 
-- Cargo: `rok-ui = "0.5"` plus `gpui = "0.2.2"`. Every component is a feature; `full` (default)
-  enables all components, `state` and `form`. Opt-in: `router`, `query`, `db` (implies
-  `query`), `runtime`, `persist`, `devtools`, `form-garde`, `fonts`.
+- `use rok_ui::prelude::*;` brings in GPUI's prelude, every enabled component, the theme, the
+  hooks, motion, `Sx` and the macros.
+- Call `rok_ui::init(cx)` once at startup (installs the theme and keyboard focus tracking) and
+  pass `rok_ui::Assets` to `Application::with_assets`.
+- Features: `default = ["full"]`; `full` = groups `forms` (which includes `form`), `overlays`,
+  `layout`, `data`, `chat`, `shell`, `state`. Opt-in: `router`, `query`, `runtime`, `persist`,
+  `devtools`, `form-garde`, `db` (+ `db-chrono`, `db-uuid`, `db-json`, `db-migrate`), fonts (`font-cairo`, `font-inter`,
+  `font-noto-sans-arabic`, group `fonts`). Each component is its own kebab-case feature.
+
 - New app: `cargo install rok-ui-cli`, then `cargo rok-ui new my-app --template full`
   (`minimal` | `full` | `db`); `cargo rok-ui add button` copies a component's source into
-  `src/components/ui/`.
-- Startup: `Application::new().with_assets(rok_ui::Assets).run(|cx| { rok_ui::init(cx); .. })`.
-  Wrap window content in `AppRoot::new()`.
-- `use rok_ui::prelude::*;` brings GPUI's prelude, every component, `Cx`, hooks and macros.
-
-## Conventions (every API follows these)
-
-- Hooks take the context first, then an options value: `use_query(cx, note_query(id))`,
-  `use_form(cx, sign_up_form())`, `use_mutation(cx, options)`, `use_procedure(cx, proc)`.
-- Options are builders with documented defaults, built by plain functions so loaders,
-  components and tests share them.
-- State is read through typed objects: `QueryResult::state() -> QueryState::{Pending, Error,
-  Success}`, `FieldApi::meta()`, `Form::state()`.
-- Builders take `mut self`, return `Self` and are `#[must_use]`. Controlled props use
-  `value`/`on_change`, `open`/`on_open_change`, `checked`, `selected_index`.
-- Every imperative API has a function form for code outside components: `router::navigate`,
-  `query::fetch_query`, `form.set_value`.
-- Background work (queries, mutations, procedures) runs on `rok_ui::runtime` (tokio) and reads
-  values registered with `query::provide(cx, value)` through `TaskCx::get::<T>()`.
+  `src/components/ui/`; `cargo rok-ui routes` writes a checked-in route tree.
 
 ## Components
 
-- `#[component] fn Name(prop: T, #[default] opt: U, #[default(px(32.))] size: Pixels,
-  #[children] children: Vec<AnyElement>, #[sx] sx: Sx, cx: &mut Cx) -> impl IntoElement`
-  generates `Name::new(prop).opt(..).size(..).child(..)` (`#[prop(optional)]` = `#[default]`).
-  Parameters named `window`/`cx` receive GPUI's `&mut Window`/`&mut App`, or `cx: &mut Cx`
-  (both in one handle; derefs to `App`, `cx.window` is the window).
-- Hooks: `use_state(window, cx, init)`, `cx.use_state(init)`, `use_keyed_state(key, ..)`,
-  `use_signal`, `use_tracked`, `use_input_state(key, window, cx, configure)`.
-- Styling: `styles! { NAME = { key: { prop: value, hover: {..} }, variant(Enum): {..} } }`,
-  `style! { .. }`, `.sx((&NAME.key, cond.then_some(&NAME.other), &sx))`. Theme tokens:
-  `primary`, `muted_foreground`, `border`, `ring`; lengths are 4px units (`gap: 6` = 24px).
-- Markup: `view! { Card(sx = ..) { CardTitle("Hi") if x { .. } for i in xs { .. } } }`,
-  `children![a, if c { b } else { d }, for x in xs => e(x)]`. `#[key(item.id)] for item in items`
-  keeps hook state with reordered items (`Keyed::new(&key, child)` by hand).
-- State: `#[derive(Store)] struct Todo { title: String }` gives `TodoStore` with a signal per
-  field (`todo.title()`, `set_title`, `update_title`, `get`, `set`). `persist::persisted_store(cx,
-  "settings", Settings::default)` saves a store as versioned JSON (feature `persist`).
+One file per component in `src/components/<name>.rs`, re-exported from `rok_ui::components`.
+
+- forms: button, calendar, checkbox, combobox, date-picker, field, input (+ Textarea),
+  input-group, input-otp, label, radio-group, select, slider, switch, toggle
+- overlays: alert-dialog, command, dialog, hover-card, menu, menubar, popover, sheet, toast,
+  tooltip
+- layout: accordion, aspect-ratio, breadcrumb, button-group, card, carousel, collapsible,
+  empty, item, layout-widgets, pagination, resizable, scroll-area, separator, sidebar, tabs
+- data: alert, avatar, badge, chart, data-table, keyboard-shortcut, progress, skeleton,
+  spinner, table, typography
+- chat: attachment, bubble, marker, message, message-scroller, questionnaire
+- shell: layout-widgets (Row, Column, Expanded, Stack, GridView, LayoutBuilder, ...),
+  navigation (NavigationBar, NavigationRail, NavigationDrawer), scaffold (Scaffold, AppBar,
+  AdaptiveScaffold)
+- shadcn/ui aliases: context-menu, dropdown-menu (menu), drawer (sheet), kbd
+  (keyboard-shortcut), native-select (select), navigation-menu (menubar), textarea (input),
+  toggle-group (toggle)
+
+API conventions every component follows:
+
+- `Name::new(required..)`; stateful components take an `id` first. Everything else is a
+  `#[must_use]` builder that documents its default: `Button::new("save").label("Save").outline().small()`.
+- Controlled by default (`value` + `on_change`, `open` + `on_open_change`); uncontrolled
+  variants use `default_value` / `default_open` and keep state by `id`.
+- Shared prop names: `checked`, `selected_index`, `open`, `disabled`, `invalid`, `size`,
+  `variant`.
+- Event handlers are `Fn(&Event, &mut Window, &mut App)` (`EventHandler<E>`).
+- Every visual component accepts `.sx(..)` and GPUI's `Styled` methods (`.w_full()`); the
+  caller's styles are applied last and win.
+
+## Writing components
+
+```rust
+#[component]
+pub fn Counter(
+    title: SharedString,                         // required prop -> Counter::new(title)
+    #[default] step: Option<i32>,                // optional prop -> .step(5)
+    #[default(px(32.))] size: Pixels,            // optional with a custom default
+    #[prop(optional)] on_change: Option<EventHandler<i32>>,
+    #[children] children: Vec<AnyElement>,       // makes it a ParentElement
+    #[sx] sx: Sx,                                // caller styles, apply last
+    window: &mut Window,
+    cx: &mut App,                                // or `cx: &mut Cx` instead of window + cx
+) -> impl IntoElement { /* ... */ }
+```
+
+- Hooks: `use_state(window, cx, || 0)` -> `State<T>` (`get`, `read`, `set`, `update`);
+  `use_keyed_state(key, ..)` inside loops. Rules of hooks apply (unconditional, same order).
+- `Cx` (`rok_ui::Cx`): one handle over window and app: `cx.use_state(..)`, `cx.get::<G>()`,
+  `cx.refresh()`.
+- Long-lived shared state lives in a GPUI `Entity<T>` with `cx.notify()`, or in signals
+  (`state` feature).
+
+## Styling
+
+- `styles! { pub CARD = { base: { display: flex, gap: 6, radius: xl, background: card,
+  hover: { border_color: ring } }, tone(Tone): { Calm: {..}, Loud: {..} } } }` declares a
+  static with one `Sx` per key; `CARD.tone(t)` picks a variant (a missing variant is a compile
+  error).
+- Apply once per element: `.sx((&CARD.base, cond.then_some(&CARD.extra), &self.sx))` or
+  `.sx(sx![CARD.base, cond => CARD.extra])`. A second `.sx(..)` with hover or focus states on
+  the same element panics (GPUI allows one of each).
+- `style! { width: {px(w)}, background: accent }` for one-off or computed values.
+- Values follow Tailwind: lengths are multiples of 4px (`gap: 6` = 24px), `50%`, `full`,
+  `auto`, `{expr}`; colors are theme tokens (`primary`, `muted_foreground`, `primary/90`);
+  radius `none|sm|md|lg|xl|full`; `text: xs..3xl`; `font: medium|semibold|bold`.
+- Unknown properties, tokens and keywords are compile errors (trybuild cases in `tests/ui/`).
+- Never hard-code colors: use theme tokens so every preset and mode works.
+
+## Markup
+
+- `children![a, if c { x } else { y }, for i in &items => Item::new(i.id), match s { .. }]`
+- `view! { Card(sx = [CARD.base]) { CardTitle("Hi") Button("go", label = "Go").outline() } }`:
+  `Name(a, key = v)` is `Name::new(a).key(v)`; lowercase `div`, `img`, `svg` are GPUI
+  elements; children support `"text"`, `{expr}`, `if`, `if let`, `match`, `for`.
+- `#[key(item.id)] for item in items { .. }` keeps hook state with reordered items
+  (`Keyed::new(&key, child)` by hand).
+- Strings in markup become `BidiText` automatically (correct RTL shaping on Windows). Strings
+  passed to GPUI's `.child(..)` directly need `BidiText::new(..)`.
+
+## Right-to-left
+
+- `display: flex` rows flow in reading direction. Use logical properties for anything that
+  mirrors (`padding_start`, `margin_end`, `border_start`, `inset_end`) and physical ones only
+  when it must not. `direction: row_ltr` / `flex_ltr()` for charts, codes and numbers.
+- Read `is_rtl()` while rendering and capture it; event handlers run outside the `Direction`
+  scope.
+
+## Theme
+
+- `cx.theme().colors.*` mirrors shadcn/ui variables in snake_case (`background`,
+  `primary_foreground`, `destructive_text`, `border`, `ring`); radius helpers
+  `radius_small()..radius_extra_large()`.
+- `Theme::toggle_mode(cx)`, `Theme::change_preset(ThemePreset::Neutral, cx)`,
+  `Theme::sync_with_system_appearance(window, cx)`, `Theme::from_preset(..)` +
+  `Theme::set_global(..)` for custom brands. Presets: `Rok` (default), `Neutral`. Every text
+  pair must reach 4.5:1 contrast (enforced by a test).
+
+## Motion
+
+`keyframes!`, `Motion` / `MotionExt` on elements, `use_transition`, `use_presence` for enter and
+exit animations, `motion::presets`, `Easing`.
+
+## State (`state` feature)
+
+rok-ui-hooks signals re-exported as `rok_ui::state`: `create_signal`, `create_memo`,
+`create_store`, `use_signal(window, cx, ..)` for a component's own signal, `cx.track(..)` /
+`use_tracked` to re-render when signals read change.
+
+- `#[derive(Store)] struct Todo { title: String }` generates `TodoStore` with a signal per
+  field (`todo.title()`, `set_title`, `update_title`, `get`, `set`).
+- `persist::persisted_store(cx, "settings", Settings::default)` saves a store as versioned
+  JSON in the config directory (feature `persist`; `PersistOptions` for migrations).
 - Devtools (feature `devtools`): add `devtools::Devtools::new()` to the root; Ctrl-Shift-D.
-- RTL: `set_text_direction(TextDirection::Rtl, cx)`, `Direction::new(..)`, logical props
-  (`padding_start`), `BidiText` for text.
 
-## Data: rok_ui::query (feature `query`)
-
-- `QueryOptions::new(query_key!["notes", id], |cx: TaskCx| async move { Ok::<_, E>(..) })`
-  `.stale_time(d) .gc_time(d) .retry(n) .enabled(b) .initial_data(v) .placeholder_data(v)
-  .keep_previous_data(true) .refetch_interval(d) .refetch_on_window_focus(true)`.
-- `query::use_query(cx, opts) -> QueryResult<T>` (`state()`, `data()`, `error()`,
-  `is_fetching()`, `is_stale()`); `use_suspense_query(cx, opts)?` inside
-  `Suspense::new(|cx| Ok(..)).fallback(..).error(|e, cx| ..)`; `ErrorBoundary::new(content, fallback)`.
-- Keys are hierarchical: `query::invalidate(cx, &query_key!["notes"])` invalidates every key
-  under `notes`. Also `fetch_query`, `ensure_query_data`, `prefetch_query`, `set_query_data`,
-  `update_query_data`, `get_query_data`, `cancel_queries`, `reset_queries`, `queries(cx)`.
-- Mutations: `use_mutation(cx, MutationOptions::new(|cx, input| async ..).invalidates(key)
-  .on_success(|out, input, cx| ..).optimistic(|input, cache| cache.update(&key, |v: &mut T| ..)))`;
-  `m.mutate(cx, input)`, `m.mutate_handler(input)`, `m.is_pending()`, `m.data()`, `m.error()`.
-- Procedures: `#[procedure(invalidates = [query_key!["notes"]])] async fn create_note(cx: TaskCx,
-  input: NewNote) -> Result<Note, NoteError> { .. }` then `use_procedure(cx, create_note)` or
-  `create_note.call(cx, input)`.
-- `#[memoize] async fn f(arg: A) -> T` shares one in-flight future per argument;
-  `query::memo::invalidate(prefix)`.
-- Database (feature `db`): `db::connect(url, cx)`, `db::db_query(key, |db| async ..)`,
-  `db::db_mutation(|db, input| async ..)`, `db::run(cx, |db| async ..)`.
-
-## Routing: rok_ui::router (feature `router`)
+## Router (`router` feature)
 
 - Code-based: `Router::new().route("/notes/:id", |route, window, cx| ..).redirect(from, to)
   .not_found(..).guard("/admin", |location, cx| Ok(()) or Err(RouteControl::redirect(path)))
@@ -96,7 +163,26 @@
   component: Page | layout: Layout, before_load: |loc, cx| .., loader: |route, cx| .. }`; in the
   file, `Route` is its generated type and `params(cx)` / `search(cx)` read it.
 
-## Forms: rok_ui::form (feature `form`)
+
+## Data (`query` feature)
+
+TanStack Query for GPUI, on the shared tokio runtime (`rok_ui::runtime::{get, spawn,
+block_on}`):
+
+- Keys: `query_key!["notes", id]` (hierarchical; invalidation matches by prefix).
+- `QueryOptions::new(key, |cx| async move { .. })` with `.stale_time`, `.gc_time`, `.retry`,
+  `.enabled`, `.initial_data`, `.placeholder_data`, `.keep_previous_data`,
+  `.refetch_interval`, `.refetch_on_window_focus`. Define options in a function and reuse them.
+- Read: `query::use_query(cx, options)` -> `.state()` is `QueryState::{Pending, Error,
+  Success}`; `use_suspense_query` inside `Suspense`; `ErrorBoundary` catches errors.
+- Cache: `invalidate(cx, &key)`, `fetch_query`, `prefetch_query`, `ensure_query_data`,
+  `set_query_data`, `update_query_data`, `cancel_queries`, `reset_queries`.
+- Writes: `MutationOptions::new(..).invalidates(key).optimistic(..).on_success(..)` with
+  `use_mutation`; `#[procedure(invalidates = [..])]` typed commands with `use_procedure` and
+  `.call(cx, input)`; `#[memoize]` shares one future between concurrent callers.
+- Background code reads app values through `query::provide(cx, value)` and `TaskCx::get`.
+
+## Forms (`form` feature)
 
 - `#[derive(FormValues)] struct SignUp { email: String, team: Vec<Invite> }` adds
   `SignUp::EMAIL: Field<SignUp, String>`; paths compose: `SignUp::TEAM.at(0).then(Invite::EMAIL)`.
@@ -112,11 +198,35 @@
 - Errors are kept per `ValidationEvent` (`Mount`, `Change`, `Blur`, `Submit`, `Server`).
   `GardeSchema` (feature `form-garde`) validates with `garde::Validate`.
 
-## Repository rules
+## Database (`db` feature)
 
-- Crates: `rok-ui`, `rok-ui-macros` (entry points), `rok-ui-grammar` (macro parsing and codegen,
-  tested in `rok-ui-grammar/tests`), `rok-ui-build` (route generator), `rok-ui-cli`.
-- No `mod.rs`; barrel files. Every doc example compiles (no `ignore`). Clippy pedantic + `missing_docs` must be clean
-  (`RUSTFLAGS="-D warnings" cargo clippy --workspace --all-targets --all-features`).
-- Tests describe behavior; UI tests use `#[gpui::test]`. Macro errors are trybuild cases.
-- Conventional Commits with scopes (`feat(router): ..`). See AGENTS.md and .agents/skills/.
+PostgreSQL through rok-db (a type-safe async ORM on sqlx), run on the shared runtime:
+
+- `db::connect(url, cx)` or `db::set_connection(Db, cx)` (build the `Db` with
+  `db::runtime().block_on(Db::builder()...connect(&url))` for pool and cache settings).
+- `db::db_query(query_key!["users"], |db| async move { User::query().all(&db).await })` ->
+  `QueryOptions`; `db::db_mutation(|db, input| async move { .. })` -> `MutationOptions`;
+  `db::run(cx, |db| async move { .. })` for one-off work; `db::invalidate("users", cx)`.
+- Models derive rok-db's `Model`; without a direct rok-db dependency add
+  `#[rok(crate = "rok_ui::db::rok_db")]`.
+- Futures passed in must be `Send + 'static`: clone the data they need, never capture UI
+  handles. Errors arrive as `DbError::{NotConnected, Failed, Cancelled}`.
+- Deprecated: `db::use_query` (removed in 0.8); use `query::use_query(cx, db::db_query(..))`.
+
+## Conventions
+
+- Lints: `[workspace.lints]` with clippy pedantic, `missing_docs`, `unsafe_code = "deny"`; CI
+  denies warnings. Fix, do not silence (an `#[allow]` needs a comment saying why).
+- No `mod.rs`: `foo.rs` next to `foo/`. In a file: struct, inherent impl, trait impls,
+  private helpers, `#[cfg(test)] mod tests`.
+- Every public item has a doc comment; builders are `#[must_use]` and document their default.
+- ASCII only in code and docs (test data and RTL examples excepted).
+- Tests check behavior; every component renders in every theme and RTL in
+  `tests/components.rs`; macro errors are trybuild cases in `tests/ui/`.
+- Conventional Commits with rok-ui scopes; release-plz builds `CHANGELOG.md` from them.
+
+## Docs
+
+- Guides: `docs/guide/{app-shells,state,router,query,forms,database}.md` (also the module
+  docs). Every doc example compiles (no `ignore` blocks). Upgrading: `docs/migration/0.6.md`.
+- Plan: `enhance.md`; progress: `roadmap.md`; changes: `CHANGELOG.md`.

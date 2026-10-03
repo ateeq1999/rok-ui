@@ -23,5 +23,5 @@ rok-ui = { path = "..", features = ["query"] }
 
 [dependencies]
 proc-macro2 = "1"
-rok-ui-grammar = { version = "0.5.0", path = "../rok-ui-grammar" }
+rok-ui-grammar = { version = "0.6.0", path = "../rok-ui-grammar" }
 syn = { version = "2", features = ["full"] }

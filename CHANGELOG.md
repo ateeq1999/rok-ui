@@ -11,6 +11,22 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ### Added
 
+- `llms.txt`, a digest of the API and conventions for coding agents, and `roadmap.md`, which
+  tracks progress against `enhance.md`.
+- Agent skills for the `db` feature (rok-db) and for code-quality review; the `route` skill now
+  describes the router as it is.
+- `cargo deny` in CI (`deny.toml`: allowed licenses and accepted advisories), `SUPPORT.md`,
+  `CODEOWNERS` and `.editorconfig`.
+
+### Fixed
+
+- `SECURITY.md` lists 0.6 as the supported version and mentions the `db` feature's network
+  access.
+
+## [0.6.0] - 2026-10-03
+
+### Added
+
 - **Data layer** (`query` feature, opt-in; enabled by `db`): `rok_ui::query` with
   `QueryOptions`, hierarchical `query_key!` keys, `use_query` / `use_suspense_query`, one
   cache per app with shared in-flight fetches, stale and gc times, retries, placeholder and
@@ -65,7 +81,7 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
   `examples/file_routes` is a complete app.
 - `db::db_query` and `db::db_mutation` build query and mutation options on the app's
   connection; `db::invalidate` also invalidates matching queries.
-- `AGENTS.md`, `llms.txt` and `.agents/skills` for coding agents.
+- `AGENTS.md` and `.agents/skills` for coding agents.
 
 ### Changed
 
@@ -226,7 +242,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - Light and dark themes with the Rok and Neutral presets.
 - Keyboard focus navigation and text inputs with IME, selection and clipboard support.
 
-[Unreleased]: https://github.com/ateeq1999/rok-ui/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/ateeq1999/rok-ui/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/ateeq1999/rok-ui/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/ateeq1999/rok-ui/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/ateeq1999/rok-ui/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/ateeq1999/rok-ui/compare/v0.3.0...v0.3.1

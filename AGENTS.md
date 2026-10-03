@@ -17,6 +17,8 @@ Start here:
 | Change or add a proc macro | `.agents/skills/macro/SKILL.md` |
 | Add or change a component | `.agents/skills/component/SKILL.md` |
 | Add routes or change the router | `.agents/skills/route/SKILL.md` |
+| Use rok-db or change the `db` feature | `.agents/skills/db/SKILL.md` |
+| Review a change for code quality | `.agents/skills/quality/SKILL.md` |
 | Cut a release | `.agents/skills/release/SKILL.md` |
 
 Ground rules:

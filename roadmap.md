@@ -11,9 +11,9 @@ Last updated: 2026-10-03.
 
 ## Summary
 
-The plan spreads the work over releases 0.6 to 1.0. All of it so far is on one branch and is
-additive: no 0.5 API was removed (one function is deprecated), so it can ship as a single 0.6
-or be split across releases as Part I proposes.
+The plan spreads the work over releases 0.6 to 1.0. 0.6.0 (released 2026-10-03) shipped the
+foundation and most of the data layer; the rest is additive: no 0.5 API was removed (one
+function is deprecated), so it can ship as one release or be split as Part I proposes.
 
 | Release (Part I) | Theme | Status |
 |---|---|---|
@@ -47,10 +47,10 @@ What exists now, by crate:
 | H.3 Docs as source of truth | Done | Guides in `docs/guide/` are module docs. All 126 former `ignore` examples compile (155 doctests in `rok-ui`, 7 in `rok-ui-macros`, none ignored). |
 | H.3 `llms.txt` | Done | Linked from README and AGENTS.md. |
 | H.3 docs.rs `--cfg docsrs` | Done | `doc_cfg` enabled; CI builds docs on nightly with `-D warnings`. |
-| H.4 CI | Done | Pedantic clippy job, `cargo hack --each-feature`, `cargo udeps`, nightly docs, PostgreSQL service for `tests/db.rs`, `--locked`, and a templates job (`scripts/check-templates.sh`). |
+| H.4 CI | Done | Pedantic clippy job, `cargo hack --each-feature`, `cargo udeps`, nightly docs, PostgreSQL service for `tests/db.rs`, `--locked`, a templates job (`scripts/check-templates.sh`), and `cargo deny` (`deny.toml`). |
 | H.4 Semantic PR titles | Done | `.github/workflows/semantic-pr.yml`. |
 | H.4 release-plz | Done | `release-plz.toml` (publish order: grammar, macros and build, rok-ui, cli), `cliff.toml`, `.github/workflows/release-plz.yml`. Needs the `CARGO_REGISTRY_TOKEN` secret. |
-| H.5 Agent setup | Done | `AGENTS.md`, `CLAUDE.md`, `.agents/skills/{check,commit,pr,prose,style,macro,component,route,release}`, `.claude -> .agents`. |
+| H.5 Agent setup | Done | `AGENTS.md`, `CLAUDE.md`, `.agents/skills/{check,commit,pr,prose,style,macro,component,route,db,quality,release}`, `.claude -> .agents`. |
 
 ## Part C: reactive state and data
 

@@ -13,6 +13,7 @@ By taking part you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 - **Features and new components:** open an issue first so we can agree on the API before you
   write it. For a shadcn/ui component, link its page on ui.shadcn.com.
 - **Security problems:** do not open a public issue. See [SECURITY.md](SECURITY.md).
+- **Questions:** see [SUPPORT.md](SUPPORT.md).
 
 ## Setting up
 
@@ -43,6 +44,7 @@ cargo fmt --all --check
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-targets --all-features
 cargo test --workspace --all-features
 scripts/check-features.sh            # every Cargo feature builds on its own
+cargo deny --all-features check      # licenses and known vulnerabilities (cargo install cargo-deny)
 ```
 
 Lint levels live in `[workspace.lints]` in `Cargo.toml`: clippy pedantic, `missing_docs` and
@@ -53,6 +55,10 @@ clearer choice, add a comment saying why.
 features you touched: `scripts/check-features.sh button dialog`. CI runs the same check with
 `cargo hack clippy --lib --each-feature --no-dev-deps -p rok-ui`, and also `cargo udeps` and the
 docs on nightly with `--cfg docsrs`.
+
+`deny.toml` lists the licenses allowed in the dependency tree and the advisories that are
+accepted, each with a reason. A new dependency with another license needs a maintainer's
+agreement before it is added to the list.
 
 A pull request should also:
 

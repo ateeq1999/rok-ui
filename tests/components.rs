@@ -47,7 +47,7 @@ fn component_macro_generates_a_builder_api() {
     let plain_greeting = Greeting::new("Grace");
     assert!(!plain_greeting.excited);
     assert!(plain_greeting.title.is_none());
-    assert!(plain_greeting.children.is_empty());
+    assert_eq!(plain_greeting.children.len(), 0);
 }
 
 #[gpui::test]
