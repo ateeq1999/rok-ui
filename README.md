@@ -17,6 +17,8 @@ developer experience.
   works like `useState`.
 - **Overridable styles.** Every visual component implements GPUI's `Styled`, so `.w_full().mt_4()`
   overrides its defaults the way `className` does.
+- **App plumbing.** Reactive state from rok-ui-hooks, a router with params and history, and
+  PostgreSQL through rok-db (`db` feature), all wired into GPUI.
 - **Flutter-style app shells and layouts.** `Scaffold`, `AppBar`, `NavigationBar`,
   `NavigationRail`, `NavigationDrawer` and an `AdaptiveScaffold` that follows the window
   width, plus `Row`, `Column`, `Expanded`, `Stack`, `GridView`, `LayoutBuilder` and friends.
@@ -59,6 +61,8 @@ rok-ui = { version = "0.4", default-features = false, features = ["button", "dia
   `textarea`, `kbd`, `native-select` and `toggle-group`.
 - **Groups:** `forms`, `overlays`, `layout`, `data`, `chat` and `shell` (Scaffold, navigation
   and layout widgets) each enable a whole group.
+- **App features:** `state` (rok-ui-hooks) and `router` are part of `full`; `db` (rok-db, sqlx
+  and tokio) is opt-in.
 - **Always included:** `AppRoot`, `Direction`, `BidiText`, the theme, icons, hooks, styling
   (`styles!`, `view!`) and motion, whatever features you pick.
 - **Fonts:** `font-cairo`, `font-noto-sans-arabic` and `font-inter` bundle Google Fonts (see
@@ -463,6 +467,92 @@ rather than Flutter's constraints. The one difference you will notice: a `Column
 `Column` fills the parent's height by default; give it `MainAxisSize::Min` or wrap it in
 `Expanded`.
 
+## State, routing and data
+
+Three features cover the app plumbing most desktop apps need. `state` and `router` are part of
+`full`. `db` is opt-in because it brings in sqlx and a tokio runtime.
+
+### Reactive state (`state`)
+
+[rok-ui-hooks](https://crates.io/crates/rok-ui-hooks) gives you fine-grained signals, memos,
+effects and stores. `rok_ui::state` re-exports the crate (as `rok_ui::state::signals`) and wires
+it into GPUI:
+
+```rust
+// Shared state: a store any part of the app can read and update.
+let cart = create_store(Vec::<Item>::new());
+
+// A view re-renders when signals or stores read inside `track` change.
+impl CartView {
+    fn new(cart: Store<Vec<Item>>, cx: &mut Context<Self>) -> Self {
+        let watched = cart.clone();
+        cx.track(move || watched.with(|_| ()));
+        Self { cart }
+    }
+}
+
+// A component-owned signal: changes re-render the window.
+#[component]
+fn Counter(window: &mut Window, cx: &mut App) -> impl IntoElement {
+    let (count, set_count) = use_signal(window, cx, || 0);
+    Button::new("increment")
+        .label(format!("Clicked {} times", count.get()))
+        .on_click(move |_, _, _| set_count.update(|count| *count += 1))
+}
+```
+
+`use_tracked(window, cx, || ..)` does the same for components that read shared signals.
+`rok_ui::init` runs rok-ui-hooks' `tick` on GPUI's executor, so `use_resource`, `spawn`,
+`use_debounced` and `use_throttled` work without a loop of your own.
+
+### Routing (`router`)
+
+```rust
+Router::new()
+    .route("/", |_, _, _| HomePage::new())
+    .route("/notes/:id", |route, _, _| NotePage::new(route.param_as::<usize>("id").unwrap_or(0)))
+    .route("/files/*path", |route, _, _| Files::new(route.param("path").unwrap_or_default()))
+    .redirect("/home", "/")
+    .not_found(|route, _, _| NotFound::new(route.path()))
+```
+
+- **Patterns:** `:name` captures one segment and `*name` captures the rest. The most specific
+  pattern wins, whatever the declaration order.
+- **Navigation:** `rok_ui::router::{navigate, replace, back, forward}`, or
+  `Link::new(id, "/notes/3")`. Alt+Left and Alt+Right go back and forward.
+- **Reading the location:** `router::location(cx)` (path and query), `router::is_active(path,
+  exact, cx)` for highlighting navigation, and `router::on_navigate` for listeners.
+
+`cargo run --example notes` puts the router, a store and `use_signal` together in an
+`AdaptiveScaffold`.
+
+### Database (`db`)
+
+[rok-db](https://github.com/ateeq1999/rok-db), a type-safe async ORM for PostgreSQL on sqlx,
+runs on a background tokio runtime, and its results come back to the UI thread:
+
+```rust
+use rok_ui::db::{self, rok_db::prelude::*};
+
+#[derive(Debug, Clone, Model)]
+#[rok(crate = "rok_ui::db::rok_db")]          // not needed when rok-db is a direct dependency
+struct User { #[rok(primary_key, generated)] id: i64, email: String }
+
+db::connect(std::env::var("DATABASE_URL")?, cx).detach();   // at startup
+
+// In a component: data, an error, or still loading. Cached until invalidated.
+let users = db::use_query("users", window, cx, |db| async move {
+    User::query().order_by(User::EMAIL.asc()).all(&db).await
+});
+
+// Writes: run, then refresh the queries that read the table.
+let insert = db::run(cx, move |db| async move { new_user.insert(&db).await });
+// …after `insert` succeeds: db::invalidate("users", cx);
+```
+
+Run `DATABASE_URL=postgres://… cargo run --example db_users --features db` for a working list
+with inserts and deletes.
+
 ## Components
 
 Every component in shadcn/ui's catalog has a rok-ui counterpart.
@@ -629,12 +719,15 @@ rok-ui/
 │   ├── sx.rs               Sx, the style values behind styles! and .sx(..)
 │   ├── bidi.rs             bidirectional text reordering and Arabic shaping
 │   ├── fonts.rs            bundled fonts and font registration
+│   ├── state.rs            rok-ui-hooks signals wired into GPUI
+│   ├── router.rs           Router, Link, navigation history
+│   ├── db.rs               rok-db on a background tokio runtime, use_query
 │   ├── motion.rs           Motion, keyframes, transitions, presence
 │   ├── hooks.rs            use_state, use_keyed_state, State, EventHandler
 │   ├── styles.rs           ApplyStyleOverrides, ComponentSize
 │   ├── icon.rs             Icon, IconName, Assets
 │   └── components/         one file per component, plus shared layers, overlays and direction
-├── examples/               counter, gallery, app_shell, arabic, arabic_chat
+├── examples/               counter, gallery, app_shell, notes, db_users, arabic, arabic_chat
 ├── tests/                  component renders, sx, motion, macro compile errors
 ├── scripts/                check-features.sh, fetch-google-font.sh
 └── docs/screenshots/

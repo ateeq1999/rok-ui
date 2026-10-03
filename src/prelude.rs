@@ -15,6 +15,13 @@ pub use crate::motion::{
     presets as motion, use_presence, use_transition, Easing, Frame, Keyframes, Motion,
     MotionDirection, MotionExt, MotionSide, Presence, Transition,
 };
+#[cfg(feature = "router")]
+pub use crate::router::{Link, Location, RouteMatch, Router};
+#[cfg(feature = "state")]
+pub use crate::state::{
+    create_memo, create_signal, create_store, use_signal, use_tracked, ReadSignal, Store,
+    TrackSignals, WriteSignal,
+};
 pub use crate::styles::{ApplyStyleOverrides, ComponentSize};
 pub use crate::sx;
 pub use crate::sx::{

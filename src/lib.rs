@@ -29,11 +29,17 @@ extern crate self as rok_ui;
 
 pub mod bidi;
 pub mod components;
+#[cfg(feature = "db")]
+pub mod db;
 pub mod fonts;
 pub mod hooks;
 pub mod icon;
 pub mod motion;
 pub mod prelude;
+#[cfg(feature = "router")]
+pub mod router;
+#[cfg(feature = "state")]
+pub mod state;
 pub mod styles;
 pub mod sx;
 pub mod theme;
@@ -100,4 +106,8 @@ pub fn init(cx: &mut gpui::App) {
     components::app_root::bind_focus_navigation_keys(cx);
     #[cfg(feature = "input")]
     components::input::bind_text_editing_keys(cx);
+    #[cfg(feature = "router")]
+    router::init(cx);
+    #[cfg(feature = "state")]
+    state::init(cx);
 }
