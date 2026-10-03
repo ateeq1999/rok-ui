@@ -112,14 +112,17 @@ fn fuzzy_match(text: &str, query: &str) -> bool {
 }
 
 #[derive(Clone)]
-pub(crate) struct CommandGroup {
+#[doc(hidden)]
+pub struct CommandGroup {
     heading: Option<SharedString>,
     items: Vec<CommandItem>,
 }
 
 impl CommandGroup {
     #[cfg_attr(not(feature = "full"), allow(dead_code))]
-    pub(crate) fn without_heading(items: Vec<CommandItem>) -> Self {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn without_heading(items: Vec<CommandItem>) -> Self {
         Self {
             heading: None,
             items,
@@ -195,7 +198,8 @@ styles! {
 
 /// Render the search field and the filtered list. `after_select` runs after an
 /// item's own handler (Combobox uses it to close its popover).
-pub(crate) fn render_command(
+#[doc(hidden)]
+pub fn render_command(
     id: &ElementId,
     search: &Entity<InputState>,
     groups: &[CommandGroup],

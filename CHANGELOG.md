@@ -38,6 +38,11 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - **Stores:** `#[derive(Store)]` generates a store with one signal per field; the `persist`
   feature saves stores as versioned JSON in the config directory (`persisted_store`,
   `PersistOptions` with migrations).
+- **`cargo rok-ui`** (the new `rok-ui-cli` crate): `new` creates an app from the `minimal`,
+  `full` (file-based routes, features, queries, a test) or `db` template; `add` copies
+  components' source into the app with paths rewritten and lists crates the copies need;
+  `routes` writes a checked-in route tree. CI builds every template. Component helpers the
+  copies use are now `#[doc(hidden)] pub`.
 - **Devtools** (`devtools` feature): `Devtools`, an overlay toggled with Ctrl-Shift-D that
   shows the router history and every cached query with its status and age;
   `router::history_entries`.

@@ -31,7 +31,8 @@ actions!(
     ]
 );
 
-pub(crate) fn bind_focus_navigation_keys(cx: &mut App) {
+#[doc(hidden)]
+pub fn bind_focus_navigation_keys(cx: &mut App) {
     cx.bind_keys([
         KeyBinding::new("tab", FocusNextElement, None),
         KeyBinding::new("shift-tab", FocusPreviousElement, None),

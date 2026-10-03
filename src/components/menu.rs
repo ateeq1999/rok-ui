@@ -125,7 +125,9 @@ impl MenuItem {
     }
 
     #[cfg_attr(not(feature = "full"), allow(dead_code))]
-    pub(crate) fn select_option(mut self, selected: bool) -> Self {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn select_option(mut self, selected: bool) -> Self {
         self.kind = MenuItemKind::SelectOption(selected);
         self
     }
@@ -209,7 +211,8 @@ impl Menu {
 }
 
 /// Closes the whole menu (all submenus included).
-pub(crate) type CloseMenu = Rc<dyn Fn(&mut Window, &mut App)>;
+#[doc(hidden)]
+pub type CloseMenu = Rc<dyn Fn(&mut Window, &mut App)>;
 
 fn choose(item: &MenuItem, close_menu: &CloseMenu, window: &mut Window, cx: &mut App) {
     if let Some(handler) = item.on_select.as_ref() {
@@ -260,7 +263,8 @@ styles! {
 
 /// Render `menu` as a panel. `id` keys the highlighted row. Keyboard handling is
 /// attached when `keyboard` is true (the panel must hold focus for it to work).
-pub(crate) fn render_menu_panel(
+#[doc(hidden)]
+pub fn render_menu_panel(
     id: ElementId,
     menu: Menu,
     close_menu: CloseMenu,
@@ -466,7 +470,9 @@ impl WithIndex for ElementId {
     }
 }
 
-pub(crate) fn close_handler(open_state: &OpenState) -> CloseMenu {
+#[doc(hidden)]
+#[must_use]
+pub fn close_handler(open_state: &OpenState) -> CloseMenu {
     let open_state = open_state.clone();
     Rc::new(move |window, cx| open_state.set_open(false, window, cx))
 }

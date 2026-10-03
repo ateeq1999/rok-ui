@@ -4968,6 +4968,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "rok-ui-cli"
+version = "0.5.0"
+dependencies = [
+ "rok-ui-build",
+ "serde_json",
+]
+
+[[package]]
 name = "rok-ui-example-file-routes"
 version = "0.0.0"
 dependencies = [

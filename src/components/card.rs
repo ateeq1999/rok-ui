@@ -25,7 +25,7 @@ use crate::{
 };
 
 styles! {
-    pub(crate) CARD = {
+    pub CARD = {
         root: {
             display: flex,
             direction: column,

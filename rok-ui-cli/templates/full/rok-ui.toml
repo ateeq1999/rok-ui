@@ -1,0 +1,3 @@
+# Settings for `cargo rok-ui`.
+components = "src/components/ui"
+routes = "src/routes"

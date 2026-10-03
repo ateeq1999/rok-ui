@@ -51,12 +51,15 @@ pub enum Align {
 }
 
 /// `ElementId` for a named part of a component, derived from the component's id.
-pub(crate) fn child_id(parent: &ElementId, part: &'static str) -> ElementId {
+#[doc(hidden)]
+#[must_use]
+pub fn child_id(parent: &ElementId, part: &'static str) -> ElementId {
     ElementId::NamedChild(Box::new(parent.clone()), part.into())
 }
 
 /// Per-instance bookkeeping that survives between frames.
-pub(crate) struct OverlayMemory {
+#[doc(hidden)]
+pub struct OverlayMemory {
     pub open: bool,
     /// Set when the surface opens, so focus moves into it on the next render only.
     pub focus_requested: Rc<Cell<bool>>,
@@ -70,7 +73,8 @@ pub(crate) struct OverlayMemory {
 
 /// Open/closed state for one floating surface. Cheap to clone into handlers.
 #[derive(Clone)]
-pub(crate) struct OpenState {
+#[doc(hidden)]
+pub struct OpenState {
     memory: State<OverlayMemory>,
     controlled_open: Option<bool>,
     on_open_change: Option<EventHandler<bool>>,
@@ -112,7 +116,8 @@ impl OpenState {
 }
 
 /// Open state for the component with `id`. Pass `controlled_open` to control it.
-pub(crate) fn use_open_state(
+#[doc(hidden)]
+pub fn use_open_state(
     id: &ElementId,
     controlled_open: Option<bool>,
     on_open_change: Option<EventHandler<bool>>,
@@ -156,7 +161,8 @@ fn next_open_order() -> u64 {
 /// Position `content` against the edge of the element this is a child of. The
 /// parent must be `relative()`. The content draws above everything else and is
 /// shifted back inside the window when it would overflow.
-pub(crate) fn floating(side: Side, align: Align, content: impl IntoElement, cx: &mut App) -> Div {
+#[doc(hidden)]
+pub fn floating(side: Side, align: Align, content: impl IntoElement, cx: &mut App) -> Div {
     // Sides and alignment are logical: in RTL, start is the right edge and a
     // surface opening "right" (a submenu) opens left.
     let (side, align) = if super::direction::is_rtl() {
@@ -230,12 +236,15 @@ styles! {
 
 /// The panel style shared by popovers, menus and hover cards (`bg-popover`,
 /// border, `rounded-md`, `shadow-md`).
-pub(crate) fn popover_surface() -> Div {
+#[doc(hidden)]
+#[must_use]
+pub fn popover_surface() -> Div {
     div().sx(&OVERLAY.surface)
 }
 
 /// Records the width of the element it is placed in (absolutely, full size) into `width`.
-pub(crate) fn measure_width(width: Rc<Cell<Pixels>>) -> impl IntoElement {
+#[doc(hidden)]
+pub fn measure_width(width: Rc<Cell<Pixels>>) -> impl IntoElement {
     gpui::canvas(
         move |bounds, _, _| width.set(bounds.size.width),
         |_, (), _, _| {},
@@ -250,7 +259,8 @@ pub(crate) fn measure_width(width: Rc<Cell<Pixels>>) -> impl IntoElement {
 /// Toggling on mouse down with the open value captured at render time means a
 /// click on the trigger while open closes the surface instead of reopening it
 /// (the surface's own click-outside handler has already run by then).
-pub(crate) fn trigger_wrapper(
+#[doc(hidden)]
+pub fn trigger_wrapper(
     id: ElementId,
     open_state: &OpenState,
     disabled: bool,
@@ -279,12 +289,8 @@ pub(crate) fn trigger_wrapper(
 
 /// Make `panel` behave like an open floating surface: it takes focus when it
 /// opens, and closes on Escape or on a mouse press outside it.
-pub(crate) fn dismissable(
-    panel: Div,
-    open_state: &OpenState,
-    window: &mut Window,
-    cx: &mut App,
-) -> Div {
+#[doc(hidden)]
+pub fn dismissable(panel: Div, open_state: &OpenState, window: &mut Window, cx: &mut App) -> Div {
     open_state.focus_if_requested(window, cx);
     let focus_handle = open_state.focus_handle(cx);
     let escape_state = open_state.clone();
@@ -335,7 +341,9 @@ pub(crate) fn dismissable(
 }
 
 /// Floating surfaces fade in while sliding 4px away from their trigger.
-pub(crate) fn enter_motion(side: Side) -> Motion {
+#[doc(hidden)]
+#[must_use]
+pub fn enter_motion(side: Side) -> Motion {
     let from = match side {
         Side::Bottom => MotionSide::Top,
         Side::Top => MotionSide::Bottom,

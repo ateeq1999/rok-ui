@@ -76,6 +76,16 @@ On Linux, GPUI needs the X11/Wayland development packages. On Debian/Ubuntu:
 sudo apt install libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libvulkan1
 ```
 
+### Starting a new app
+
+`cargo install rok-ui-cli` adds `cargo rok-ui`:
+
+```sh
+cargo rok-ui new my-app --template full   # minimal | full (file routes, queries) | db (plus PostgreSQL)
+cargo rok-ui add button dialog            # copy components' source into src/components/ui/ to change them
+cargo rok-ui routes                       # write src/route_tree.rs from src/routes/ (checked-in route trees)
+```
+
 ## Quick start
 
 ```rust
@@ -726,7 +736,9 @@ Application::new().with_assets(rok_ui::Assets::with_fallback(MyAssets))
 ```text
 rok-ui/
 ├── Cargo.toml              workspace, the rok-ui crate and its feature list
-├── macros/                 rok-ui-macros: #[component], styles!, style!, keyframes!, children!, view!
+├── macros/                 rok-ui-macros: #[component], styles!, view!, #[procedure], derives
+├── rok-ui-build/           rok-ui-build: the file-based route generator for build.rs
+├── rok-ui-cli/             cargo rok-ui: new (templates), add (vendor components), routes
 ├── assets/icons/           built-in SVG icons (embedded at compile time)
 ├── assets/fonts/           bundled Google Fonts (Cairo, Noto Sans Arabic, Inter) and licenses
 ├── src/
@@ -745,9 +757,10 @@ rok-ui/
 │   ├── icon.rs             Icon, IconName, Assets
 │   ├── runtime.rs          the shared tokio runtime for background work
 │   └── components.rs       the component list; components/ holds one file per component
-├── examples/               counter, gallery, app_shell, notes, db_users, arabic, arabic_chat
+├── examples/               counter, gallery, app_shell, notes, db_users, sign_up, arabic, arabic_chat,
+│                           and file_routes/ (a crate with file-based routes)
 ├── tests/                  component renders, sx, motion, macro compile errors
-├── scripts/                check-features.sh, fetch-google-font.sh
+├── scripts/                check-features.sh, check-templates.sh, fetch-google-font.sh
 └── docs/screenshots/
 ```
 

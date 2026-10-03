@@ -60,7 +60,8 @@ fn take_portals(cx: &mut App) -> Vec<Portal> {
 
 /// Put `content` on the top layer with one corner at `position` (window
 /// coordinates), kept `margin` inside the window. Used by context menus and modals.
-pub(crate) fn layer_at(
+#[doc(hidden)]
+pub fn layer_at(
     position: Point<Pixels>,
     corner: Corner,
     margin: Pixels,
@@ -82,11 +83,8 @@ pub(crate) fn layer_at(
 
 /// Put `content` on the top layer with `corner` at this element's position
 /// (the caller places it in a zero-size marker next to the trigger).
-pub(crate) fn layer_at_marker(
-    corner: Corner,
-    content: impl IntoElement,
-    _cx: &mut App,
-) -> AnyElement {
+#[doc(hidden)]
+pub fn layer_at_marker(corner: Corner, content: impl IntoElement, _cx: &mut App) -> AnyElement {
     LayerSlot {
         anchor: SlotAnchor::Here,
         corner,
@@ -219,7 +217,9 @@ impl Element for LayerSlot {
 
 /// Origin for a box of `content_size` whose `corner` sits at `anchor`, moved
 /// back inside `viewport` (keeping `margin` from its edges) when it would overflow.
-pub(crate) fn place_in_viewport(
+#[doc(hidden)]
+#[must_use]
+pub fn place_in_viewport(
     anchor: Point<Pixels>,
     corner: Corner,
     content_size: gpui::Size<Pixels>,
@@ -248,7 +248,8 @@ pub(crate) fn place_in_viewport(
 
 /// The outermost top-layer element: lays out and paints the portals created
 /// inside its content, after (so above) that content.
-pub(crate) struct LayerRoot {
+#[doc(hidden)]
+pub struct LayerRoot {
     content: AnyElement,
     /// Portals created while the content was laid out, waiting for prepaint.
     pending: Vec<Portal>,

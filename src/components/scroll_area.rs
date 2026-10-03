@@ -54,7 +54,9 @@ struct ScrollMemory {
 
 /// Thumb length and offset along a track of `track_length`, for a viewport of
 /// `viewport_length` scrolled `scrolled` into content longer by `max_scroll`.
-pub(crate) fn thumb_geometry(
+#[doc(hidden)]
+#[must_use]
+pub fn thumb_geometry(
     track_length: Pixels,
     viewport_length: Pixels,
     max_scroll: Pixels,

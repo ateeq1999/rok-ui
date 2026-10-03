@@ -835,7 +835,8 @@ thread_local! {
 /// the drawer when a destination is picked. Components render while their parent
 /// lays out, so the closer is set during layout.
 #[cfg_attr(not(feature = "scaffold"), allow(dead_code))]
-pub(crate) struct DrawerScope {
+#[doc(hidden)]
+pub struct DrawerScope {
     pub closer: Callback,
     pub child: AnyElement,
 }

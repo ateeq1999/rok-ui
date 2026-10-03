@@ -68,14 +68,16 @@ pub mod input;
 pub mod input_group;
 #[cfg(feature = "input-otp")]
 pub mod input_otp;
-pub(crate) mod interaction;
+#[doc(hidden)]
+pub mod interaction;
 #[cfg(feature = "item")]
 pub mod item;
 #[cfg(feature = "keyboard-shortcut")]
 pub mod keyboard_shortcut;
 #[cfg(feature = "label")]
 pub mod label;
-pub(crate) mod layer;
+#[doc(hidden)]
+pub mod layer;
 #[cfg(feature = "layout-widgets")]
 pub mod layout_widgets;
 #[cfg(feature = "marker")]
@@ -90,7 +92,8 @@ pub mod message;
 pub mod message_scroller;
 #[cfg(feature = "navigation")]
 pub mod navigation;
-pub(crate) mod overlay;
+#[doc(hidden)]
+pub mod overlay;
 #[cfg(feature = "pagination")]
 pub mod pagination;
 #[cfg(feature = "popover")]
@@ -287,7 +290,9 @@ use gpui::{point, px, BoxShadow, Hsla};
 /// shadcn/ui's focus ring (`ring-[3px] ring-ring/50`), drawn as a spread shadow.
 /// GPUI skips shadows with zero blur, so a 1px blur plus 2px spread gives the 3px ring.
 #[cfg_attr(not(feature = "full"), allow(dead_code))]
-pub(crate) fn focus_ring_shadow(ring_color: Hsla) -> Vec<BoxShadow> {
+#[doc(hidden)]
+#[must_use]
+pub fn focus_ring_shadow(ring_color: Hsla) -> Vec<BoxShadow> {
     vec![BoxShadow {
         color: ring_color.opacity(0.5),
         offset: point(px(0.), px(0.)),
@@ -298,7 +303,9 @@ pub(crate) fn focus_ring_shadow(ring_color: Hsla) -> Vec<BoxShadow> {
 
 /// shadcn/ui's `shadow-xs`, used on outlined controls.
 #[cfg_attr(not(feature = "full"), allow(dead_code))]
-pub(crate) fn extra_small_shadow() -> Vec<BoxShadow> {
+#[doc(hidden)]
+#[must_use]
+pub fn extra_small_shadow() -> Vec<BoxShadow> {
     vec![BoxShadow {
         color: gpui::black().opacity(0.05),
         offset: point(px(0.), px(1.)),
@@ -312,7 +319,9 @@ pub(crate) fn extra_small_shadow() -> Vec<BoxShadow> {
 /// element, so it is drawn as a 3px outline just outside the 1px border.
 /// Add it as a child of a `relative()` control whose corner radius is `radius`.
 #[cfg_attr(not(feature = "full"), allow(dead_code))]
-pub(crate) fn focus_ring_outline(ring_color: Hsla, radius: gpui::Pixels) -> gpui::Div {
+#[doc(hidden)]
+#[must_use]
+pub fn focus_ring_outline(ring_color: Hsla, radius: gpui::Pixels) -> gpui::Div {
     use gpui::Styled;
     let width = px(3.);
     let offset = -(width + px(1.));

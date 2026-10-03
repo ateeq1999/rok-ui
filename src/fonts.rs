@@ -95,7 +95,8 @@ fn record_presentation_coverage(font: &[u8]) {
 /// registered through this module are known; installed fonts are looked up once
 /// on Windows, the only platform that draws these forms. Unknown families are
 /// assumed to have every form.
-pub(crate) fn lacks_presentation_form(family: &str, form: char) -> bool {
+#[doc(hidden)]
+pub fn lacks_presentation_form(family: &str, form: char) -> bool {
     let mut gaps = presentation_gaps()
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -285,7 +286,8 @@ pub const NOTO_SANS_ARABIC: FontFamily = FontFamily::new(
 
 /// Record that `family` lacks `forms`, as if a font missing them had been registered.
 #[cfg(test)]
-pub(crate) fn mark_missing_presentation_forms(family: &str, forms: impl IntoIterator<Item = char>) {
+#[doc(hidden)]
+pub fn mark_missing_presentation_forms(family: &str, forms: impl IntoIterator<Item = char>) {
     presentation_gaps()
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)

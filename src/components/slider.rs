@@ -141,7 +141,9 @@ impl Slider {
 }
 
 /// Snap `value` to the step grid and clamp it to `min..=max`.
-pub(crate) fn snap(value: f32, min: f32, max: f32, step: f32) -> f32 {
+#[doc(hidden)]
+#[must_use]
+pub fn snap(value: f32, min: f32, max: f32, step: f32) -> f32 {
     let snapped = if step > 0. {
         min + ((value - min) / step).round() * step
     } else {

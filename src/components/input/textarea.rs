@@ -79,7 +79,9 @@ impl Textarea {
 
     /// For fields embedded in a larger control that draws its own ring.
     #[cfg_attr(not(feature = "full"), allow(dead_code))]
-    pub(crate) fn without_focus_ring(mut self) -> Self {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn without_focus_ring(mut self) -> Self {
         self.focus_ring = false;
         self
     }

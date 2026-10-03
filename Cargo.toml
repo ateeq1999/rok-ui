@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "macros", "rok-ui-build", "examples/file_routes"]
+members = [".", "macros", "rok-ui-build", "rok-ui-cli", "examples/file_routes"]
 resolver = "2"
 
 [workspace.lints.rust]

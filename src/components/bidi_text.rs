@@ -57,7 +57,8 @@ impl RenderOnce for BidiText {
 /// Text for the label slot of a component: a [`BidiText`] when it needs
 /// reordering, the plain string otherwise.
 #[cfg_attr(not(feature = "full"), allow(dead_code))]
-pub(crate) fn text(text: impl Into<SharedString>) -> AnyElement {
+#[doc(hidden)]
+pub fn text(text: impl Into<SharedString>) -> AnyElement {
     BidiText::new(text).into_any_element()
 }
 

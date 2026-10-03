@@ -453,7 +453,8 @@ fn forms(letter: char) -> Option<Forms> {
 
 /// Every presentation-form character [`visual_line`] can emit, to check a font's
 /// coverage against.
-pub(crate) fn presentation_forms() -> Vec<char> {
+#[doc(hidden)]
+pub fn presentation_forms() -> Vec<char> {
     let letters = "آأؤإئابةتثجحخدذرزسشصضطظعغفقكلمنهوىيپچژکگی";
     let mut characters: Vec<char> = letters
         .chars()
