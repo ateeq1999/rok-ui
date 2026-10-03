@@ -21,6 +21,15 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
   invalidation and optimistic updates that roll back on failure; `#[procedure]` typed commands
   with `use_procedure` and `.call(cx, input)`; `query::provide` and `TaskCx` for values that
   background work reads.
+- **Forms** (`form` feature, in the `forms` group and `full`): `rok_ui::form`, a headless
+  form library modeled on TanStack Form. `#[derive(FormValues)]` adds typed field constants;
+  `use_form` with `FormOptions`; field validators per event (`on_mount`, `on_change`,
+  `on_blur`, `on_submit`) with errors kept per event, debounced async validators,
+  `listen_to` for linked fields; form validators and schemas (`GardeSchema` behind
+  `form-garde`); nested paths and list fields whose operations keep each row's state; submit
+  with server errors mapped onto fields and focus on the first invalid field; bound
+  `TextField`, `BoundInput`, `CheckboxField`, `SwitchField`, `SubmitButton` and `FormErrors`.
+  `examples/sign_up.rs` puts it together.
 - **`Suspense` and `ErrorBoundary`**, and `#[memoize]` for async helpers whose concurrent
   callers share one future.
 - **`Cx`**: one context handle (window and app). `#[component]` functions can take

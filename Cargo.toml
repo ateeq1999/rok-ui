@@ -67,6 +67,7 @@ rok-ui-hooks = { version = "0.3", optional = true }
 rok-db = { version = "0.1", optional = true }
 tokio = { version = "1", features = ["rt-multi-thread", "time"], optional = true }
 futures = { version = "0.3", optional = true }
+garde = { version = "0.23", optional = true }
 
 # Reads which Arabic letter forms installed fonts have (the same crate GPUI uses).
 [target.'cfg(windows)'.dependencies]
@@ -88,7 +89,7 @@ full = ["forms", "overlays", "layout", "data", "chat", "shell", "state"]
 
 # Groups.
 forms = [
-    "button", "calendar", "checkbox", "combobox", "date-picker", "field", "input",
+    "form", "button", "calendar", "checkbox", "combobox", "date-picker", "field", "input",
     "input-group", "input-otp", "label", "radio-group", "select", "slider", "switch", "toggle",
 ]
 overlays = [
@@ -118,6 +119,10 @@ font-noto-sans-arabic = []
 state = ["dep:rok-ui-hooks"]
 # Queries, mutations, procedures, Suspense (`rok_ui::query`), on the shared runtime.
 query = ["runtime", "dep:futures"]
+# Headless, type-safe forms (`rok_ui::form`) with bound fields. Part of the `forms` group.
+form = ["button", "checkbox", "field", "input", "spinner", "switch"]
+# Form validation with garde: `FormValidators::schema(GardeSchema)`.
+form-garde = ["form", "dep:garde"]
 # The shared tokio runtime for background work (`rok_ui::runtime`).
 runtime = ["dep:tokio"]
 # Routes with params, back / forward history and links (not part of `full`).
@@ -231,6 +236,10 @@ name = "notes"
 required-features = ["full", "router"]
 
 [[example]]
+name = "sign_up"
+required-features = ["full"]
+
+[[example]]
 name = "db_users"
 required-features = ["full", "db"]
 
@@ -255,9 +264,14 @@ name = "router"
 required-features = ["full", "router"]
 
 [[test]]
+name = "form"
+required-features = ["full"]
+
+[[test]]
 name = "compile_errors"
 
 [dev-dependencies]
 gpui = { version = "0.2.2", features = ["test-support"] }
 env_logger = "0.11"
 trybuild = "1"
+garde = { version = "0.23", features = ["derive"] }

@@ -448,6 +448,7 @@ fn single_generic_argument<'a>(property_type: &'a Type, wrapper_name: &str) -> O
 
 mod children;
 mod file_route;
+mod form_values;
 mod procedure;
 mod search;
 mod styles;
@@ -461,6 +462,16 @@ mod styles;
 #[proc_macro]
 pub fn file_route(input: TokenStream) -> TokenStream {
     match file_route::expand_file_route(input.into()) {
+        Ok(tokens) => tokens.into(),
+        Err(error) => error.to_compile_error().into(),
+    }
+}
+
+/// Implement `rok_ui::form::FormValues` and add a typed field constant per struct field:
+/// `email: String` becomes `pub const EMAIL: Field<Self, String>`.
+#[proc_macro_derive(FormValues)]
+pub fn derive_form_values(input: TokenStream) -> TokenStream {
+    match form_values::expand_form_values(input.into()) {
         Ok(tokens) => tokens.into(),
         Err(error) => error.to_compile_error().into(),
     }

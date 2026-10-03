@@ -35,6 +35,8 @@ pub mod cx;
 #[cfg(feature = "db")]
 pub mod db;
 pub mod fonts;
+#[cfg(feature = "form")]
+pub mod form;
 pub mod hooks;
 pub mod icon;
 pub mod motion;
