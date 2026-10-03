@@ -939,6 +939,10 @@ fn state_calls(entries: &[Entry]) -> syn::Result<TokenStream> {
 }
 
 /// `style! { ... }`: one `Sx` value.
+///
+/// # Errors
+///
+/// Fails with a spanned error when the input does not parse or is invalid.
 pub fn expand_style(input: TokenStream) -> syn::Result<TokenStream> {
     let declarations: Declarations = syn::parse2(input)?;
     sx_expression(&declarations.0)
@@ -946,6 +950,10 @@ pub fn expand_style(input: TokenStream) -> syn::Result<TokenStream> {
 
 /// `styles! { ... }`: a static per object, with a field per key and a lookup
 /// method per variant table.
+///
+/// # Errors
+///
+/// Fails with a spanned error when the input does not parse or is invalid.
 pub fn expand_styles(input: TokenStream) -> syn::Result<TokenStream> {
     let StylesInput(objects) = syn::parse2(input)?;
     let sx = sx();
@@ -1141,6 +1149,11 @@ fn frame_call(name: &Ident, value: &TokenStream) -> syn::Result<TokenStream> {
     })
 }
 
+/// Expand `keyframes! { .. }`: a static `Keyframes` per object.
+///
+/// # Errors
+///
+/// Fails with a spanned error when the input does not parse or is invalid.
 pub fn expand_keyframes(input: TokenStream) -> syn::Result<TokenStream> {
     let KeyframesInput(objects) = syn::parse2(input)?;
     let mut output = TokenStream::new();

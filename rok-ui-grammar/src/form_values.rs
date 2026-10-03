@@ -4,6 +4,11 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{spanned::Spanned, Data, DeriveInput, Fields};
 
+/// Expand `#[derive(FormValues)]`: a typed field constant per field and the `FormValues` impl.
+///
+/// # Errors
+///
+/// Fails with a spanned error when the input does not parse or is invalid.
 pub fn expand_form_values(input: TokenStream) -> syn::Result<TokenStream> {
     let input: DeriveInput = syn::parse2(input)?;
     let name = &input.ident;
@@ -26,18 +31,20 @@ pub fn expand_form_values(input: TokenStream) -> syn::Result<TokenStream> {
         ));
     }
     let constants = fields.named.iter().map(|field| {
-        let ident = field.ident.as_ref().expect("named field");
+        let Some(ident) = field.ident.as_ref() else {
+            return Err(syn::Error::new(field.span(), "expected a named field"));
+        };
         let text = ident.to_string();
         let constant = format_ident!("{}", text.trim_start_matches("r#").to_uppercase(), span = ident.span());
         let ty = &field.ty;
         let vis = &field.vis;
         let doc = format!("The `{text}` field.");
-        quote! {
+        Ok(quote! {
             #[doc = #doc]
             #vis const #constant: ::rok_ui::form::Field<Self, #ty> =
                 ::rok_ui::form::Field::new(#text, |values| &values.#ident, |values| &mut values.#ident);
-        }
-    });
+        })
+    }).collect::<syn::Result<Vec<_>>>()?;
     Ok(quote! {
         impl #name {
             #(#constants)*

@@ -5,9 +5,10 @@ description: Rules for rok-ui proc macros (grammar and expansion split).
 
 # Macros
 
-rok-ui's macros live in `macros/` (`rok-ui-macros`). Target architecture (enhance.md H.2): a
-`rok-ui-grammar` crate with the syntax trees and code generation, and `rok-ui-macros` with
-entry points only.
+Parsing and code generation live in `rok-ui-grammar/` (a normal library, one module per
+macro, tested in `rok-ui-grammar/tests/expansions.rs`). `macros/` (`rok-ui-macros`) only has
+the `#[proc_macro*]` entry points, which forward tokens to `rok_ui_grammar::<module>::expand*`
+and turn errors into `compile_error!` (enhance.md H.2).
 
 Rules for new and changed macros:
 
@@ -20,5 +21,6 @@ Rules for new and changed macros:
 4. Entry points parse, call the expansion, and turn `syn::Error` into `to_compile_error()`.
 5. Generated public items carry docs (CI runs with `missing_docs`) and generated builders carry
    `#[must_use]`.
-6. Tests: an expansion test per form, a trybuild failure case in `tests/ui/` for each error
-   message, and a doctest in the macro's docs.
+6. Tests: an expansion test per form in `rok-ui-grammar/tests/expansions.rs` (it parses the
+   output as Rust), a trybuild failure case in `tests/ui/` for each error the user sees, and a
+   doctest in the macro's docs.

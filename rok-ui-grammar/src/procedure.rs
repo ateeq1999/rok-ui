@@ -79,6 +79,11 @@ fn result_types(output: &ReturnType) -> syn::Result<(Type, Type)> {
     }
 }
 
+/// Expand `#[procedure(invalidates = [..])]` on an `async fn`: a unit struct implementing `Procedure`.
+///
+/// # Errors
+///
+/// Fails with a spanned error when the input does not parse or is invalid.
 pub fn expand_procedure(arguments: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
     let ProcedureArguments { invalidates } = syn::parse2(arguments)?;
     let function: ItemFn = syn::parse2(item)?;
@@ -170,6 +175,11 @@ pub fn expand_procedure(arguments: TokenStream, item: TokenStream) -> syn::Resul
     })
 }
 
+/// Expand `#[memoize]` on an `async fn`: the same function, returning a shared, cached future.
+///
+/// # Errors
+///
+/// Fails with a spanned error when the input does not parse or is invalid.
 pub fn expand_memoize(arguments: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
     if !arguments.is_empty() {
         return Err(syn::Error::new(

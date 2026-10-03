@@ -4,6 +4,11 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{spanned::Spanned, Data, DeriveInput, Fields};
 
+/// Expand `#[derive(Store)]`: a `NameStore` with one signal per field.
+///
+/// # Errors
+///
+/// Fails with a spanned error when the input does not parse or is invalid.
 pub fn expand_store(input: TokenStream) -> syn::Result<TokenStream> {
     let input: DeriveInput = syn::parse2(input)?;
     let name = &input.ident;
@@ -34,7 +39,9 @@ pub fn expand_store(input: TokenStream) -> syn::Result<TokenStream> {
     let mut snapshot = Vec::new();
     let mut set_all = Vec::new();
     for field in &fields.named {
-        let ident = field.ident.as_ref().expect("named field");
+        let Some(ident) = field.ident.as_ref() else {
+            return Err(syn::Error::new(field.span(), "expected a named field"));
+        };
         if ["new", "get", "set", "update"].contains(&ident.to_string().as_str()) {
             return Err(syn::Error::new(
                 ident.span(),

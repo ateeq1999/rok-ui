@@ -430,6 +430,11 @@ impl Parse for ViewInput {
     }
 }
 
+/// Expand `children![..]`: a `Vec<AnyElement>` from mixed elements and control flow.
+///
+/// # Errors
+///
+/// Fails with a spanned error when the input does not parse or is invalid.
 pub fn expand_children(input: TokenStream) -> syn::Result<TokenStream> {
     let ChildrenInput(nodes) = syn::parse2(input)?;
     Ok(generate_children(&nodes))
@@ -437,6 +442,10 @@ pub fn expand_children(input: TokenStream) -> syn::Result<TokenStream> {
 
 /// One root element becomes that element; several roots (or control flow at
 /// the root) become a `Vec<AnyElement>`.
+///
+/// # Errors
+///
+/// Fails with a spanned error when the input does not parse or is invalid.
 pub fn expand_view(input: TokenStream) -> syn::Result<TokenStream> {
     let ViewInput(nodes) = syn::parse2(input)?;
     match nodes.as_slice() {

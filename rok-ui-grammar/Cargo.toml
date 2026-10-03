@@ -1,23 +1,20 @@
 [package]
-name = "rok-ui-macros"
-description = "Procedural macros for rok-ui: #[component], styles!, keyframes!, children! and view!."
+name = "rok-ui-grammar"
+description = "Parsing and code generation behind rok-ui's macros, as a testable library."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme = "README.md"
 repository = "https://github.com/ateeq1999/rok-ui"
-documentation = "https://docs.rs/rok-ui-macros"
-keywords = ["gpui", "macros", "component", "ui", "attributes"]
+documentation = "https://docs.rs/rok-ui-grammar"
+keywords = ["gpui", "macros", "codegen"]
 categories = ["development-tools::procedural-macro-helpers"]
-
-[lib]
-proc-macro = true
 
 [lints]
 workspace = true
 
 [dependencies]
 proc-macro2 = "1"
-rok-ui-grammar = { version = "0.5.0", path = "../rok-ui-grammar" }
+quote = "1"
 syn = { version = "2", features = ["full"] }

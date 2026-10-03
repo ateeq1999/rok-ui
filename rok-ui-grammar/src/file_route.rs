@@ -73,6 +73,11 @@ impl Parse for FileRoute {
     }
 }
 
+/// Expand `file_route! { .. }` in a route file: the page or layout builder, the guard, the loader and the search type.
+///
+/// # Errors
+///
+/// Fails with a spanned error when the input does not parse or is invalid.
 pub fn expand_file_route(input: TokenStream) -> syn::Result<TokenStream> {
     let route: FileRoute = syn::parse2(input)?;
     let gpui = quote!(::rok_ui::gpui);

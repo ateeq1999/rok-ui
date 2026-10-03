@@ -21,6 +21,11 @@ fn option_inner(ty: &Type) -> Option<&Type> {
     }
 }
 
+/// Expand `#[derive(Search)]`: the `Search` impl with per-field defaults and renames.
+///
+/// # Errors
+///
+/// Fails with a spanned error when the input does not parse or is invalid.
 pub fn expand_search(input: TokenStream) -> syn::Result<TokenStream> {
     let input: DeriveInput = syn::parse2(input)?;
     let name = &input.ident;
@@ -48,7 +53,9 @@ pub fn expand_search(input: TokenStream) -> syn::Result<TokenStream> {
     let mut reads = Vec::new();
     let mut writes = Vec::new();
     for field in &fields.named {
-        let ident = field.ident.as_ref().expect("named field");
+        let Some(ident) = field.ident.as_ref() else {
+            return Err(syn::Error::new(field.span(), "expected a named field"));
+        };
         let mut key = ident.to_string();
         let mut default: Option<Expr> = None;
         for attribute in field
