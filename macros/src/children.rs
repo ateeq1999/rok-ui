@@ -21,6 +21,8 @@ enum Node {
         else_branch: Option<Vec<Node>>,
     },
     For {
+        /// `#[key(expr)]`: wrap each iteration's elements in `Keyed`.
+        key: Option<Box<Expr>>,
         pattern: Pat,
         iterable: Expr,
         body: Vec<Node>,
@@ -74,6 +76,21 @@ fn parse_node(input: ParseStream, syntax: Syntax) -> syn::Result<Node> {
     if input.peek(Token![if]) {
         return parse_if(input, syntax);
     }
+    let mut key = None;
+    if input.peek(Token![#]) {
+        for attribute in syn::Attribute::parse_outer(input)? {
+            if !attribute.path().is_ident("key") {
+                return Err(syn::Error::new_spanned(
+                    attribute,
+                    "only `#[key(..)]` is allowed here, before a `for` loop",
+                ));
+            }
+            key = Some(Box::new(attribute.parse_args::<Expr>()?));
+        }
+        if !input.peek(Token![for]) {
+            return Err(input.error("`#[key(..)]` goes before a `for` loop"));
+        }
+    }
     if input.peek(Token![for]) {
         input.parse::<Token![for]>()?;
         let pattern = Pat::parse_multi_with_leading_vert(input)?;
@@ -86,6 +103,7 @@ fn parse_node(input: ParseStream, syntax: Syntax) -> syn::Result<Node> {
             parse_braced_nodes(input, syntax)?
         };
         return Ok(Node::For {
+            key,
             pattern,
             iterable,
             body,
@@ -337,12 +355,35 @@ fn generate_pushes(nodes: &[Node], target: &Ident) -> TokenStream {
             quote!(if #condition { #then_pushes } #else_pushes)
         }
         Node::For {
+            key: None,
             pattern,
             iterable,
             body,
         } => {
             let pushes = generate_pushes(body, target);
             quote!(for #pattern in #iterable { #pushes })
+        }
+        Node::For {
+            key: Some(key),
+            pattern,
+            iterable,
+            body,
+        } => {
+            let item = Ident::new("__rok_ui_keyed", Span::mixed_site());
+            let pushes = generate_pushes(body, &item);
+            quote! {
+                for #pattern in #iterable {
+                    let __rok_ui_key = #key;
+                    #[allow(unused_mut)]
+                    let mut #item: ::std::vec::Vec<::rok_ui::gpui::AnyElement> = ::std::vec::Vec::new();
+                    #pushes
+                    for (__rok_ui_index, __rok_ui_child) in #item.into_iter().enumerate() {
+                        #target.push(::rok_ui::gpui::IntoElement::into_any_element(
+                            ::rok_ui::Keyed::new(&(&__rok_ui_key, __rok_ui_index), __rok_ui_child),
+                        ));
+                    }
+                }
+            }
         }
         Node::Match { scrutinee, arms } => {
             let arms = arms.iter().map(|arm| {

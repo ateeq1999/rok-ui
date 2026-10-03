@@ -167,10 +167,14 @@ Counter::new("Clicks").step(5).on_change(|value, _, _| println!("{value}"));
 
 Parameter rules for `#[component]`:
 
-- `window` and `cx` are the GPUI window and app context.
-- Plain parameters are required props. `new(..)` takes them as `impl Into<T>`.
-- `#[prop(optional)]` parameters default to `Default::default()` and get a builder method with
-  the same name. For `Option<T>`, the method takes `impl Into<T>`.
+- `window` and `cx` are the GPUI window and app context; `cx: &mut Cx` gets both in one
+  handle (`cx.window`, and `Cx` derefs to `App`).
+- Plain parameters are required props. `new(..)` takes them as `impl Into<T>`, so a missing
+  one is a compile error that names it.
+- `#[default]` parameters start at `Default::default()`, `#[default(expr)]` ones at `expr`
+  (`#[default(px(32.))] size: Pixels`), and get a builder method with the same name. For
+  `Option<T>`, the method takes `impl Into<T>`. `#[prop(optional)]` is the older spelling of
+  `#[default]`.
 - `EventHandler<E>` props, optional or not, take `Fn(&E, &mut Window, &mut App)` closures.
 - One `#[children]` parameter of type `Vec<AnyElement>` makes the component a `ParentElement`.
 - One `#[style]` parameter of type `StyleRefinement` makes the component `Styled`. Apply it last
@@ -282,6 +286,8 @@ The syntax:
 - **GPUI elements:** lowercase `div`, `img` and `svg` are GPUI's element functions.
 - **Children:** `{ … }` holds children: elements, `"text"`, `{expr}`, `if`, `if let`, `match`
   and `for`.
+- **Keys:** `#[key(item.id)] for item in items { .. }` gives each item a stable identity
+  (`Keyed`), so hook state follows the item when the list is reordered.
 
 ## Right-to-left layouts
 

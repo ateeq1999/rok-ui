@@ -40,8 +40,9 @@ use syn::{
 ///   `cx: &mut Cx` receives both as one [`Cx`](../rok_ui/struct.Cx.html) handle instead
 ///   (then there is no `window` parameter).
 /// - Plain parameters are required props and become arguments of `new(..)` (taking `impl Into<T>`).
-/// - `#[prop(optional)]` parameters start at `Default::default()` and get a builder method
-///   with the same name. For `Option<T>` the method takes `impl Into<T>`.
+/// - `#[default]` parameters start at `Default::default()`, `#[default(expr)]` ones at `expr`,
+///   and get a builder method with the same name. For `Option<T>` the method takes
+///   `impl Into<T>`. `#[prop(optional)]` is the older spelling of `#[default]`.
 /// - Props of type `EventHandler<E>` (or `Option<EventHandler<E>>`) take a closure
 ///   `Fn(&E, &mut Window, &mut App)` directly.
 /// - One `#[children]` parameter of type `Vec<AnyElement>` makes the component a
@@ -80,6 +81,8 @@ struct ComponentProperty {
     name: Ident,
     property_type: Type,
     kind: PropertyKind,
+    /// `#[default(expr)]`: the starting value of an optional prop.
+    default: Option<syn::Expr>,
     documentation: Vec<Attribute>,
 }
 
@@ -133,6 +136,7 @@ fn expand_component(function: &ItemFn) -> syn::Result<TokenStream2> {
         }
 
         let mut kind = PropertyKind::Required;
+        let mut default = None;
         let mut parameter_documentation = Vec::new();
         for attribute in &typed_argument.attrs {
             if attribute.path().is_ident("children") {
@@ -150,12 +154,17 @@ fn expand_component(function: &ItemFn) -> syn::Result<TokenStream2> {
                         Err(meta.error("expected `optional`"))
                     }
                 })?;
+            } else if attribute.path().is_ident("default") {
+                kind = PropertyKind::Optional;
+                if let syn::Meta::List(list) = &attribute.meta {
+                    default = Some(list.parse_args::<syn::Expr>()?);
+                }
             } else if attribute.path().is_ident("doc") {
                 parameter_documentation.push(attribute.clone());
             } else {
                 return Err(syn::Error::new(
                     attribute.span(),
-                    "unsupported attribute on a component parameter; use #[prop(optional)], #[children], #[style] or #[sx]",
+                    "unsupported attribute on a component parameter; use #[default], #[default(expr)], #[prop(optional)], #[children], #[style] or #[sx]",
                 ));
             }
         }
@@ -164,6 +173,7 @@ fn expand_component(function: &ItemFn) -> syn::Result<TokenStream2> {
             name: parameter_name,
             property_type: (*typed_argument.ty).clone(),
             kind,
+            default,
             documentation: parameter_documentation,
         });
     }
@@ -235,8 +245,11 @@ fn expand_component(function: &ItemFn) -> syn::Result<TokenStream2> {
                 }
             }
             PropertyKind::Optional => {
-                constructor_field_values
-                    .push(quote! { #name: ::core::default::Default::default() });
+                let initial = property.default.as_ref().map_or_else(
+                    || quote!(::core::default::Default::default()),
+                    |default| quote!({ let value: #property_type = #default; value }),
+                );
+                constructor_field_values.push(quote! { #name: #initial });
                 let inner_type = option_inner_type(property_type);
                 let event_type = event_handler_event_type(inner_type.unwrap_or(property_type));
                 let method = match (inner_type, event_type) {

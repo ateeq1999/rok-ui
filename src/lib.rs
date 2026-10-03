@@ -39,6 +39,7 @@ pub mod fonts;
 pub mod form;
 pub mod hooks;
 pub mod icon;
+pub mod keyed;
 pub mod motion;
 pub mod prelude;
 #[cfg(feature = "query")]
@@ -56,6 +57,7 @@ pub mod theme;
 pub use cx::Cx;
 pub use gpui;
 pub use icon::{Assets, AssetsWithFallback, Icon, IconName};
+pub use keyed::Keyed;
 pub use rok_ui_macros::{children, component, keyframes, style, styles, view};
 #[cfg(feature = "query")]
 pub use rok_ui_macros::{memoize, procedure};
