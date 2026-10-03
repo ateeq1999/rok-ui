@@ -6,10 +6,10 @@ rok-db on a small background tokio runtime and brings results back to the UI thr
 components can show live data with a single hook.
 
 ```toml
-rok-ui = { version = "0.5", features = ["db"] }
+rok-ui = { version = "0.6", features = ["db"] }
 
 # Column types and migrations, forwarded to rok-db:
-rok-ui = { version = "0.5", features = ["db", "db-chrono", "db-uuid", "db-json", "db-migrate"] }
+rok-ui = { version = "0.6", features = ["db", "db-chrono", "db-uuid", "db-json", "db-migrate"] }
 ```
 
 | Feature | Adds |

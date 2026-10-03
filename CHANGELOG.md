@@ -9,6 +9,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-03
+
 ### Added
 
 - **Data layer** (`query` feature, opt-in; enabled by `db`): `rok_ui::query` with
@@ -28,7 +30,7 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - **`rok_ui::runtime`**: one shared tokio runtime for every async feature.
 - `db::db_query` and `db::db_mutation` build query and mutation options on the app's
   connection; `db::invalidate` also invalidates matching queries.
-- `AGENTS.md`, `llms.txt` and `.agents/skills` for coding agents.
+- `AGENTS.md` and `.agents/skills` for coding agents.
 
 ### Changed
 
@@ -189,7 +191,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - Light and dark themes with the Rok and Neutral presets.
 - Keyboard focus navigation and text inputs with IME, selection and clipboard support.
 
-[Unreleased]: https://github.com/ateeq1999/rok-ui/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/ateeq1999/rok-ui/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/ateeq1999/rok-ui/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/ateeq1999/rok-ui/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/ateeq1999/rok-ui/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/ateeq1999/rok-ui/compare/v0.3.0...v0.3.1
