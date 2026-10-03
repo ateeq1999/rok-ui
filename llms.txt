@@ -150,7 +150,8 @@ rok-ui-hooks signals re-exported as `rok_ui::state`: `create_signal`, `create_me
 - Typed: `typed_route! { pub struct NoteRoute = "/notes/:id" { pub id: u64 } }` (checked at
   compile time); `Link::to(&NoteRoute { id })`, `router::navigate_to(&route, cx)`,
   `router::use_params::<NoteRoute>(cx)`, `.route_to(|note: NoteRoute, w, cx| ..)`,
-  `.loader_to(|note: &NoteRoute, cx| ..)`, `Link::preload(true)`.
+  `.loader_to(|note: &NoteRoute, cx| ..)`, `Link::preload(true)`; `router::load_state(cx)`
+  and `router::use_pending(cx, delay, min)` (pendingMs / pendingMinMs) for progress bars.
 - Search params: `#[derive(Search)] struct S { #[search(default = 1)] page: u32, q: Option<String> }`;
   `router::use_search::<S>(cx)`, `router::update_search::<S>(cx, |s| ..)`, `Link::search(&s)`.
 - `router::use_blocker(cx, dirty)` holds navigation; `blocker.proceed(cx)` / `reset(cx)`.

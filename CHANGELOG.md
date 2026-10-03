@@ -11,6 +11,9 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ### Added
 
+- `router::load_state` and `router::use_pending(cx, delay, min)`: whether the current location's
+  loaders are still fetching, and a progress-bar flag that waits `delay` before showing and
+  stays on at least `min` (TanStack Router's `pendingMs` and `pendingMinMs`).
 - Bound form controls `TextareaField`, `SelectField`, `RadioGroupField`, `ComboboxField`,
   `SliderField`, `DatePickerField` and `InputOtpField` (the pickers behind their components'
   features).

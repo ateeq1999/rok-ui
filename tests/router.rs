@@ -422,3 +422,82 @@ fn navigating_away_cancels_the_loader(cx: &mut TestAppContext) {
         );
     });
 }
+
+/// A note loader that takes 600ms.
+struct SlowerLoading;
+
+impl Render for SlowerLoading {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        Router::new()
+            .route_to(|note: NoteRoute, _, _| div().child(note.id.to_string()))
+            .route("/elsewhere", |_, _, _| div())
+            .loader_to(|note: &NoteRoute, cx| {
+                let id = note.id;
+                let query = rok_ui::query::QueryOptions::new(
+                    rok_ui::query_key!["slower-note", id],
+                    move |_| async move {
+                        rok_ui::gpui::Timer::after(std::time::Duration::from_millis(600)).await;
+                        Ok::<_, rok_ui::query::QueryError>(format!("Note {id}"))
+                    },
+                )
+                .stale_time(std::time::Duration::from_secs(60));
+                rok_ui::query::prefetch_query(cx, &query);
+            })
+    }
+}
+
+/// The slower note router, with a pending indicator that records what it showed.
+struct PendingView(Rc<RefCell<Vec<(bool, bool)>>>);
+
+impl Render for PendingView {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        use std::time::Duration;
+        let pending = router::use_pending(
+            &mut Cx::new(window, cx),
+            Duration::from_millis(150),
+            Duration::from_millis(1000),
+        );
+        let loading =
+            router::with_window(window.window_handle(), || router::load_state(cx).is_loading);
+        self.0.borrow_mut().push((loading, pending));
+        div().child(cx.new(|_| SlowerLoading))
+    }
+}
+
+#[gpui::test]
+fn pending_indicators_wait_before_showing_and_stay_a_minimum(cx: &mut TestAppContext) {
+    use std::time::Duration;
+
+    cx.update(rok_ui::init);
+    let seen = Rc::new(RefCell::new(Vec::new()));
+    let view_seen = seen.clone();
+    let (_, window) = cx.add_window_view(move |_, _| PendingView(view_seen.clone()));
+    let frame = |window: &mut gpui::VisualTestContext, wait: u64| {
+        std::thread::sleep(Duration::from_millis(wait));
+        window.update(|window, _| window.refresh());
+        window.run_until_parked();
+        *seen.borrow().last().expect("rendered")
+    };
+
+    // The fetch takes 600ms; the indicator waits 150ms and then stays at least 1000ms.
+    window.update(|_, cx| router::navigate_to(&NoteRoute { id: 7 }, cx));
+    window.run_until_parked();
+    assert_eq!(frame(window, 0), (true, false), "a fast load shows nothing");
+    assert_eq!(
+        frame(window, 300),
+        (true, true),
+        "a slow one shows after the delay"
+    );
+    let (loading, pending) = frame(window, 500);
+    assert!(
+        !loading && pending,
+        "kept for the minimum time after loading ends"
+    );
+    assert_eq!(frame(window, 700), (false, false));
+
+    // Fresh data loads nothing: no indicator at all.
+    window.update(|_, cx| router::navigate("/elsewhere", cx));
+    window.run_until_parked();
+    window.update(|_, cx| router::navigate_to(&NoteRoute { id: 7 }, cx));
+    assert_eq!(frame(window, 300), (false, false));
+}
