@@ -17,9 +17,10 @@ developer experience.
   works like `useState`.
 - **Overridable styles.** Every visual component implements GPUI's `Styled`, so `.w_full().mt_4()`
   overrides its defaults the way `className` does.
-- **App plumbing.** Reactive state from rok-ui-hooks, a router with params and history (`router`
-  feature), and PostgreSQL through rok-db (`db` feature), all wired into GPUI. See the
-  [guides](docs/guide/README.md).
+- **App plumbing, TanStack style.** Reactive state from rok-ui-hooks; a query cache with
+  mutations, procedures and `Suspense` (`query`); a router with typed routes, search params,
+  guards, loaders and file-based routes (`router`, `rok-ui-build`); headless type-safe forms
+  (`form`); and PostgreSQL through rok-db (`db`). See the [guides](docs/guide/README.md).
 - **Flutter-style app shells and layouts.** `Scaffold`, `AppBar`, `NavigationBar`,
   `NavigationRail`, `NavigationDrawer` and an `AdaptiveScaffold` that follows the window
   width, plus `Row`, `Column`, `Expanded`, `Stack`, `GridView`, `LayoutBuilder` and friends.
