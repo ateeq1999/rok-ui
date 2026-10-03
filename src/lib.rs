@@ -41,6 +41,8 @@ pub mod hooks;
 pub mod icon;
 pub mod keyed;
 pub mod motion;
+#[cfg(feature = "persist")]
+pub mod persist;
 pub mod prelude;
 #[cfg(feature = "query")]
 pub mod query;

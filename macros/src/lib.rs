@@ -464,6 +464,7 @@ mod file_route;
 mod form_values;
 mod procedure;
 mod search;
+mod store;
 mod styles;
 
 /// Declare the route in a route file under `src/routes/` (see `rok_ui::routes!`).
@@ -485,6 +486,17 @@ pub fn file_route(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(FormValues)]
 pub fn derive_form_values(input: TokenStream) -> TokenStream {
     match form_values::expand_form_values(input.into()) {
+        Ok(tokens) => tokens.into(),
+        Err(error) => error.to_compile_error().into(),
+    }
+}
+
+/// Generate `NameStore`, a fine-grained store with one signal per field (`state` feature):
+/// `store.title()` reads (and tracks) only `title`, `store.set_title(..)` re-renders only its
+/// readers, and `store.get()` / `store.set(..)` work on the whole value.
+#[proc_macro_derive(Store)]
+pub fn derive_store(input: TokenStream) -> TokenStream {
+    match store::expand_store(input.into()) {
         Ok(tokens) => tokens.into(),
         Err(error) => error.to_compile_error().into(),
     }

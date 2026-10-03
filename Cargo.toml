@@ -68,6 +68,8 @@ rok-db = { version = "0.1", optional = true }
 tokio = { version = "1", features = ["rt-multi-thread", "time"], optional = true }
 futures = { version = "0.3", optional = true }
 garde = { version = "0.23", optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
 
 # Reads which Arabic letter forms installed fonts have (the same crate GPUI uses).
 [target.'cfg(windows)'.dependencies]
@@ -125,6 +127,8 @@ form = ["button", "checkbox", "field", "input", "spinner", "switch"]
 form-garde = ["form", "dep:garde"]
 # The shared tokio runtime for background work (`rok_ui::runtime`).
 runtime = ["dep:tokio"]
+# Stores saved to the config directory (`rok_ui::persist`).
+persist = ["state", "dep:serde", "dep:serde_json"]
 # Routes with params, back / forward history and links (not part of `full`).
 router = []
 # PostgreSQL through rok-db, on a background tokio runtime (not part of `full`).
@@ -265,6 +269,10 @@ required-features = ["full", "router"]
 
 [[test]]
 name = "form"
+required-features = ["full"]
+
+[[test]]
+name = "store"
 required-features = ["full"]
 
 [[test]]

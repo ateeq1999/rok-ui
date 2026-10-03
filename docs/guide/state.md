@@ -201,6 +201,35 @@ rok-ui-hooks polls futures on the UI thread, so they may hold `Rc` and borrow fr
 must not block. For blocking or CPU-heavy work, use `cx.background_executor().spawn(..)`.
 For `PostgreSQL`, use the `db` feature, which has its own runtime.
 
+## Fine-grained stores: `#[derive(Store)]`
+
+A `Store<T>` notifies every reader when any part of `T` changes. `#[derive(Store)]` generates
+a store with one signal per field instead, so a view re-renders only for the fields it reads:
+
+```rust,ignore
+#[derive(Store, Clone)]
+struct Todo {
+    title: String,
+    done: bool,
+}
+
+let todo = Todo { title: "Write docs".into(), done: false }.into_store(); // a `TodoStore`
+todo.title().get();                    // reads (and tracks) only `title`
+todo.set_done(true);                   // re-renders only readers of `done`
+todo.update_title(|title| title.push('!'));
+let snapshot: Todo = todo.get();       // every field
+todo.set(snapshot);                    // replace every field in one batch
+```
+
+## Saving stores: `persist`
+
+With the `persist` feature, `persist::persisted_store(cx, "settings", Settings::default)` is a
+`Store` read from `<config dir>/<app name>/settings.json` at startup and written back 300 ms
+after it stops changing. The value is JSON (`serde`), saved with a version number;
+`PersistOptions::new("settings").version(2).migrate(|from, json| ..)` upgrades files written by
+older versions, and `.directory(..)` saves elsewhere. Name the app's folder with
+`persist::set_app_name(cx, "notes")` (the default is the executable's name).
+
 ## Patterns
 
 **App-wide state.** Create stores once at startup and pass them to the views that need them.

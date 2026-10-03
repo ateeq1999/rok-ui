@@ -13,6 +13,8 @@ pub use rok_ui_hooks::{
     batch, create_effect, create_memo, create_signal, create_store, untrack, Effect, Memo,
     ReadSignal, Store, WriteSignal,
 };
+/// Derive a fine-grained store with one signal per field (`TodoStore` for `Todo`).
+pub use rok_ui_macros::Store;
 
 /// Something to re-render after signals change.
 #[derive(Clone, Copy, PartialEq)]

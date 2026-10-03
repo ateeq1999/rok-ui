@@ -4948,6 +4948,8 @@ dependencies = [
  "rok-db",
  "rok-ui-hooks",
  "rok-ui-macros",
+ "serde",
+ "serde_json",
  "tokio",
  "trybuild",
  "ttf-parser 0.25.1",

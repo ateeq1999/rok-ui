@@ -35,6 +35,11 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - **`Cx`**: one context handle (window and app). `#[component]` functions can take
   `cx: &mut Cx` instead of `window` and `cx`.
 - **`rok_ui::runtime`**: one shared tokio runtime for every async feature.
+- **Stores:** `#[derive(Store)]` generates a store with one signal per field; the `persist`
+  feature saves stores as versioned JSON in the config directory (`persisted_store`,
+  `PersistOptions` with migrations).
+- **Components:** `#[default]` / `#[default(expr)]` props, and `#[key(..)]` on `view!` /
+  `children!` loops (the new `Keyed` element) so hook state follows reordered items.
 - **Router v2** (`router` feature): typed routes with `typed_route!` (fields checked against
   the pattern at compile time), `Link::to`, `navigate_to`, `use_params` and
   `Router::route_to`; typed search params with `#[derive(Search)]`, `use_search`,
