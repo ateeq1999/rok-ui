@@ -57,8 +57,9 @@ struct User {
 ```
 
 Every column gets a typed constant (`User::EMAIL`, `User::NAME`) for filters and ordering. See
-rok-db's README for relations (`has_many`, `belongs_to`), timestamps, custom column names and
-the full query API.
+rok-db's README for relations (`has_many`, `belongs_to`), joins, timestamps, soft deletes,
+optimistic locking, keyset pagination, custom column names and the full query API. rok-ui
+depends on rok-db 0.3.
 
 ## Connecting
 

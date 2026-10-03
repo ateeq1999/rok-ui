@@ -2908,7 +2908,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.61.2",
+ "windows-core 0.62.2",
 ]
 
 [[package]]
@@ -4900,9 +4900,9 @@ dependencies = [
 
 [[package]]
 name = "rok-db"
-version = "0.1.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54b0717fc18414adb0525fe66c55630b2f68d7c2f648dbee72405051fc511963"
+checksum = "7b8b407846e72c7f0a21a57aaf787ed7675ab6b335a050adff508b2dc5754b9c"
 dependencies = [
  "rok-db-core",
  "rok-db-macros",
@@ -4910,9 +4910,9 @@ dependencies = [
 
 [[package]]
 name = "rok-db-core"
-version = "0.1.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f13c81a7c60dfb63a9b5946e56d7bd2065003fb9a3eec25f6935640bf821e125"
+checksum = "8fa2363cd0d42765694ffcdd3e89cac15aba20d7139e6a0fd887bfbf54df06a7"
 dependencies = [
  "async-stream",
  "futures-core",
@@ -4921,19 +4921,20 @@ dependencies = [
  "serde_json",
  "sqlx",
  "thiserror 2.0.21",
+ "tokio",
  "tracing",
 ]
 
 [[package]]
 name = "rok-db-macros"
-version = "0.1.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a78255c4b18fa57f065efb38fcf79a684bf03532ff17d896b4f95efd0779b500"
+checksum = "4bc7efa400161c8d2ef7fa3eb0785f88e9a718522d2c0e72b51a64521a3d8619"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.6",
 ]
 
 [[package]]
@@ -6367,7 +6368,19 @@ dependencies = [
  "mio",
  "pin-project-lite",
  "socket2",
+ "tokio-macros",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "tokio-macros"
+version = "2.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78773a2a397f451582ce068015985c33193cf6dea8b74d2a639fe457b2f07b0e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.6",
 ]
 
 [[package]]

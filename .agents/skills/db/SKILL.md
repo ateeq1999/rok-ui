@@ -11,13 +11,17 @@ the module docs).
 
 ## Which rok-db you have
 
-rok-ui depends on `rok-db = "0.1"` from crates.io (check `Cargo.lock`). Version 0.1.0 has
-models, relations, `filter` / `order_by` / `select` / `group_by`, `paginate`, `stream`,
-`memoize`, transactions and migrations. Features on rok-db's `main` branch (joins,
-`cursor_paginate`, composite keys, tenancy, audit log, change feeds, `all_with` tuples) are
-**not** available until rok-db releases them and rok-ui bumps the requirement. Do not use them
-in rok-ui code, docs or examples before then. When unsure, look at the source in
-`~/.cargo/registry/src/*/rok-db-core-<version>/`.
+rok-ui depends on `rok-db = "0.3"` from crates.io (check `Cargo.lock`). Version 0.3 has
+models and relations, `filter` / `order_by` / `select` / `group_by`, typed joins (`join`,
+`left_join`, `all_with` tuples), `paginate` and keyset `cursor_paginate`, composite primary
+keys (`find` takes a value or a tuple), soft deletes, optimistic locking (`#[rok(version)]`),
+upserts, validation, hooks and scopes, `stream`, `memoize`, transactions (`transaction_with`
+with retries), migrations, tenancy, the audit log and change feeds (`Model::changes`).
+rok-ui forwards only the `chrono`, `uuid`, `json` and `migrate` features (as `db-chrono`,
+`db-uuid`, `db-json`, `db-migrate`); an app that needs another rok-db feature adds rok-db as a
+direct dependency. Anything on rok-db's `main` branch but not in a release is **not**
+available: do not use it in rok-ui code, docs or examples until rok-ui bumps the requirement.
+When unsure, look at the source in `~/.cargo/registry/src/*/rok-db-core-<version>/`.
 
 ## App code patterns
 

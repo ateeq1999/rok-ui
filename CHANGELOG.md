@@ -18,6 +18,13 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - `cargo deny` in CI (`deny.toml`: allowed licenses and accepted advisories), `SUPPORT.md`,
   `CODEOWNERS` and `.editorconfig`.
 
+### Changed
+
+- The `db` feature uses rok-db 0.3 (was 0.1), which adds typed joins, keyset pagination,
+  composite keys, soft deletes, optimistic locking, validation and change feeds. Two rok-db
+  changes can break app code: `Column` predicates need `M: Model`, and `find` takes
+  `impl IntoKey`. rok-ui itself needed no changes.
+
 ### Fixed
 
 - `SECURITY.md` lists 0.6 as the supported version and mentions the `db` feature's network
