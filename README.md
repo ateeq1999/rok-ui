@@ -63,8 +63,9 @@ rok-ui = { version = "0.5", default-features = false, features = ["button", "dia
   `textarea`, `kbd`, `native-select` and `toggle-group`.
 - **Groups:** `forms`, `overlays`, `layout`, `data`, `chat` and `shell` (Scaffold, navigation
   and layout widgets) each enable a whole group.
-- **App features:** `state` (rok-ui-hooks) is part of `full`. `router` and `db` (rok-db, sqlx and
-  tokio, plus `db-chrono`, `db-uuid`, `db-json`, `db-migrate`) are opt-in.
+- **App features:** `state` (rok-ui-hooks) and `form` are part of `full`. Opt-in: `query`
+  (data layer, tokio), `router`, `db` (rok-db, sqlx and tokio, plus `db-chrono`, `db-uuid`,
+  `db-json`, `db-migrate`), `persist` (saved stores, serde), `devtools` and `form-garde`.
 - **Always included:** `AppRoot`, `Direction`, `BidiText`, the theme, icons, hooks, styling
   (`styles!`, `view!`) and motion, whatever features you pick.
 - **Fonts:** `font-cairo`, `font-noto-sans-arabic` and `font-inter` bundle Google Fonts (see

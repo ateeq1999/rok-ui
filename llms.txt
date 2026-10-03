@@ -8,7 +8,10 @@
 
 - Cargo: `rok-ui = "0.5"` plus `gpui = "0.2.2"`. Every component is a feature; `full` (default)
   enables all components, `state` and `form`. Opt-in: `router`, `query`, `db` (implies
-  `query`), `runtime`, `form-garde`, `fonts`.
+  `query`), `runtime`, `persist`, `devtools`, `form-garde`, `fonts`.
+- New app: `cargo install rok-ui-cli`, then `cargo rok-ui new my-app --template full`
+  (`minimal` | `full` | `db`); `cargo rok-ui add button` copies a component's source into
+  `src/components/ui/`.
 - Startup: `Application::new().with_assets(rok_ui::Assets).run(|cx| { rok_ui::init(cx); .. })`.
   Wrap window content in `AppRoot::new()`.
 - `use rok_ui::prelude::*;` brings GPUI's prelude, every component, `Cx`, hooks and macros.
@@ -30,8 +33,9 @@
 
 ## Components
 
-- `#[component] fn Name(prop: T, #[prop(optional)] opt: U, #[children] children: Vec<AnyElement>,
-  #[sx] sx: Sx, cx: &mut Cx) -> impl IntoElement` generates `Name::new(prop).opt(..).child(..)`.
+- `#[component] fn Name(prop: T, #[default] opt: U, #[default(px(32.))] size: Pixels,
+  #[children] children: Vec<AnyElement>, #[sx] sx: Sx, cx: &mut Cx) -> impl IntoElement`
+  generates `Name::new(prop).opt(..).size(..).child(..)` (`#[prop(optional)]` = `#[default]`).
   Parameters named `window`/`cx` receive GPUI's `&mut Window`/`&mut App`, or `cx: &mut Cx`
   (both in one handle; derefs to `App`, `cx.window` is the window).
 - Hooks: `use_state(window, cx, init)`, `cx.use_state(init)`, `use_keyed_state(key, ..)`,
@@ -40,7 +44,12 @@
   `style! { .. }`, `.sx((&NAME.key, cond.then_some(&NAME.other), &sx))`. Theme tokens:
   `primary`, `muted_foreground`, `border`, `ring`; lengths are 4px units (`gap: 6` = 24px).
 - Markup: `view! { Card(sx = ..) { CardTitle("Hi") if x { .. } for i in xs { .. } } }`,
-  `children![a, if c { b } else { d }, for x in xs => e(x)]`.
+  `children![a, if c { b } else { d }, for x in xs => e(x)]`. `#[key(item.id)] for item in items`
+  keeps hook state with reordered items (`Keyed::new(&key, child)` by hand).
+- State: `#[derive(Store)] struct Todo { title: String }` gives `TodoStore` with a signal per
+  field (`todo.title()`, `set_title`, `update_title`, `get`, `set`). `persist::persisted_store(cx,
+  "settings", Settings::default)` saves a store as versioned JSON (feature `persist`).
+- Devtools (feature `devtools`): add `devtools::Devtools::new()` to the root; Ctrl-Shift-D.
 - RTL: `set_text_direction(TextDirection::Rtl, cx)`, `Direction::new(..)`, logical props
   (`padding_start`), `BidiText` for text.
 
@@ -48,7 +57,7 @@
 
 - `QueryOptions::new(query_key!["notes", id], |cx: TaskCx| async move { Ok::<_, E>(..) })`
   `.stale_time(d) .gc_time(d) .retry(n) .enabled(b) .initial_data(v) .placeholder_data(v)
-  .keep_previous_data(true) .refetch_interval(d)`.
+  .keep_previous_data(true) .refetch_interval(d) .refetch_on_window_focus(true)`.
 - `query::use_query(cx, opts) -> QueryResult<T>` (`state()`, `data()`, `error()`,
   `is_fetching()`, `is_stale()`); `use_suspense_query(cx, opts)?` inside
   `Suspense::new(|cx| Ok(..)).fallback(..).error(|e, cx| ..)`; `ErrorBoundary::new(content, fallback)`.
@@ -78,6 +87,8 @@
 - Search params: `#[derive(Search)] struct S { #[search(default = 1)] page: u32, q: Option<String> }`;
   `router::use_search::<S>(cx)`, `router::update_search::<S>(cx, |s| ..)`, `Link::search(&s)`.
 - `router::use_blocker(cx, dirty)` holds navigation; `blocker.proceed(cx)` / `reset(cx)`.
+- `router::set_per_window_history(true, cx)` gives each window its own history;
+  `router::with_window(handle, || ..)`; `router::persist_location("main", cx)` (with `persist`).
 - File-based: `rok-ui-build` in build-dependencies, `rok_ui_build::routes("src/routes").generate()`
   in build.rs, `rok_ui::routes!();` in the crate, `routes::tree()` renders. Files: `__root.rs`,
   `__not_found.rs`, `index.rs`, `$id.rs`, `$.rs`, `a.b.rs`, `_pathless.rs`, `(group)/`,
@@ -103,7 +114,9 @@
 
 ## Repository rules
 
-- No `mod.rs`; barrel files. Clippy pedantic + `missing_docs` must be clean
+- Crates: `rok-ui`, `rok-ui-macros` (entry points), `rok-ui-grammar` (macro parsing and codegen,
+  tested in `rok-ui-grammar/tests`), `rok-ui-build` (route generator), `rok-ui-cli`.
+- No `mod.rs`; barrel files. Every doc example compiles (no `ignore`). Clippy pedantic + `missing_docs` must be clean
   (`RUSTFLAGS="-D warnings" cargo clippy --workspace --all-targets --all-features`).
 - Tests describe behavior; UI tests use `#[gpui::test]`. Macro errors are trybuild cases.
 - Conventional Commits with scopes (`feat(router): ..`). See AGENTS.md and .agents/skills/.
