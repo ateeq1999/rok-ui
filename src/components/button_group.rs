@@ -1,4 +1,4 @@
-//! ButtonGroup: related buttons joined into one control.
+//! `ButtonGroup`: related buttons joined into one control.
 
 use gpui::{div, prelude::*, AnyElement, App, SharedString, StyleRefinement, Styled, Window};
 
@@ -9,8 +9,10 @@ use crate::{styles, styles::ApplyStyleOverrides};
 /// Direction of a [`ButtonGroup`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum ButtonGroupOrientation {
+    /// Buttons side by side.
     #[default]
     Horizontal,
+    /// Buttons stacked.
     Vertical,
 }
 
@@ -45,6 +47,8 @@ pub struct ButtonGroup {
 crate::implement_style_overrides!(ButtonGroup);
 
 impl ButtonGroup {
+    /// An empty `ButtonGroup`; add content with the builder methods.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             items: Vec::new(),
@@ -54,17 +58,21 @@ impl ButtonGroup {
         }
     }
 
+    /// Horizontal or vertical.
+    #[must_use]
     pub fn orientation(mut self, orientation: ButtonGroupOrientation) -> Self {
         self.orientation = orientation;
         self
     }
 
     /// Stack the items vertically.
+    #[must_use]
     pub fn vertical(self) -> Self {
         self.orientation(ButtonGroupOrientation::Vertical)
     }
 
     /// Add a control. Its inner corners are squared off to join its neighbours.
+    #[must_use]
     pub fn item<Control: IntoElement + Styled + 'static>(mut self, control: Control) -> Self {
         self.items.push(Box::new(move |position, orientation| {
             let control = match (orientation, position) {
@@ -96,6 +104,7 @@ impl ButtonGroup {
     }
 
     /// Add a non-interactive text segment, like a unit or a prefix.
+    #[must_use]
     pub fn text(self, text: impl Into<SharedString>) -> Self {
         self.item(ButtonGroupText::new(text))
     }
@@ -163,6 +172,7 @@ pub struct ButtonGroupText {
 crate::implement_style_overrides!(ButtonGroupText);
 
 impl ButtonGroupText {
+    /// A text segment inside a button group.
     pub fn new(text: impl Into<SharedString>) -> Self {
         Self {
             text: text.into(),

@@ -1,4 +1,4 @@
-//! Menubar and NavigationMenu: horizontal bars of menu triggers.
+//! Menubar and `NavigationMenu`: horizontal bars of menu triggers.
 
 use std::rc::Rc;
 
@@ -112,6 +112,7 @@ pub struct Menubar {
 crate::implement_style_overrides!(Menubar);
 
 impl Menubar {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -121,6 +122,8 @@ impl Menubar {
         }
     }
 
+    /// Add a top-level menu titled `title`.
+    #[must_use]
     pub fn menu(mut self, title: impl Into<SharedString>, menu: Menu) -> Self {
         self.menus.push((title.into(), menu));
         self
@@ -177,7 +180,7 @@ impl RenderOnce for Menubar {
                     menu_id.clone(),
                     menu,
                     Rc::new(move |_, cx| {
-                        close_memory.update(cx, |memory| memory.open_index = None)
+                        close_memory.update(cx, |memory| memory.open_index = None);
                     }),
                     px(192.),
                     true,
@@ -199,7 +202,7 @@ impl RenderOnce for Menubar {
             .children(triggers)
             .when(open_index.is_some(), |bar| {
                 bar.on_mouse_down_out(move |_, _, cx| {
-                    outside_memory.update(cx, |memory| memory.open_index = None)
+                    outside_memory.update(cx, |memory| memory.open_index = None);
                 })
             })
             .on_key_down(move |event, _, cx| {
@@ -254,6 +257,7 @@ pub struct NavigationMenu {
 crate::implement_style_overrides!(NavigationMenu);
 
 impl NavigationMenu {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -264,6 +268,7 @@ impl NavigationMenu {
     }
 
     /// A plain link.
+    #[must_use]
     pub fn link(
         mut self,
         label: impl Into<SharedString>,
@@ -278,6 +283,7 @@ impl NavigationMenu {
     }
 
     /// A link marked as the current page.
+    #[must_use]
     pub fn active_link(mut self, label: impl Into<SharedString>) -> Self {
         self.entries.push(NavigationEntry::Link {
             label: label.into(),
@@ -288,6 +294,7 @@ impl NavigationMenu {
     }
 
     /// A title that shows `content` in a panel below it while hovered.
+    #[must_use]
     pub fn panel(mut self, label: impl Into<SharedString>, content: impl IntoElement) -> Self {
         self.entries.push(NavigationEntry::Panel {
             label: label.into(),
@@ -307,6 +314,7 @@ pub struct NavigationMenuLink {
 }
 
 impl NavigationMenuLink {
+    /// A link with a `title`. `id` must be unique among its siblings.
     pub fn new(id: impl Into<ElementId>, title: impl Into<SharedString>) -> Self {
         Self {
             id: id.into(),
@@ -316,11 +324,15 @@ impl NavigationMenuLink {
         }
     }
 
+    /// Text below the title.
+    #[must_use]
     pub fn description(mut self, description: impl Into<SharedString>) -> Self {
         self.description = Some(description.into());
         self
     }
 
+    /// Called when clicked or activated with the keyboard.
+    #[must_use]
     pub fn on_click(mut self, handler: impl Fn(&(), &mut Window, &mut App) + 'static) -> Self {
         self.on_click = Some(Rc::new(handler));
         self

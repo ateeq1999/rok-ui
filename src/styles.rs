@@ -5,15 +5,20 @@ use gpui::{Refineable, StyleRefinement, Styled};
 /// Control size, shared by buttons, inputs, badges and toggles.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum ComponentSize {
+    /// Compact.
     Small,
+    /// The default size.
     #[default]
     Medium,
+    /// Roomy.
     Large,
 }
 
 /// Apply caller-supplied style overrides on top of a component's own styles,
 /// the way `className` merges into a shadcn/ui component through `cn()`.
 pub trait ApplyStyleOverrides: Styled + Sized {
+    /// Apply `.w_full()`-style overrides collected by a component's `Styled` impl.
+    #[must_use]
     fn apply_style_overrides(mut self, style_overrides: &StyleRefinement) -> Self {
         self.style().refine(style_overrides);
         self

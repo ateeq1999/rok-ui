@@ -1,6 +1,6 @@
 #![doc = include_str!("../docs/guide/database.md")]
 
-use std::{collections::HashMap, fmt, future::Future, sync::OnceLock};
+use std::{collections::HashMap, fmt, future::Future};
 
 use gpui::{App, ElementId, Global, SharedString, Task, Window};
 
@@ -9,17 +9,11 @@ pub use rok_db::Db;
 
 use crate::hooks::use_keyed_state;
 
-/// The background runtime rok-db's futures run on.
+/// The background runtime rok-db's futures run on: the shared
+/// [`crate::runtime`].
+#[must_use]
 pub fn runtime() -> &'static tokio::runtime::Runtime {
-    static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
-    RUNTIME.get_or_init(|| {
-        tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(2)
-            .thread_name("rok-ui-db")
-            .enable_all()
-            .build()
-            .expect("failed to start the database runtime")
-    })
+    crate::runtime::get()
 }
 
 /// Why a database call produced no result.
@@ -148,6 +142,7 @@ impl<T> Query<T> {
         self.data.as_ref()
     }
 
+    /// The error of the last fetch, if it failed.
     pub fn error(&self) -> Option<&DbError> {
         self.error.as_ref()
     }
@@ -163,7 +158,7 @@ struct QueryCell<T> {
     query: Query<T>,
     /// The (epoch, key generation) fetched last; `None` before the first fetch.
     fetched: Option<(u64, u64)>,
-    _fetch: Option<Task<()>>,
+    fetch_task: Option<Task<()>>,
 }
 
 /// Fetch data for the calling element, like React Query's `useQuery`: the first
@@ -203,7 +198,7 @@ where
                 loading: true,
             },
             fetched: None,
-            _fetch: None,
+            fetch_task: None,
         },
     );
     if state.read(cx).fetched != Some(current) {
@@ -229,7 +224,7 @@ where
         state.update(cx, |cell| {
             cell.fetched = Some(current);
             cell.query.loading = true;
-            cell._fetch = Some(fetch);
+            cell.fetch_task = Some(fetch);
         });
     }
     state.read(cx).query.clone()

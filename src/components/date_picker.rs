@@ -1,4 +1,4 @@
-//! DatePicker: a button that opens a [`Calendar`] in a popover.
+//! `DatePicker`: a button that opens a [`Calendar`] in a popover.
 
 use std::rc::Rc;
 
@@ -59,6 +59,7 @@ pub struct DatePicker {
 crate::implement_style_overrides!(DatePicker);
 
 impl DatePicker {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -76,6 +77,7 @@ impl DatePicker {
     }
 
     /// The picked date (single mode).
+    #[must_use]
     pub fn date(mut self, date: Option<CalendarDate>) -> Self {
         let on_change = match self.value {
             PickerValue::Single { on_change, .. } => on_change,
@@ -86,6 +88,7 @@ impl DatePicker {
     }
 
     /// Receives the picked date (single mode).
+    #[must_use]
     pub fn on_change(
         mut self,
         handler: impl Fn(&CalendarDate, &mut Window, &mut App) + 'static,
@@ -102,6 +105,7 @@ impl DatePicker {
     }
 
     /// The picked range (range mode).
+    #[must_use]
     pub fn range(mut self, range: Option<DateRange>) -> Self {
         let on_change = match self.value {
             PickerValue::Range { on_change, .. } => on_change,
@@ -115,6 +119,7 @@ impl DatePicker {
     }
 
     /// Receives the range after each click (range mode).
+    #[must_use]
     pub fn on_range_change(
         mut self,
         handler: impl Fn(&DateRange, &mut Window, &mut App) + 'static,
@@ -130,22 +135,29 @@ impl DatePicker {
         self
     }
 
+    /// Text shown while nothing is entered or selected.
+    #[must_use]
     pub fn placeholder(mut self, placeholder: impl Into<SharedString>) -> Self {
         self.placeholder = placeholder.into();
         self
     }
 
     /// A quick pick listed beside the calendar (single mode).
+    #[must_use]
     pub fn preset(mut self, label: impl Into<SharedString>, date: CalendarDate) -> Self {
         self.presets.push((label.into(), date));
         self
     }
 
+    /// How many months the popover shows side by side.
+    #[must_use]
     pub fn number_of_months(mut self, count: usize) -> Self {
         self.number_of_months = count;
         self
     }
 
+    /// Disable it: it ignores input and renders muted.
+    #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self

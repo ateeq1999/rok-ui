@@ -13,7 +13,15 @@ use crate::{
     sx::{Sx, SxStyled},
 };
 
-actions!(rok_router, [GoBack, GoForward]);
+actions!(
+    rok_router,
+    [
+        /// Go back one history entry (Alt-Left).
+        GoBack,
+        /// Go forward one history entry (Alt-Right).
+        GoForward,
+    ]
+);
 
 /// Called after every navigation with the new location.
 type NavigateListener = Rc<dyn Fn(&Location, &mut App)>;
@@ -100,10 +108,12 @@ pub fn forward(cx: &mut App) {
     }
 }
 
+/// Whether there is an entry to go back to.
 pub fn can_go_back(cx: &mut App) -> bool {
     history(cx).index > 0
 }
 
+/// Whether there is an entry to go forward to.
 pub fn can_go_forward(cx: &mut App) -> bool {
     let history = history(cx);
     history.index + 1 < history.entries.len()
@@ -157,6 +167,7 @@ pub struct Location {
 
 impl Location {
     /// Split `"/users/42?tab=posts"` into its path and decoded query pairs.
+    #[must_use]
     pub fn parse(full_path: &str) -> Self {
         let without_fragment = full_path.split('#').next().unwrap_or_default();
         let (path, query) = without_fragment
@@ -176,11 +187,14 @@ impl Location {
         }
     }
 
+    /// The path without the query string: `/users/42`.
+    #[must_use]
     pub fn path(&self) -> &str {
         &self.path
     }
 
     /// The first value of query parameter `key`.
+    #[must_use]
     pub fn query(&self, key: &str) -> Option<&str> {
         self.query
             .iter()
@@ -188,6 +202,8 @@ impl Location {
             .map(|(_, value)| value.as_ref())
     }
 
+    /// Every query parameter, decoded, in order.
+    #[must_use]
     pub fn query_pairs(&self) -> &[(SharedString, SharedString)] {
         &self.query
     }
@@ -292,28 +308,37 @@ pub struct RouteMatch {
 
 impl RouteMatch {
     /// The pattern that matched, such as `/users/:id` (empty for "not found").
+    #[must_use]
     pub fn pattern(&self) -> &str {
         &self.pattern
     }
 
     /// A `:name` or `*name` parameter.
+    #[must_use]
     pub fn param(&self, name: &str) -> Option<SharedString> {
         self.params.get(name).cloned()
     }
 
     /// A parameter parsed as `T` (numbers, ids).
+    #[must_use]
     pub fn param_as<T: std::str::FromStr>(&self, name: &str) -> Option<T> {
         self.params.get(name)?.parse().ok()
     }
 
+    /// The matched path.
+    #[must_use]
     pub fn path(&self) -> SharedString {
         self.location.path.clone()
     }
 
+    /// The first value of query parameter `key`.
+    #[must_use]
     pub fn query(&self, key: &str) -> Option<&str> {
         self.location.query(key)
     }
 
+    /// The full location, with its query.
+    #[must_use]
     pub fn location(&self) -> &Location {
         &self.location
     }
@@ -334,6 +359,8 @@ pub struct Router {
 crate::implement_style_overrides!(Router);
 
 impl Router {
+    /// A router with no routes.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             routes: Vec::new(),
@@ -345,6 +372,7 @@ impl Router {
     }
 
     /// Show `build`'s element when the location matches `pattern`.
+    #[must_use]
     pub fn route<E: IntoElement>(
         mut self,
         pattern: &str,
@@ -359,12 +387,14 @@ impl Router {
 
     /// Replace the location with `to` when it matches `from`. Parameters in
     /// `from` can be used in `to`: `.redirect("/u/:id", "/users/:id")`.
+    #[must_use]
     pub fn redirect(mut self, from: &str, to: impl Into<SharedString>) -> Self {
         self.redirects.push((Pattern::parse(from), to.into()));
         self
     }
 
     /// Shown when no route matches. Without one, nothing is shown.
+    #[must_use]
     pub fn not_found<E: IntoElement>(
         mut self,
         build: impl Fn(&RouteMatch, &mut Window, &mut App) -> E + 'static,
@@ -486,6 +516,7 @@ pub struct Link {
 crate::implement_style_overrides!(Link);
 
 impl Link {
+    /// A link to `to`. `id` must be unique among its siblings.
     pub fn new(id: impl Into<ElementId>, to: impl Into<SharedString>) -> Self {
         Self {
             id: id.into(),
@@ -499,12 +530,14 @@ impl Link {
     }
 
     /// Replace the current history entry instead of adding one.
+    #[must_use]
     pub fn replace(mut self, replace: bool) -> Self {
         self.replace = replace;
         self
     }
 
     /// Only count as active on exactly this path, not on paths below it.
+    #[must_use]
     pub fn exact(mut self, exact: bool) -> Self {
         self.exact = exact;
         self
@@ -604,7 +637,7 @@ mod tests {
             router
                 .redirect_for(&Location::parse("/u/5"))
                 .as_ref()
-                .map(|target| target.as_ref()),
+                .map(std::convert::AsRef::as_ref),
             Some("/users/5")
         );
         assert_eq!(normalize("users/".into()).as_ref(), "/users");

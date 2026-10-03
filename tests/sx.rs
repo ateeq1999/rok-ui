@@ -273,7 +273,7 @@ impl Render for StatesView {
             .child(AspectRatio::new(2_f32).sx(all))
             .child(
                 Attachment::new("attachment", "a.pdf")
-                    .on_open(|_, _, _| {})
+                    .on_open(|(), _, _| {})
                     .sx(all),
             )
             .child(Badge::new("Badge").sx(all))
@@ -323,7 +323,7 @@ impl Render for StatesView {
             .child(MessageScroller::new(&self.scroller, |_, _, _| div().into_any_element()).sx(all))
             .child(
                 NavigationMenu::new("nav")
-                    .link("Docs", |_, _, _| {})
+                    .link("Docs", |(), _, _| {})
                     .sx(all),
             )
             .child(Pagination::new("pages", 3).sx(all))

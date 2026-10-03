@@ -1,4 +1,4 @@
-//! KeyboardShortcut: shadcn/ui's `<Kbd>`, a key cap for shortcuts.
+//! `KeyboardShortcut`: shadcn/ui's `<Kbd>`, a key cap for shortcuts.
 
 use gpui::{div, prelude::*, px, App, SharedString};
 

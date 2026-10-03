@@ -1,6 +1,6 @@
 # Database
 
-The `db` feature gives rok-ui apps PostgreSQL out of the box through
+The `db` feature gives rok-ui apps `PostgreSQL` out of the box through
 [rok-db](https://crates.io/crates/rok-db), a type-safe async ORM built on sqlx. rok-ui runs
 rok-db on a small background tokio runtime and brings results back to the UI thread, so your
 components can show live data with a single hook.
@@ -242,7 +242,7 @@ Every call returns `DbError`:
 | Variant | When |
 |---|---|
 | `NotConnected` | No connection yet (`connect` is still running, failed, or was never called) |
-| `Failed(message)` | rok-db or PostgreSQL reported an error; `message` is its text |
+| `Failed(message)` | rok-db or `PostgreSQL` reported an error; `message` is its text |
 | `Cancelled` | The task stopped before finishing (the runtime shut down or the future panicked) |
 
 `DbError` implements `Display` and `std::error::Error`. To act on a specific database error,

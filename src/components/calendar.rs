@@ -32,6 +32,7 @@ const MONTH_NAMES: [&str; 12] = [
 /// A calendar day (proleptic Gregorian), without time or time zone.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CalendarDate {
+    /// The year, such as 2026.
     pub year: i32,
     /// 1 to 12.
     pub month: u32,
@@ -41,6 +42,7 @@ pub struct CalendarDate {
 
 impl CalendarDate {
     /// `None` when the day does not exist (`2026-02-30`).
+    #[must_use]
     pub fn new(year: i32, month: u32, day: u32) -> Option<Self> {
         ((1..=12).contains(&month) && day >= 1 && day <= days_in_month(year, month))
             .then_some(Self { year, month, day })
@@ -58,15 +60,16 @@ impl CalendarDate {
     }
 
     /// Today's date in UTC.
+    #[must_use]
     pub fn today_utc() -> Self {
         let seconds = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|duration| duration.as_secs() as i64)
-            .unwrap_or(0);
+            .map_or(0, |duration| duration.as_secs() as i64);
         Self::from_days_since_epoch(seconds.div_euclid(86_400))
     }
 
     /// Days since 1970-01-01 (Howard Hinnant's `days_from_civil`).
+    #[must_use]
     pub fn days_since_epoch(self) -> i64 {
         let year = i64::from(self.year) - i64::from(self.month <= 2);
         let era = year.div_euclid(400);
@@ -79,6 +82,7 @@ impl CalendarDate {
     }
 
     /// The date `days` after 1970-01-01 (Howard Hinnant's `civil_from_days`).
+    #[must_use]
     pub fn from_days_since_epoch(days: i64) -> Self {
         let days = days + 719_468;
         let era = days.div_euclid(146_097);
@@ -98,16 +102,20 @@ impl CalendarDate {
     }
 
     /// 0 = Sunday … 6 = Saturday.
+    #[must_use]
     pub fn weekday(self) -> u32 {
         // 1970-01-01 was a Thursday.
         (self.days_since_epoch() + 4).rem_euclid(7) as u32
     }
 
+    /// The date `days` later (earlier when negative).
+    #[must_use]
     pub fn add_days(self, days: i64) -> Self {
         Self::from_days_since_epoch(self.days_since_epoch() + days)
     }
 
     /// Same day `months` later, clamped to the end of shorter months.
+    #[must_use]
     pub fn add_months(self, months: i32) -> Self {
         let month_index = self.year * 12 + self.month as i32 - 1 + months;
         let year = month_index.div_euclid(12);
@@ -120,16 +128,19 @@ impl CalendarDate {
     }
 
     /// The first of this date's month.
+    #[must_use]
     pub fn first_of_month(self) -> Self {
         Self { day: 1, ..self }
     }
 
     /// "October 2, 2026".
+    #[must_use]
     pub fn format_long(self) -> String {
         format!("{} {}, {}", month_name(self.month), self.day, self.year)
     }
 
     /// "Oct 2, 2026".
+    #[must_use]
     pub fn format_short(self) -> String {
         format!(
             "{} {}, {}",
@@ -151,10 +162,14 @@ impl fmt::Display for CalendarDate {
     }
 }
 
+/// Whether `year` has a February 29.
+#[must_use]
 pub fn is_leap_year(year: i32) -> bool {
     (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
 }
 
+/// The number of days in `month` (1 to 12) of `year`.
+#[must_use]
 pub fn days_in_month(year: i32, month: u32) -> u32 {
     match month {
         1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
@@ -166,6 +181,7 @@ pub fn days_in_month(year: i32, month: u32) -> u32 {
 }
 
 /// English month name for `1..=12`.
+#[must_use]
 pub fn month_name(month: u32) -> &'static str {
     MONTH_NAMES[(month.clamp(1, 12) - 1) as usize]
 }
@@ -173,11 +189,15 @@ pub fn month_name(month: u32) -> &'static str {
 /// A selected range. `end` is `None` while only the first day has been picked.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct DateRange {
+    /// The first day.
     pub start: CalendarDate,
+    /// The last day; `None` while only the start is picked.
     pub end: Option<CalendarDate>,
 }
 
 impl DateRange {
+    /// Whether `date` is in the range (inclusive).
+    #[must_use]
     pub fn contains(&self, date: CalendarDate) -> bool {
         match self.end {
             Some(end) => self.start <= date && date <= end,
@@ -187,6 +207,7 @@ impl DateRange {
 
     /// The range after the user clicks `date`: a click starts a new range unless
     /// the current one is waiting for its end; ends before the start swap in.
+    #[must_use]
     pub fn after_click(current: Option<DateRange>, date: CalendarDate) -> DateRange {
         match current {
             Some(DateRange { start, end: None }) if date >= start => DateRange {
@@ -205,6 +226,7 @@ impl DateRange {
     }
 
     /// "Oct 2, 2026 – Oct 9, 2026".
+    #[must_use]
     pub fn format_short(&self) -> String {
         match self.end {
             Some(end) => format!("{} – {}", self.start.format_short(), end.format_short()),
@@ -214,6 +236,7 @@ impl DateRange {
 }
 
 /// The 6 × 7 grid of days shown for a month, starting on Sunday or Monday.
+#[must_use]
 pub fn month_grid(year: i32, month: u32, week_starts_on_monday: bool) -> Vec<CalendarDate> {
     let first = CalendarDate {
         year,
@@ -269,6 +292,7 @@ pub struct Calendar {
 crate::implement_style_overrides!(Calendar);
 
 impl Calendar {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -288,6 +312,7 @@ impl Calendar {
     }
 
     /// The selected day (single mode).
+    #[must_use]
     pub fn selected(mut self, selected: Option<CalendarDate>) -> Self {
         let on_select = match self.selection {
             CalendarSelection::Single { on_select, .. } => on_select,
@@ -301,6 +326,7 @@ impl Calendar {
     }
 
     /// Receives the clicked day (single mode).
+    #[must_use]
     pub fn on_select(
         mut self,
         handler: impl Fn(&CalendarDate, &mut Window, &mut App) + 'static,
@@ -317,6 +343,7 @@ impl Calendar {
     }
 
     /// The selected range (range mode).
+    #[must_use]
     pub fn range(mut self, range: Option<DateRange>) -> Self {
         let on_select = match self.selection {
             CalendarSelection::Range { on_select, .. } => on_select,
@@ -328,6 +355,7 @@ impl Calendar {
 
     /// Receives the range after each click (range mode). A first click gives a
     /// range with no `end`; the second completes it.
+    #[must_use]
     pub fn on_range_select(
         mut self,
         handler: impl Fn(&DateRange, &mut Window, &mut App) + 'static,
@@ -344,35 +372,42 @@ impl Calendar {
     }
 
     /// Show several months side by side.
+    #[must_use]
     pub fn number_of_months(mut self, count: usize) -> Self {
         self.number_of_months = count.max(1);
         self
     }
 
+    /// Start weeks on Monday instead of Sunday.
+    #[must_use]
     pub fn week_starts_on_monday(mut self, monday: bool) -> Self {
         self.week_starts_on_monday = monday;
         self
     }
 
     /// Days before `min` cannot be picked.
+    #[must_use]
     pub fn min(mut self, min: CalendarDate) -> Self {
         self.min = Some(min);
         self
     }
 
     /// Days after `max` cannot be picked.
+    #[must_use]
     pub fn max(mut self, max: CalendarDate) -> Self {
         self.max = Some(max);
         self
     }
 
     /// Days for which `is_disabled` returns true cannot be picked.
+    #[must_use]
     pub fn disabled_dates(mut self, is_disabled: impl Fn(&CalendarDate) -> bool + 'static) -> Self {
         self.disabled_dates = Some(Rc::new(is_disabled));
         self
     }
 
     /// Override "today" (highlighting and the initial month), mainly for tests.
+    #[must_use]
     pub fn today(mut self, today: CalendarDate) -> Self {
         self.today = today;
         self
@@ -484,7 +519,8 @@ impl RenderOnce for Calendar {
                                 .sx(&CALENDAR.nav_button)
                                 .tooltip("Previous month")
                                 .on_click(move |_, _, cx| {
-                                    previous_state.update(cx, |month| *month = month.add_months(-1))
+                                    previous_state
+                                        .update(cx, |month| *month = month.add_months(-1));
                                 }),
                         ),
                     )
@@ -498,7 +534,7 @@ impl RenderOnce for Calendar {
                                 .sx(&CALENDAR.nav_button)
                                 .tooltip("Next month")
                                 .on_click(move |_, _, cx| {
-                                    next_state.update(cx, |month| *month = month.add_months(1))
+                                    next_state.update(cx, |month| *month = month.add_months(1));
                                 }),
                         ),
                     )

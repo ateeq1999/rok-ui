@@ -397,7 +397,7 @@ pub fn OverlaysPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
             let panel_position = panel_position.clone();
             MenuItem::new(label)
                 .radio(panel_position.get(cx).as_ref() == value)
-                .on_select(move |_, _, cx| panel_position.set(value.into(), cx))
+                .on_select(move |(), _, cx| panel_position.set(value.into(), cx))
         };
         Menu::new()
             .label("My Account")
@@ -426,8 +426,8 @@ pub fn OverlaysPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
             .item(
                 MenuItem::new("Status bar")
                     .checked(show_status_bar.get(cx))
-                    .on_select(move |_, _, cx| {
-                        show_status_bar.update(cx, |shown| *shown = !*shown)
+                    .on_select(move |(), _, cx| {
+                        show_status_bar.update(cx, |shown| *shown = !*shown);
                     }),
             )
             .item(position_item("top", "Panel at top"))
@@ -438,7 +438,7 @@ pub fn OverlaysPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                 MenuItem::new("Log out")
                     .icon(IconName::LogOut)
                     .destructive()
-                    .on_select(|_, _, cx| {
+                    .on_select(|(), _, cx| {
                         toast(cx, Toast::info("Logged out"));
                     }),
             )
@@ -633,7 +633,7 @@ pub fn OverlaysPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                                         .description("Preview content behind a link."),
                                 ),
                         )
-                        .link("Docs", |_, _, cx| {
+                        .link("Docs", |(), _, cx| {
                             toast(cx, Toast::info("Docs clicked"));
                         }),
                 ),
@@ -645,7 +645,7 @@ pub fn OverlaysPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
     };
     let close = |state: &State<bool>| {
         let state = state.clone();
-        move |_: &(), _: &mut Window, cx: &mut App| state.set(false, cx)
+        move |(): &(), _: &mut Window, cx: &mut App| state.set(false, cx)
     };
     let open_sheet = |side: SheetSide| {
         let sheet_open = sheet_open.clone();
@@ -747,7 +747,7 @@ pub fn OverlaysPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                 .on_cancel(close(&alert_open))
                 .on_action({
                     let alert_open = alert_open.clone();
-                    move |_, _, cx| {
+                    move |(), _, cx| {
                         alert_open.set(false, cx);
                         toast(cx, Toast::success("Account deleted (not really)"));
                     }
@@ -839,7 +839,7 @@ pub fn OverlaysPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                         "Actions",
                         [CommandItem::new("Toggle theme")
                             .icon(IconName::Moon)
-                            .on_select(|_, _, cx| Theme::toggle_mode(cx))],
+                            .on_select(|(), _, cx| Theme::toggle_mode(cx))],
                     ),
             )
             .open(palette_open.get(cx))
@@ -915,14 +915,14 @@ pub fn LayoutPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                 .gap(px(16.))
                 .child(
                     Breadcrumb::new("path")
-                        .link("Home", |_, _, _| {})
+                        .link("Home", |(), _, _| {})
                         .ellipsis_menu(
                             Menu::new()
                                 .item(MenuItem::new("Documentation"))
                                 .item(MenuItem::new("Themes"))
                                 .item(MenuItem::new("GitHub")),
                         )
-                        .link("Components", |_, _, _| {})
+                        .link("Components", |(), _, _| {})
                         .page("Breadcrumb"),
                 )
                 .child(
@@ -1183,7 +1183,7 @@ pub fn DataPage() -> impl IntoElement {
                     let email = payments[row].1;
                     Menu::new()
                         .label("Actions")
-                        .item(MenuItem::new("Copy email").on_select(move |_, _, cx| {
+                        .item(MenuItem::new("Copy email").on_select(move |(), _, cx| {
                             cx.write_to_clipboard(gpui::ClipboardItem::new_string(
                                 email.to_string(),
                             ));
@@ -1379,13 +1379,13 @@ fn render_chat_entry(index: usize, entry: &ChatEntry) -> AnyElement {
                     .child(
                         Attachment::new(("chat-upload", index), "mill-detail.png")
                             .state(AttachmentState::Uploading(Some(64.)))
-                            .on_remove(|_, _, _| {}),
+                            .on_remove(|(), _, _| {}),
                     )
                     .child(
                         Attachment::new(("chat-failed", index), "store-notes.txt")
                             .state(AttachmentState::Failed("Upload failed".into()))
-                            .on_retry(|_, _, _| {})
-                            .on_remove(|_, _, _| {}),
+                            .on_retry(|(), _, _| {})
+                            .on_remove(|(), _, _| {}),
                     ),
             )
             .into_any_element(),
@@ -1434,7 +1434,7 @@ pub fn ChatPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
     let load_history = {
         let loaded_from = loaded_from.clone();
         let scroller = scroller.clone();
-        move |_: &(), _: &mut Window, cx: &mut App| {
+        move |(): &(), _: &mut Window, cx: &mut App| {
             let first = loaded_from.get(cx);
             if first > 0 {
                 scroller.prepend(first);
@@ -1458,10 +1458,10 @@ pub fn ChatPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                     .gap(px(8.))
                     .child(
                         MessageScroller::new(&scroller, move |index, _, _| {
-                            visible
-                                .get(index)
-                                .map(|entry| render_chat_entry(index, entry))
-                                .unwrap_or_else(|| div().into_any_element())
+                            visible.get(index).map_or_else(
+                                || div().into_any_element(),
+                                |entry| render_chat_entry(index, entry),
+                            )
                         })
                         .on_reach_top(load_history)
                         .h(px(460.))
@@ -1489,7 +1489,7 @@ pub fn ChatPage(window: &mut Window, cx: &mut App) -> impl IntoElement {
                                     .on_click({
                                         let typing = typing.clone();
                                         move |_, _, cx| {
-                                            typing.update(cx, |typing| *typing = !*typing)
+                                            typing.update(cx, |typing| *typing = !*typing);
                                         }
                                     }),
                             )

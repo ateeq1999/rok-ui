@@ -18,6 +18,7 @@ pub struct Avatar {
 crate::implement_style_overrides!(Avatar);
 
 impl Avatar {
+    /// An avatar showing `fallback_initials` until an image loads.
     pub fn new(fallback_initials: impl Into<SharedString>) -> Self {
         Self {
             fallback_initials: fallback_initials.into(),
@@ -29,11 +30,14 @@ impl Avatar {
     }
 
     /// A file path, URL or embedded image.
+    #[must_use]
     pub fn image(mut self, image: impl Into<ImageSource>) -> Self {
         self.image = Some(image.into());
         self
     }
 
+    /// The diameter. Default: 32px.
+    #[must_use]
     pub fn size(mut self, size: impl Into<Pixels>) -> Self {
         self.size = size.into();
         self

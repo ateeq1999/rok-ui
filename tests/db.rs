@@ -1,4 +1,4 @@
-//! rok-db integration against a real PostgreSQL server. Skipped unless
+//! rok-db integration against a real `PostgreSQL` server. Skipped unless
 //! `ROK_UI_TEST_DATABASE_URL` is set, for example:
 //!
 //! ```sh

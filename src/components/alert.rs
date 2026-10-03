@@ -13,8 +13,10 @@ use crate::{
 /// Visual style, matching shadcn/ui's alert variants.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum AlertVariant {
+    /// Neutral colors.
     #[default]
     Default,
+    /// Red text and border, for errors.
     Destructive,
 }
 
@@ -36,6 +38,7 @@ pub struct Alert {
 crate::implement_style_overrides!(Alert);
 
 impl Alert {
+    /// Create it with its title.
     pub fn new(title: impl Into<SharedString>) -> Self {
         Self {
             title: title.into(),
@@ -47,22 +50,29 @@ impl Alert {
         }
     }
 
+    /// Secondary text below the title.
+    #[must_use]
     pub fn description(mut self, description: impl Into<SharedString>) -> Self {
         self.description = Some(description.into());
         self
     }
 
+    /// An icon shown with the label.
+    #[must_use]
     pub fn icon(mut self, icon: IconName) -> Self {
         self.icon = Some(icon);
         self
     }
 
+    /// The visual variant.
+    #[must_use]
     pub fn variant(mut self, variant: AlertVariant) -> Self {
         self.variant = variant;
         self
     }
 
     /// Shorthand for `.variant(AlertVariant::Destructive)`.
+    #[must_use]
     pub fn destructive(self) -> Self {
         self.variant(AlertVariant::Destructive)
     }

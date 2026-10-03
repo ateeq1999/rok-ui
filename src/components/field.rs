@@ -23,8 +23,10 @@ use crate::{component, styles, styles::ApplyStyleOverrides};
 /// Label above the control, or beside it when horizontal.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum FieldOrientation {
+    /// Label above the control.
     #[default]
     Vertical,
+    /// Label beside the control.
     Horizontal,
 }
 

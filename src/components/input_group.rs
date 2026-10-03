@@ -1,4 +1,4 @@
-//! InputGroup: a text field with addons (icons, text, buttons) inside its border.
+//! `InputGroup`: a text field with addons (icons, text, buttons) inside its border.
 
 use gpui::{div, prelude::*, px, AnyElement, App, Entity, SharedString, StyleRefinement, Window};
 
@@ -43,6 +43,8 @@ pub struct InputGroup {
 crate::implement_style_overrides!(InputGroup);
 
 impl InputGroup {
+    /// An input for `state` with addons around it.
+    #[must_use]
     pub fn new(state: &Entity<InputState>) -> Self {
         Self {
             state: state.clone(),
@@ -58,52 +60,66 @@ impl InputGroup {
     }
 
     /// Any element before the text, such as a button or a spinner.
+    #[must_use]
     pub fn leading(mut self, element: impl IntoElement) -> Self {
         self.leading.push(element.into_any_element());
         self
     }
 
     /// Any element after the text.
+    #[must_use]
     pub fn trailing(mut self, element: impl IntoElement) -> Self {
         self.trailing.push(element.into_any_element());
         self
     }
 
+    /// An icon before the text.
+    #[must_use]
     pub fn leading_icon(self, icon: IconName) -> Self {
         self.leading(AddonIcon(icon))
     }
 
+    /// An icon after the text.
+    #[must_use]
     pub fn trailing_icon(self, icon: IconName) -> Self {
         self.trailing(AddonIcon(icon))
     }
 
     /// Muted text before the field, like `https://` or `$`.
+    #[must_use]
     pub fn leading_text(self, text: impl Into<SharedString>) -> Self {
         self.leading(AddonText(text.into()))
     }
 
     /// Muted text after the field, like `.com` or `USD`.
+    #[must_use]
     pub fn trailing_text(self, text: impl Into<SharedString>) -> Self {
         self.trailing(AddonText(text.into()))
     }
 
     /// A full-width row above the field.
+    #[must_use]
     pub fn block_start(mut self, element: impl IntoElement) -> Self {
         self.block_start.push(element.into_any_element());
         self
     }
 
     /// A full-width row below the field (a textarea toolbar, a character count).
+    #[must_use]
     pub fn block_end(mut self, element: impl IntoElement) -> Self {
         self.block_end.push(element.into_any_element());
         self
     }
 
+    /// Disable it: it ignores input and renders muted.
+    #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
+    /// Mark it invalid: a red border.
+    #[must_use]
     pub fn invalid(mut self, invalid: bool) -> Self {
         self.invalid = invalid;
         self

@@ -36,6 +36,7 @@ pub struct Checkbox {
 crate::implement_style_overrides!(Checkbox);
 
 impl Checkbox {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -48,23 +49,29 @@ impl Checkbox {
         }
     }
 
+    /// Whether it is checked (controlled).
+    #[must_use]
     pub fn checked(mut self, checked: bool) -> Self {
         self.checked = checked;
         self
     }
 
     /// Text next to the box. Clicking it toggles the box too.
+    #[must_use]
     pub fn label(mut self, label: impl Into<SharedString>) -> Self {
         self.label = Some(label.into());
         self
     }
 
+    /// Disable it: it ignores input and renders muted.
+    #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
     /// Receives the new checked value.
+    #[must_use]
     pub fn on_change(mut self, handler: impl Fn(&bool, &mut Window, &mut App) + 'static) -> Self {
         self.on_change = Some(Rc::new(handler));
         self

@@ -88,18 +88,22 @@ impl Question {
         Self::new(id, title, QuestionKind::Freeform)
     }
 
+    /// Help text below the question.
+    #[must_use]
     pub fn description(mut self, description: impl Into<SharedString>) -> Self {
         self.description = Some(description.into());
         self
     }
 
     /// Offer a Skip button.
+    #[must_use]
     pub fn skippable(mut self) -> Self {
         self.skippable = true;
         self
     }
 
     /// Placeholder of a freeform answer.
+    #[must_use]
     pub fn placeholder(mut self, placeholder: impl Into<SharedString>) -> Self {
         self.placeholder = placeholder.into();
         self
@@ -109,20 +113,25 @@ impl Question {
 /// The answer to one question.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Answer {
+    /// One option of a single-choice question.
     Choice(SharedString),
+    /// The options picked in a multiple-choice question.
     Choices(Vec<SharedString>),
+    /// Free text.
     Text(SharedString),
+    /// The question was skipped.
     Skipped,
 }
 
 impl Answer {
     /// A one-line summary for review screens.
+    #[must_use]
     pub fn summary(&self) -> SharedString {
         match self {
             Answer::Choice(choice) => choice.clone(),
             Answer::Choices(choices) => choices
                 .iter()
-                .map(|choice| choice.as_ref())
+                .map(std::convert::AsRef::as_ref)
                 .collect::<Vec<_>>()
                 .join(", ")
                 .into(),
@@ -135,7 +144,9 @@ impl Answer {
 /// A question's id with its answer, as passed to `on_complete`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct QuestionnaireAnswer {
+    /// The id of the question.
     pub question_id: SharedString,
+    /// What the user answered.
     pub answer: Answer,
 }
 
@@ -166,6 +177,7 @@ pub struct Questionnaire {
 crate::implement_style_overrides!(Questionnaire);
 
 impl Questionnaire {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -176,12 +188,15 @@ impl Questionnaire {
         }
     }
 
+    /// Add a question.
+    #[must_use]
     pub fn question(mut self, question: Question) -> Self {
         self.questions.push(question);
         self
     }
 
     /// Called with every answer when the last question is answered or skipped.
+    #[must_use]
     pub fn on_complete(
         mut self,
         handler: impl Fn(&Vec<QuestionnaireAnswer>, &mut Window, &mut App) + 'static,
@@ -348,7 +363,7 @@ impl RenderOnce for Questionnaire {
                                     memory.step = 0;
                                     memory.finished = false;
                                     memory.answers = vec![None; question_count];
-                                })
+                                });
                             }),
                     ),
                 )
@@ -422,8 +437,8 @@ impl RenderOnce for Questionnaire {
                         false,
                         Rc::new(move |_, cx| {
                             memory.update(cx, |memory| {
-                                memory.answers[memory.step] = Some(Answer::Choice(option.clone()))
-                            })
+                                memory.answers[memory.step] = Some(Answer::Choice(option.clone()));
+                            });
                         }),
                     )
                 }))
@@ -454,8 +469,8 @@ impl RenderOnce for Questionnaire {
                                 }
                                 memory.update(cx, |memory| {
                                     memory.answers[memory.step] =
-                                        (!next.is_empty()).then_some(Answer::Choices(next))
-                                })
+                                        (!next.is_empty()).then_some(Answer::Choices(next));
+                                });
                             }),
                         )
                     }))
@@ -494,7 +509,7 @@ impl RenderOnce for Questionnaire {
                         on_complete.as_ref(),
                         window,
                         cx,
-                    )
+                    );
                 })
         });
         let next = {
@@ -519,7 +534,7 @@ impl RenderOnce for Questionnaire {
                         on_complete.as_ref(),
                         window,
                         cx,
-                    )
+                    );
                 })
         };
 
@@ -562,8 +577,8 @@ impl RenderOnce for Questionnaire {
                             .disabled(step == 0)
                             .on_click(move |_, _, cx| {
                                 back_memory.update(cx, |memory| {
-                                    memory.step = memory.step.saturating_sub(1)
-                                })
+                                    memory.step = memory.step.saturating_sub(1);
+                                });
                             }),
                     )
                     .child(div().sx(&QUESTIONNAIRE.spacer))

@@ -199,7 +199,7 @@ match results.get() {
 
 rok-ui-hooks polls futures on the UI thread, so they may hold `Rc` and borrow freely, but they
 must not block. For blocking or CPU-heavy work, use `cx.background_executor().spawn(..)`.
-For PostgreSQL, use the `db` feature, which has its own runtime.
+For `PostgreSQL`, use the `db` feature, which has its own runtime.
 
 ## Patterns
 

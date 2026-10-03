@@ -21,6 +21,7 @@ impl ThemePreset {
     pub const ALL: [ThemePreset; 2] = [ThemePreset::Rok, ThemePreset::Neutral];
 
     /// Display name.
+    #[must_use]
     pub fn label(self) -> &'static str {
         match self {
             ThemePreset::Neutral => "Neutral",

@@ -1,4 +1,4 @@
-//! InputOtp: one-time-code entry, one box per character.
+//! `InputOtp`: one-time-code entry, one box per character.
 
 use std::rc::Rc;
 
@@ -37,6 +37,7 @@ impl OtpPattern {
     }
 
     /// The accepted characters of `text`, at most `limit` of them (used for paste).
+    #[must_use]
     pub fn filter(self, text: &str, limit: usize) -> String {
         text.chars()
             .filter_map(|character| self.accept(character))
@@ -73,6 +74,7 @@ pub struct InputOtp {
 crate::implement_style_overrides!(InputOtp);
 
 impl InputOtp {
+    /// A code input of `length` cells. `id` must be unique among its siblings.
     pub fn new(id: impl Into<ElementId>, length: usize) -> Self {
         Self {
             id: id.into(),
@@ -90,32 +92,42 @@ impl InputOtp {
     }
 
     /// Split the boxes into groups with a separator between, like `[3, 3]`.
+    #[must_use]
     pub fn groups(mut self, groups: impl IntoIterator<Item = usize>) -> Self {
         self.groups = groups.into_iter().filter(|size| *size > 0).collect();
         self
     }
 
+    /// The code entered so far.
+    #[must_use]
     pub fn value(mut self, value: impl Into<SharedString>) -> Self {
         self.value = value.into();
         self
     }
 
+    /// Which characters cells accept.
+    #[must_use]
     pub fn pattern(mut self, pattern: OtpPattern) -> Self {
         self.pattern = pattern;
         self
     }
 
+    /// Disable it: it ignores input and renders muted.
+    #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
+    /// Mark it invalid: a red border.
+    #[must_use]
     pub fn invalid(mut self, invalid: bool) -> Self {
         self.invalid = invalid;
         self
     }
 
     /// Receives the code after every edit.
+    #[must_use]
     pub fn on_change(
         mut self,
         handler: impl Fn(&SharedString, &mut Window, &mut App) + 'static,
@@ -125,6 +137,7 @@ impl InputOtp {
     }
 
     /// Called once every box is filled.
+    #[must_use]
     pub fn on_complete(
         mut self,
         handler: impl Fn(&SharedString, &mut Window, &mut App) + 'static,

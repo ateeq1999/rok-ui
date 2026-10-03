@@ -1,4 +1,4 @@
-//! HoverCard: a preview card shown while the pointer rests on a trigger.
+//! `HoverCard`: a preview card shown while the pointer rests on a trigger.
 
 use std::time::Duration;
 
@@ -44,6 +44,7 @@ pub struct HoverCard {
 crate::implement_style_overrides!(HoverCard);
 
 impl HoverCard {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -58,28 +59,36 @@ impl HoverCard {
         }
     }
 
+    /// The element that opens the card on hover.
+    #[must_use]
     pub fn trigger(mut self, trigger: impl IntoElement) -> Self {
         self.trigger = Some(trigger.into_any_element());
         self
     }
 
+    /// Which side it opens on.
+    #[must_use]
     pub fn side(mut self, side: Side) -> Self {
         self.side = side;
         self
     }
 
+    /// How it lines up with its trigger.
+    #[must_use]
     pub fn align(mut self, align: Align) -> Self {
         self.align = align;
         self
     }
 
     /// How long the pointer must rest before the card opens. Defaults to 500ms.
+    #[must_use]
     pub fn open_delay(mut self, delay: Duration) -> Self {
         self.open_delay = delay;
         self
     }
 
     /// Grace period before closing, so the pointer can travel to the card.
+    #[must_use]
     pub fn close_delay(mut self, delay: Duration) -> Self {
         self.close_delay = delay;
         self

@@ -77,6 +77,8 @@ pub struct AppBar {
 crate::implement_style_overrides!(AppBar);
 
 impl AppBar {
+    /// An empty `AppBar`; add content with the builder methods.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             leading: None,
@@ -91,35 +93,42 @@ impl AppBar {
 
     /// Before the title. Inside a [`Scaffold`] with a drawer it defaults to a menu
     /// button that opens the drawer.
+    #[must_use]
     pub fn leading(mut self, element: impl IntoElement) -> Self {
         self.leading = Some(element.into_any_element());
         self
     }
 
+    /// The title.
+    #[must_use]
     pub fn title(mut self, title: impl Into<SharedString>) -> Self {
         self.title = Some(super::bidi_text::text(title));
         self
     }
 
     /// A custom title, such as a search field or a logo.
+    #[must_use]
     pub fn title_element(mut self, element: impl IntoElement) -> Self {
         self.title = Some(element.into_any_element());
         self
     }
 
     /// An element at the end of the bar, usually a ghost icon button.
+    #[must_use]
     pub fn action(mut self, element: impl IntoElement) -> Self {
         self.actions.push(element.into_any_element());
         self
     }
 
     /// Center the title between the leading element and the actions.
+    #[must_use]
     pub fn center_title(mut self, center: bool) -> Self {
         self.center_title = center;
         self
     }
 
     /// A second row under the bar, such as [`super::Tabs`].
+    #[must_use]
     pub fn bottom(mut self, element: impl IntoElement) -> Self {
         self.bottom = Some(element.into_any_element());
         self
@@ -187,8 +196,10 @@ impl FabSize {
 /// The colors of a [`FloatingActionButton`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum FabVariant {
+    /// Filled with the primary color.
     #[default]
     Primary,
+    /// Filled with the secondary color.
     Secondary,
     /// The card color with a primary-colored icon.
     Surface,
@@ -245,6 +256,7 @@ pub struct FloatingActionButton {
 crate::implement_style_overrides!(FloatingActionButton);
 
 impl FloatingActionButton {
+    /// A floating action button showing `icon`. `id` must be unique among its siblings.
     pub fn new(id: impl Into<ElementId>, icon: IconName) -> Self {
         Self {
             id: id.into(),
@@ -261,32 +273,42 @@ impl FloatingActionButton {
     }
 
     /// Text beside the icon (an extended FAB). It becomes the tooltip when hidden.
+    #[must_use]
     pub fn label(mut self, label: impl Into<SharedString>) -> Self {
         self.label = Some(label.into());
         self
     }
 
     /// Show or hide the label, for example to collapse while scrolling.
+    #[must_use]
     pub fn show_label(mut self, show: bool) -> Self {
         self.show_label = show;
         self
     }
 
+    /// The size.
+    #[must_use]
     pub fn size(mut self, size: FabSize) -> Self {
         self.size = size;
         self
     }
 
+    /// The visual variant.
+    #[must_use]
     pub fn variant(mut self, variant: FabVariant) -> Self {
         self.variant = variant;
         self
     }
 
+    /// A tooltip shown on hover.
+    #[must_use]
     pub fn tooltip(mut self, tooltip: impl Into<SharedString>) -> Self {
         self.tooltip = Some(tooltip.into());
         self
     }
 
+    /// Called when clicked or activated with the keyboard.
+    #[must_use]
     pub fn on_click(mut self, handler: impl Fn(&(), &mut Window, &mut App) + 'static) -> Self {
         self.on_click = Some(Rc::new(handler));
         self
@@ -333,9 +355,12 @@ impl RenderOnce for FloatingActionButton {
 /// the body, 16 px from the edges.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum FabLocation {
+    /// At the reading-direction end.
     #[default]
     EndFloat,
+    /// Centered horizontally.
     CenterFloat,
+    /// At the reading-direction start.
     StartFloat,
 }
 
@@ -420,6 +445,7 @@ pub struct Scaffold {
 crate::implement_style_overrides!(Scaffold);
 
 impl Scaffold {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -441,6 +467,8 @@ impl Scaffold {
         }
     }
 
+    /// The bar at the top.
+    #[must_use]
     pub fn app_bar(mut self, app_bar: AppBar) -> Self {
         self.app_bar = Some(app_bar);
         self
@@ -448,6 +476,7 @@ impl Scaffold {
 
     /// Whether the body scrolls vertically. Default: true. Turn it off when the
     /// body manages its own scrolling or fills the space with `Expanded`.
+    #[must_use]
     pub fn body_scrollable(mut self, scrollable: bool) -> Self {
         self.body_scrollable = scrollable;
         self
@@ -455,24 +484,28 @@ impl Scaffold {
 
     /// A panel that slides in from the start edge, usually a
     /// [`super::NavigationDrawer`].
+    #[must_use]
     pub fn drawer(mut self, element: impl IntoElement) -> Self {
         self.drawer = Some(element.into_any_element());
         self
     }
 
     /// A panel that slides in from the end edge, such as filters or details.
+    #[must_use]
     pub fn end_drawer(mut self, element: impl IntoElement) -> Self {
         self.end_drawer = Some(element.into_any_element());
         self
     }
 
     /// Control whether the start drawer is open.
+    #[must_use]
     pub fn drawer_open(mut self, open: bool) -> Self {
         self.drawer_open = Some(open);
         self
     }
 
     /// Called when the start drawer asks to open or close.
+    #[must_use]
     pub fn on_drawer_change(
         mut self,
         handler: impl Fn(&bool, &mut Window, &mut App) + 'static,
@@ -483,34 +516,42 @@ impl Scaffold {
 
     /// Permanent navigation along the start edge, usually a
     /// [`super::NavigationRail`].
+    #[must_use]
     pub fn navigation(mut self, element: impl IntoElement) -> Self {
         self.navigation = Some(element.into_any_element());
         self
     }
 
     /// Along the bottom of the window, usually a [`super::NavigationBar`].
+    #[must_use]
     pub fn bottom_navigation_bar(mut self, element: impl IntoElement) -> Self {
         self.bottom_navigation_bar = Some(element.into_any_element());
         self
     }
 
     /// A panel that stays under the body, above the bottom navigation bar.
+    #[must_use]
     pub fn bottom_sheet(mut self, element: impl IntoElement) -> Self {
         self.bottom_sheet = Some(element.into_any_element());
         self
     }
 
     /// A button in the row under the body (Flutter's `persistentFooterButtons`).
+    #[must_use]
     pub fn footer_button(mut self, element: impl IntoElement) -> Self {
         self.footer.push(element.into_any_element());
         self
     }
 
+    /// A floating action button over the body.
+    #[must_use]
     pub fn floating_action_button(mut self, button: FloatingActionButton) -> Self {
         self.floating_action_button = Some(button.into_any_element());
         self
     }
 
+    /// Where the floating action button sits.
+    #[must_use]
     pub fn fab_location(mut self, location: FabLocation) -> Self {
         self.fab_location = location;
         self
@@ -745,6 +786,7 @@ pub struct AdaptiveScaffold {
 crate::implement_style_overrides!(AdaptiveScaffold);
 
 impl AdaptiveScaffold {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -762,16 +804,22 @@ impl AdaptiveScaffold {
         }
     }
 
+    /// The bar at the top.
+    #[must_use]
     pub fn app_bar(mut self, app_bar: AppBar) -> Self {
         self.app_bar = Some(app_bar);
         self
     }
 
+    /// Add a destination.
+    #[must_use]
     pub fn destination(mut self, destination: NavigationDestination) -> Self {
         self.destinations.push(destination);
         self
     }
 
+    /// Add several destinations.
+    #[must_use]
     pub fn destinations(
         mut self,
         destinations: impl IntoIterator<Item = NavigationDestination>,
@@ -780,16 +828,22 @@ impl AdaptiveScaffold {
         self
     }
 
+    /// The selected destination.
+    #[must_use]
     pub fn selected_index(mut self, index: usize) -> Self {
         self.selected_index = index;
         self
     }
 
+    /// Called with the new value.
+    #[must_use]
     pub fn on_change(mut self, handler: impl Fn(&usize, &mut Window, &mut App) + 'static) -> Self {
         self.on_change = Some(Rc::new(handler));
         self
     }
 
+    /// A floating action button over the body.
+    #[must_use]
     pub fn floating_action_button(mut self, button: FloatingActionButton) -> Self {
         self.floating_action_button = Some(button);
         self
@@ -797,6 +851,7 @@ impl AdaptiveScaffold {
 
     /// The smallest size class that shows a rail instead of a bottom bar.
     /// Default: `Medium` (600 px).
+    #[must_use]
     pub fn rail_from(mut self, size_class: WindowSizeClass) -> Self {
         self.rail_from = size_class;
         self
@@ -804,12 +859,14 @@ impl AdaptiveScaffold {
 
     /// The smallest size class whose rail shows labels beside the icons.
     /// Default: `Large` (1200 px).
+    #[must_use]
     pub fn extended_from(mut self, size_class: WindowSizeClass) -> Self {
         self.extended_from = size_class;
         self
     }
 
     /// Whether the body scrolls vertically. Default: true.
+    #[must_use]
     pub fn body_scrollable(mut self, scrollable: bool) -> Self {
         self.body_scrollable = scrollable;
         self

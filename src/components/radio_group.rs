@@ -1,4 +1,4 @@
-//! RadioGroup: pick exactly one option from a short list.
+//! `RadioGroup`: pick exactly one option from a short list.
 
 use std::rc::Rc;
 
@@ -41,6 +41,7 @@ pub struct RadioGroup {
 crate::implement_style_overrides!(RadioGroup);
 
 impl RadioGroup {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -54,6 +55,8 @@ impl RadioGroup {
         }
     }
 
+    /// Add an option with its value and label.
+    #[must_use]
     pub fn option(
         mut self,
         value: impl Into<SharedString>,
@@ -69,6 +72,7 @@ impl RadioGroup {
     }
 
     /// An option with a line of help text under its label.
+    #[must_use]
     pub fn option_with_description(
         mut self,
         value: impl Into<SharedString>,
@@ -85,6 +89,7 @@ impl RadioGroup {
     }
 
     /// Disable the option added last.
+    #[must_use]
     pub fn disable_last(mut self) -> Self {
         if let Some(option) = self.options.last_mut() {
             option.disabled = true;
@@ -92,23 +97,29 @@ impl RadioGroup {
         self
     }
 
+    /// The selected value (controlled).
+    #[must_use]
     pub fn value(mut self, value: Option<impl Into<SharedString>>) -> Self {
         self.value = value.map(Into::into);
         self
     }
 
     /// Lay the options out in a row.
+    #[must_use]
     pub fn horizontal(mut self, horizontal: bool) -> Self {
         self.horizontal = horizontal;
         self
     }
 
+    /// Disable it: it ignores input and renders muted.
+    #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
     /// Receives the chosen option's value.
+    #[must_use]
     pub fn on_change(
         mut self,
         handler: impl Fn(&SharedString, &mut Window, &mut App) + 'static,

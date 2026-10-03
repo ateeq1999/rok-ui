@@ -20,7 +20,9 @@ use crate::{
 /// One slot in the page list.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PageSlot {
+    /// A page number (1-based).
     Page(usize),
+    /// Skipped pages, shown as "...".
     Ellipsis,
 }
 
@@ -76,6 +78,7 @@ pub struct Pagination {
 crate::implement_style_overrides!(Pagination);
 
 impl Pagination {
+    /// Pagination over `page_count` pages. `id` must be unique among its siblings.
     pub fn new(id: impl Into<ElementId>, page_count: usize) -> Self {
         Self {
             id: id.into(),
@@ -88,18 +91,22 @@ impl Pagination {
         }
     }
 
+    /// The selected page (1-based).
+    #[must_use]
     pub fn current_page(mut self, current_page: usize) -> Self {
         self.current_page = current_page;
         self
     }
 
     /// How many pages to show either side of the current one. Defaults to 1.
+    #[must_use]
     pub fn siblings(mut self, siblings: usize) -> Self {
         self.siblings = siblings;
         self
     }
 
     /// Receives the page the user picked (1-based).
+    #[must_use]
     pub fn on_change(mut self, handler: impl Fn(&usize, &mut Window, &mut App) + 'static) -> Self {
         self.on_change = Some(Rc::new(handler));
         self

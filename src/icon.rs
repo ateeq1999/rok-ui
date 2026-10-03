@@ -15,7 +15,10 @@ macro_rules! define_icons {
         /// Every icon shipped with rok-ui.
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
         pub enum IconName {
-            $($variant,)*
+            $(
+                #[doc = concat!("The `", $file_name, "` icon.")]
+                $variant,
+            )*
         }
 
         impl IconName {
@@ -120,6 +123,8 @@ pub struct Icon {
 crate::implement_style_overrides!(Icon);
 
 impl Icon {
+    /// Show the icon `name`.
+    #[must_use]
     pub fn new(name: IconName) -> Self {
         Self {
             name,
@@ -131,12 +136,14 @@ impl Icon {
     }
 
     /// Width and height in pixels.
+    #[must_use]
     pub fn size(mut self, size: impl Into<Pixels>) -> Self {
         self.size = size.into();
         self
     }
 
     /// Stroke color. Icons do not inherit text color in GPUI, so components pass it explicitly.
+    #[must_use]
     pub fn color(mut self, color: impl Into<Hsla>) -> Self {
         self.color = Some(color.into());
         self

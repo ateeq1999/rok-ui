@@ -29,6 +29,7 @@ const LEFT_TO_RIGHT_OVERRIDE: char = '\u{202D}';
 const POP_DIRECTIONAL_FORMATTING: char = '\u{202C}';
 
 /// Whether this platform needs [`visual_text`] applied before drawing.
+#[must_use]
 pub const fn platform_needs_reordering() -> bool {
     cfg!(target_os = "windows")
 }
@@ -50,18 +51,21 @@ pub fn display_text(text: impl Into<SharedString>, direction: TextDirection) -> 
 }
 
 /// Whether `text` is already the output of [`visual_text`].
+#[must_use]
 pub fn is_converted(text: &str) -> bool {
     text.starts_with(LEFT_TO_RIGHT_OVERRIDE)
 }
 
 /// Reorder `text` for a renderer that draws every character left to right, on any
 /// platform. Each line is a separate paragraph with base `direction`.
+#[must_use]
 pub fn visual_text(text: &str, direction: TextDirection) -> String {
     visual_text_in_font(text, direction, &crate::sx::current_theme().font_family)
 }
 
 /// [`visual_text`] for text drawn in `font_family`, so letters avoid any
 /// presentation forms that family is missing (see [`crate::fonts`]).
+#[must_use]
 pub fn visual_text_in_font(text: &str, direction: TextDirection, font_family: &str) -> String {
     text.split('\n')
         .map(|line| visual_line_in_font(line, direction, font_family).text)
@@ -92,11 +96,13 @@ pub struct VisualLine {
 }
 
 /// Reorder one line (no newlines) and record where each character went.
+#[must_use]
 pub fn visual_line(line: &str, direction: TextDirection) -> VisualLine {
     visual_line_in_font(line, direction, &crate::sx::current_theme().font_family)
 }
 
 /// [`visual_line`] for text drawn in `font_family`.
+#[must_use]
 pub fn visual_line_in_font(line: &str, direction: TextDirection, font_family: &str) -> VisualLine {
     use unicode_bidi::{BidiInfo, Level};
 
@@ -300,7 +306,7 @@ fn joined_clusters(text: &str, font_family: &str) -> Vec<(String, Range<usize>)>
                 .filter(|index| (index - start) % 2 == parity && prefers_base(*index))
                 .count()
         };
-        let base_parity = if score(1) > score(0) { 1 } else { 0 };
+        let base_parity = usize::from(score(1) > score(0));
         for (offset, cluster) in clusters[start..end].iter_mut().enumerate() {
             if offset % 2 == base_parity {
                 continue;
@@ -495,6 +501,7 @@ fn joins_backward(letter: char) -> bool {
 
 /// Replace Arabic and Persian letters in `text` (logical order) with the
 /// presentation form their neighbours call for, merging lam-alef ligatures.
+#[must_use]
 pub fn shape_arabic(text: &str) -> String {
     shape_arabic_pieces(text)
         .into_iter()

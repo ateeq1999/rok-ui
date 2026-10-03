@@ -129,7 +129,7 @@ fn UsersCard(window: &mut Window, cx: &mut App) -> impl IntoElement {
                                 .on_click(move |_, _, cx| {
                                     write_then_refresh(cx, move |db| async move {
                                         User::filter(User::ID.eq(id)).delete(&db).await.map(|_| ())
-                                    })
+                                    });
                                 }),
                         ),
                     )

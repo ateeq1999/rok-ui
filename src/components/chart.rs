@@ -18,6 +18,7 @@ use crate::{
 };
 
 /// shadcn/ui's `--chart-1` … `--chart-5` for the given mode.
+#[must_use]
 pub fn chart_palette(mode: ThemeMode) -> [Hsla; 5] {
     match mode {
         ThemeMode::Light => [
@@ -43,6 +44,7 @@ pub fn chart_color(index: usize, cx: &App) -> Hsla {
 }
 
 /// The smallest "nice" number (1, 2 or 5 × 10ⁿ) at or above `value`, for axis maxima.
+#[must_use]
 pub fn nice_ceiling(value: f32) -> f32 {
     if value <= 0. {
         return 1.;
@@ -64,9 +66,12 @@ pub fn nice_ceiling(value: f32) -> f32 {
 /// What kind of chart to draw.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum ChartKind {
+    /// Vertical bars, grouped per category.
     #[default]
     Bar,
+    /// Lines through each series' points.
     Line,
+    /// Lines with the area below them filled.
     Area,
     /// Slices of the first series, one per category.
     Pie,
@@ -83,6 +88,7 @@ pub struct ChartSeries {
 }
 
 impl ChartSeries {
+    /// A named series of values, one per category.
     pub fn new(label: impl Into<SharedString>, values: impl IntoIterator<Item = f32>) -> Self {
         Self {
             label: label.into(),
@@ -92,6 +98,7 @@ impl ChartSeries {
     }
 
     /// Override the palette color.
+    #[must_use]
     pub fn color(mut self, color: Hsla) -> Self {
         self.color = Some(color);
         self
@@ -130,6 +137,7 @@ pub struct Chart {
 crate::implement_style_overrides!(Chart);
 
 impl Chart {
+    /// A chart of `kind`. `id` must be unique among its siblings.
     pub fn new(id: impl Into<ElementId>, kind: ChartKind) -> Self {
         Self {
             id: id.into(),
@@ -149,6 +157,7 @@ impl Chart {
     }
 
     /// The x-axis labels (or slice labels for pie charts).
+    #[must_use]
     pub fn categories(
         mut self,
         categories: impl IntoIterator<Item = impl Into<SharedString>>,
@@ -157,40 +166,50 @@ impl Chart {
         self
     }
 
+    /// Add a series.
+    #[must_use]
     pub fn series(mut self, series: ChartSeries) -> Self {
         self.series.push(series);
         self
     }
 
     /// Height of the plot area. Defaults to 240px.
+    #[must_use]
     pub fn height(mut self, height: impl Into<Pixels>) -> Self {
         self.height = height.into();
         self
     }
 
+    /// Show horizontal grid lines. Default: shown.
+    #[must_use]
     pub fn grid(mut self, show: bool) -> Self {
         self.show_grid = show;
         self
     }
 
+    /// Show the legend. Default: shown.
+    #[must_use]
     pub fn legend(mut self, show: bool) -> Self {
         self.show_legend = show;
         self
     }
 
     /// Value labels on the left edge.
+    #[must_use]
     pub fn y_axis(mut self, show: bool) -> Self {
         self.show_y_axis = show;
         self
     }
 
     /// Stack bar series instead of grouping them.
+    #[must_use]
     pub fn stacked(mut self, stacked: bool) -> Self {
         self.stacked = stacked;
         self
     }
 
     /// Big value and caption in the middle of a donut.
+    #[must_use]
     pub fn center_label(
         mut self,
         value: impl Into<SharedString>,
@@ -201,6 +220,7 @@ impl Chart {
     }
 
     /// How values are printed in tooltips and on the axis.
+    #[must_use]
     pub fn value_format(mut self, format: impl Fn(f32) -> SharedString + 'static) -> Self {
         self.value_format = Rc::new(format);
         self
@@ -473,7 +493,7 @@ impl Chart {
                 let cursor_color = cx.theme().colors.border;
                 canvas(
                     |_, _, _| {},
-                    move |plot_bounds, _, window, _| {
+                    move |plot_bounds, (), window, _| {
                         let count = category_count.max(1) as f32;
                         let to_point = |index: usize, value: f32| {
                             point(
@@ -659,7 +679,7 @@ impl Chart {
         let drawing_values = values.clone();
         let pie = canvas(
             |_, _, _| {},
-            move |pie_bounds, _, window, _| {
+            move |pie_bounds, (), window, _| {
                 if total <= 0. {
                     return;
                 }
@@ -808,6 +828,7 @@ mod tests {
     use super::nice_ceiling;
 
     #[test]
+    #[allow(clippy::float_cmp)] // Exact round numbers.
     fn nice_ceiling_rounds_up_to_one_two_or_five() {
         assert_eq!(nice_ceiling(0.), 1.);
         assert_eq!(nice_ceiling(7.), 10.);

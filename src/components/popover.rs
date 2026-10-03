@@ -35,6 +35,7 @@ pub struct Popover {
 crate::implement_style_overrides!(Popover);
 
 impl Popover {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -50,29 +51,35 @@ impl Popover {
     }
 
     /// The element that opens the popover, usually a [`super::Button`].
+    #[must_use]
     pub fn trigger(mut self, trigger: impl IntoElement) -> Self {
         self.trigger = Some(trigger.into_any_element());
         self
     }
 
     /// Which side of the trigger it opens on. Defaults to below.
+    #[must_use]
     pub fn side(mut self, side: Side) -> Self {
         self.side = side;
         self
     }
 
+    /// How it lines up with its trigger.
+    #[must_use]
     pub fn align(mut self, align: Align) -> Self {
         self.align = align;
         self
     }
 
     /// Control the open state yourself.
+    #[must_use]
     pub fn open(mut self, open: bool) -> Self {
         self.open = Some(open);
         self
     }
 
     /// Called whenever the popover wants to open or close.
+    #[must_use]
     pub fn on_open_change(
         mut self,
         handler: impl Fn(&bool, &mut Window, &mut App) + 'static,

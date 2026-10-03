@@ -1,4 +1,4 @@
-//! BidiText: text that may mix right-to-left and left-to-right scripts.
+//! `BidiText`: text that may mix right-to-left and left-to-right scripts.
 //!
 //! On macOS and Linux, and for text without right-to-left letters, this is a plain
 //! text node. On Windows it wraps the text by logical words itself and reorders each
@@ -26,6 +26,7 @@ pub struct BidiText {
 }
 
 impl BidiText {
+    /// Text laid out with the Unicode bidi algorithm.
     pub fn new(text: impl Into<SharedString>) -> Self {
         Self { text: text.into() }
     }

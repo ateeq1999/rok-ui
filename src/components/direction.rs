@@ -30,17 +30,22 @@ use crate::icon::IconName;
 /// Reading direction.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum TextDirection {
+    /// Left to right (English, French).
     #[default]
     Ltr,
+    /// Right to left (Arabic, Hebrew, Persian).
     Rtl,
 }
 
 impl TextDirection {
+    /// Whether this is right to left.
+    #[must_use]
     pub fn is_rtl(self) -> bool {
         self == TextDirection::Rtl
     }
 
     /// The direction of a BCP 47 locale or language code: `"ar"`, `"he-IL"`, `"fa_IR"`.
+    #[must_use]
     pub fn from_locale(locale: &str) -> Self {
         const RTL_LANGUAGES: &[&str] = &[
             "ar", "arc", "ckb", "dv", "fa", "ha", "he", "iw", "khw", "ks", "ku", "ps", "sd", "ug",
@@ -70,6 +75,7 @@ pub fn current_direction() -> TextDirection {
 }
 
 /// `current_direction().is_rtl()`.
+#[must_use]
 pub fn is_rtl() -> bool {
     current_direction().is_rtl()
 }
@@ -90,6 +96,7 @@ pub fn set_text_direction(direction: TextDirection, cx: &mut App) {
 
 /// Read the direction while rendering: `cx.direction().is_rtl()`.
 pub trait ActiveDirection {
+    /// The text direction in effect.
     fn direction(&self) -> TextDirection;
 }
 
@@ -101,6 +108,7 @@ impl ActiveDirection for App {
 
 impl IconName {
     /// The icon pointing the other way: left and right chevrons and arrows swap.
+    #[must_use]
     pub fn mirrored(self) -> IconName {
         match self {
             IconName::ChevronLeft => IconName::ChevronRight,
@@ -114,6 +122,7 @@ impl IconName {
     }
 
     /// Mirrored in RTL, unchanged in LTR. Use it for "forward" / "back" icons.
+    #[must_use]
     pub fn for_direction(self) -> IconName {
         if is_rtl() {
             self.mirrored()
@@ -128,6 +137,7 @@ impl IconName {
 pub trait DirectionalStyled: Styled + Sized {
     /// `flex()` with the row flowing in the reading direction (right to left
     /// in RTL). A later `flex_col()` still makes it a column.
+    #[must_use]
     fn flex_dir(self) -> Self {
         let element = self.flex();
         if is_rtl() {
@@ -138,11 +148,13 @@ pub trait DirectionalStyled: Styled + Sized {
     }
 
     /// A row that always flows left to right (codes, numbers, charts).
+    #[must_use]
     fn flex_ltr(self) -> Self {
         self.flex().flex_row()
     }
 
     /// Padding on the starting side (left in LTR, right in RTL).
+    #[must_use]
     fn ps(self, length: impl Into<DefiniteLength> + Clone) -> Self {
         if is_rtl() {
             self.pr(length)
@@ -152,6 +164,7 @@ pub trait DirectionalStyled: Styled + Sized {
     }
 
     /// Padding on the ending side.
+    #[must_use]
     fn pe(self, length: impl Into<DefiniteLength> + Clone) -> Self {
         if is_rtl() {
             self.pl(length)
@@ -161,6 +174,7 @@ pub trait DirectionalStyled: Styled + Sized {
     }
 
     /// Margin on the starting side.
+    #[must_use]
     fn ms(self, length: impl Into<Length> + Clone) -> Self {
         if is_rtl() {
             self.mr(length)
@@ -170,6 +184,7 @@ pub trait DirectionalStyled: Styled + Sized {
     }
 
     /// Margin on the ending side.
+    #[must_use]
     fn me(self, length: impl Into<Length> + Clone) -> Self {
         if is_rtl() {
             self.ml(length)
@@ -179,6 +194,7 @@ pub trait DirectionalStyled: Styled + Sized {
     }
 
     /// Offset from the starting edge (absolute / relative positioning).
+    #[must_use]
     fn inset_start(self, length: impl Into<Length> + Clone) -> Self {
         if is_rtl() {
             self.right(length)
@@ -188,6 +204,7 @@ pub trait DirectionalStyled: Styled + Sized {
     }
 
     /// Offset from the ending edge.
+    #[must_use]
     fn inset_end(self, length: impl Into<Length> + Clone) -> Self {
         if is_rtl() {
             self.left(length)
@@ -197,6 +214,7 @@ pub trait DirectionalStyled: Styled + Sized {
     }
 
     /// 1px border on the starting side.
+    #[must_use]
     fn border_s_1(self) -> Self {
         if is_rtl() {
             self.border_r_1()
@@ -206,6 +224,7 @@ pub trait DirectionalStyled: Styled + Sized {
     }
 
     /// 1px border on the ending side.
+    #[must_use]
     fn border_e_1(self) -> Self {
         if is_rtl() {
             self.border_l_1()
@@ -215,6 +234,7 @@ pub trait DirectionalStyled: Styled + Sized {
     }
 
     /// Round the starting corners.
+    #[must_use]
     fn rounded_s(self, radius: impl Into<gpui::AbsoluteLength> + Clone) -> Self {
         if is_rtl() {
             self.rounded_r(radius)
@@ -224,6 +244,7 @@ pub trait DirectionalStyled: Styled + Sized {
     }
 
     /// Round the ending corners.
+    #[must_use]
     fn rounded_e(self, radius: impl Into<gpui::AbsoluteLength> + Clone) -> Self {
         if is_rtl() {
             self.rounded_l(radius)
@@ -233,16 +254,19 @@ pub trait DirectionalStyled: Styled + Sized {
     }
 
     /// Square off the starting corners.
+    #[must_use]
     fn rounded_s_none(self) -> Self {
         self.rounded_s(px(0.))
     }
 
     /// Square off the ending corners.
+    #[must_use]
     fn rounded_e_none(self) -> Self {
         self.rounded_e(px(0.))
     }
 
     /// Align text to the starting side.
+    #[must_use]
     fn text_start(self) -> Self {
         if is_rtl() {
             self.text_right()
@@ -252,6 +276,7 @@ pub trait DirectionalStyled: Styled + Sized {
     }
 
     /// Align text to the ending side.
+    #[must_use]
     fn text_end(self) -> Self {
         if is_rtl() {
             self.text_left()
@@ -269,15 +294,17 @@ impl<E: Styled + Sized> DirectionalStyled for E {}
 /// build in the same expression are built before the `Direction` is laid out;
 /// build them with [`Direction::build`] so they see it too.
 pub struct Direction {
-    direction: TextDirection,
+    value: TextDirection,
     children: Vec<AnyElement>,
     content: Option<AnyElement>,
 }
 
 impl Direction {
+    /// Render children in `direction`.
+    #[must_use]
     pub fn new(direction: TextDirection) -> Self {
         Self {
-            direction,
+            value: direction,
             children: Vec::new(),
             content: None,
         }
@@ -324,7 +351,7 @@ impl Element for Direction {
         window: &mut Window,
         cx: &mut App,
     ) -> (LayoutId, Self::RequestLayoutState) {
-        let is_rtl = self.direction.is_rtl();
+        let is_rtl = self.value.is_rtl();
         let mut content = div()
             .flex()
             .flex_col()
@@ -334,7 +361,7 @@ impl Element for Direction {
         // Components render while their layout is requested, so the direction
         // is installed for this step (and for prepaint and paint, where lists
         // and portals render too).
-        let layout_id = with_direction(self.direction, || content.request_layout(window, cx));
+        let layout_id = with_direction(self.value, || content.request_layout(window, cx));
         self.content = Some(content);
         (layout_id, ())
     }
@@ -349,7 +376,7 @@ impl Element for Direction {
         cx: &mut App,
     ) -> Self::PrepaintState {
         if let Some(content) = self.content.as_mut() {
-            with_direction(self.direction, || content.prepaint(window, cx));
+            with_direction(self.value, || content.prepaint(window, cx));
         }
     }
 
@@ -364,7 +391,7 @@ impl Element for Direction {
         cx: &mut App,
     ) {
         if let Some(content) = self.content.as_mut() {
-            with_direction(self.direction, || content.paint(window, cx));
+            with_direction(self.value, || content.paint(window, cx));
         }
     }
 }

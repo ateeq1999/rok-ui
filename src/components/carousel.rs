@@ -19,8 +19,10 @@ use crate::{
 /// Which way slides move.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum CarouselOrientation {
+    /// Slides move left and right.
     #[default]
     Horizontal,
+    /// Slides move up and down.
     Vertical,
 }
 
@@ -59,6 +61,7 @@ pub struct Carousel {
 crate::implement_style_overrides!(Carousel);
 
 impl Carousel {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -74,40 +77,50 @@ impl Carousel {
         }
     }
 
+    /// Add a slide.
+    #[must_use]
     pub fn item(mut self, item: impl IntoElement) -> Self {
         self.items.push(item.into_any_element());
         self
     }
 
     /// How many slides are visible at once (shadcn's `basis-1/3` → 3).
+    #[must_use]
     pub fn items_per_view(mut self, count: usize) -> Self {
         self.items_per_view = count.max(1);
         self
     }
 
+    /// Horizontal or vertical.
+    #[must_use]
     pub fn orientation(mut self, orientation: CarouselOrientation) -> Self {
         self.orientation = orientation;
         self
     }
 
     /// Going past the last slide returns to the first.
+    #[must_use]
     pub fn wrap_around(mut self, wrap_around: bool) -> Self {
         self.wrap_around = wrap_around;
         self
     }
 
     /// Show the position dots under the slides. On by default.
+    #[must_use]
     pub fn dots(mut self, show: bool) -> Self {
         self.show_dots = show;
         self
     }
 
     /// The first visible slide (controlled mode).
+    #[must_use]
     pub fn index(mut self, index: usize) -> Self {
         self.index = Some(index);
         self
     }
 
+    /// Called with the new slide index.
+    #[must_use]
     pub fn on_index_change(
         mut self,
         handler: impl Fn(&usize, &mut Window, &mut App) + 'static,
@@ -287,7 +300,7 @@ impl RenderOnce for Carousel {
             })
             .disabled(!enabled)
             .on_click(move |_, window, cx| {
-                go_to(&memory, target, on_index_change.as_ref(), window, cx)
+                go_to(&memory, target, on_index_change.as_ref(), window, cx);
             })
         };
         let previous_button = div()
@@ -310,7 +323,7 @@ impl RenderOnce for Carousel {
                             (dot_index == index).then_some(&CAROUSEL.dot_active),
                         ))
                         .on_click(move |_, window, cx| {
-                            go_to(&memory, dot_index, on_index_change.as_ref(), window, cx)
+                            go_to(&memory, dot_index, on_index_change.as_ref(), window, cx);
                         })
                 }))
         });

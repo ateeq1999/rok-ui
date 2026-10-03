@@ -52,6 +52,7 @@ pub struct Combobox {
 crate::implement_style_overrides!(Combobox);
 
 impl Combobox {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -68,6 +69,7 @@ impl Combobox {
     }
 
     /// Add an option: `value` is what `on_change` receives, `label` is what is shown.
+    #[must_use]
     pub fn option(
         mut self,
         value: impl Into<SharedString>,
@@ -77,33 +79,43 @@ impl Combobox {
         self
     }
 
+    /// The selected value (controlled).
+    #[must_use]
     pub fn value(mut self, value: Option<impl Into<SharedString>>) -> Self {
         self.value = value.map(Into::into);
         self
     }
 
+    /// Text shown while nothing is entered or selected.
+    #[must_use]
     pub fn placeholder(mut self, placeholder: impl Into<SharedString>) -> Self {
         self.placeholder = placeholder.into();
         self
     }
 
+    /// Placeholder of the search field in the popover.
+    #[must_use]
     pub fn search_placeholder(mut self, placeholder: impl Into<SharedString>) -> Self {
         self.search_placeholder = placeholder.into();
         self
     }
 
     /// Text shown when nothing matches the search.
+    #[must_use]
     pub fn empty_text(mut self, empty_text: impl Into<SharedString>) -> Self {
         self.empty_text = empty_text.into();
         self
     }
 
+    /// Disable it: it ignores input and renders muted.
+    #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
     /// Receives the new value, or `None` when the current one was picked again.
+    #[must_use]
     pub fn on_change(
         mut self,
         handler: impl Fn(&Option<SharedString>, &mut Window, &mut App) + 'static,
@@ -205,7 +217,7 @@ impl RenderOnce for Combobox {
             CommandItem::new(label.clone())
                 .keywords([value.clone()])
                 .checked(is_selected)
-                .on_select(move |_, window, cx| {
+                .on_select(move |(), window, cx| {
                     if let Some(handler) = on_change.as_ref() {
                         handler(&next_value, window, cx);
                     }

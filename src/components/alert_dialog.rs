@@ -1,4 +1,4 @@
-//! AlertDialog: a modal that interrupts the user and waits for an answer.
+//! `AlertDialog`: a modal that interrupts the user and waits for an answer.
 
 use std::rc::Rc;
 
@@ -39,6 +39,7 @@ pub struct AlertDialog {
 }
 
 impl AlertDialog {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -54,44 +55,57 @@ impl AlertDialog {
         }
     }
 
+    /// Whether it is open (controlled).
+    #[must_use]
     pub fn open(mut self, open: bool) -> Self {
         self.open = open;
         self
     }
 
+    /// The title.
+    #[must_use]
     pub fn title(mut self, title: impl Into<SharedString>) -> Self {
         self.title = title.into();
         self
     }
 
+    /// Secondary text below the title.
+    #[must_use]
     pub fn description(mut self, description: impl Into<SharedString>) -> Self {
         self.description = Some(description.into());
         self
     }
 
+    /// The cancel button label. Default: "Cancel".
+    #[must_use]
     pub fn cancel_label(mut self, label: impl Into<SharedString>) -> Self {
         self.cancel_label = label.into();
         self
     }
 
+    /// The confirm button label. Default: "Continue".
+    #[must_use]
     pub fn action_label(mut self, label: impl Into<SharedString>) -> Self {
         self.action_label = label.into();
         self
     }
 
     /// Style the action button as destructive.
+    #[must_use]
     pub fn destructive(mut self, destructive: bool) -> Self {
         self.destructive = destructive;
         self
     }
 
     /// Called on Cancel and on Escape. Close the dialog here.
+    #[must_use]
     pub fn on_cancel(mut self, handler: impl Fn(&(), &mut Window, &mut App) + 'static) -> Self {
         self.on_cancel = Some(Rc::new(handler));
         self
     }
 
     /// Called on the action button. Close the dialog here too.
+    #[must_use]
     pub fn on_action(mut self, handler: impl Fn(&(), &mut Window, &mut App) + 'static) -> Self {
         self.on_action = Some(Rc::new(handler));
         self
@@ -175,7 +189,7 @@ impl RenderOnce for AlertDialog {
                     )
                     .child(
                         Button::new("alert-dialog-action")
-                            .when(self.destructive, |button| button.destructive())
+                            .when(self.destructive, super::button::Button::destructive)
                             .label(self.action_label)
                             .on_click(move |_, window, cx| action(window, cx)),
                     ),

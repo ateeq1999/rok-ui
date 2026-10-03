@@ -52,8 +52,10 @@ pub enum ButtonSize {
 /// Where the icon sits relative to the label.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum IconPosition {
+    /// Before the label.
     #[default]
     Start,
+    /// After the label.
     End,
 }
 
@@ -84,6 +86,7 @@ pub struct Button {
 crate::implement_style_overrides!(Button);
 
 impl Button {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -103,94 +106,113 @@ impl Button {
     }
 
     /// Text shown on the button.
+    #[must_use]
     pub fn label(mut self, label: impl Into<SharedString>) -> Self {
         self.label = Some(label.into());
         self
     }
 
     /// Icon shown next to the label.
+    #[must_use]
     pub fn icon(mut self, icon: IconName) -> Self {
         self.icon = Some(icon);
         self
     }
 
     /// Put the icon after the label.
+    #[must_use]
     pub fn icon_position(mut self, icon_position: IconPosition) -> Self {
         self.icon_position = icon_position;
         self
     }
 
     /// Icon-only square button. Pair it with [`Button::tooltip`] so it has a name.
+    #[must_use]
     pub fn icon_only(mut self, icon: IconName) -> Self {
         self.icon = Some(icon);
         self.size = ButtonSize::Icon;
         self
     }
 
+    /// The visual variant.
+    #[must_use]
     pub fn variant(mut self, variant: ButtonVariant) -> Self {
         self.variant = variant;
         self
     }
 
+    /// The size.
+    #[must_use]
     pub fn size(mut self, size: ButtonSize) -> Self {
         self.size = size;
         self
     }
 
     /// Shorthand for `.variant(ButtonVariant::Destructive)`.
+    #[must_use]
     pub fn destructive(self) -> Self {
         self.variant(ButtonVariant::Destructive)
     }
 
     /// Shorthand for `.variant(ButtonVariant::Outline)`.
+    #[must_use]
     pub fn outline(self) -> Self {
         self.variant(ButtonVariant::Outline)
     }
 
     /// Shorthand for `.variant(ButtonVariant::Secondary)`.
+    #[must_use]
     pub fn secondary(self) -> Self {
         self.variant(ButtonVariant::Secondary)
     }
 
     /// Shorthand for `.variant(ButtonVariant::Ghost)`.
+    #[must_use]
     pub fn ghost(self) -> Self {
         self.variant(ButtonVariant::Ghost)
     }
 
     /// Shorthand for `.variant(ButtonVariant::Link)`.
+    #[must_use]
     pub fn link(self) -> Self {
         self.variant(ButtonVariant::Link)
     }
 
     /// Shorthand for `.size(ButtonSize::Small)`.
+    #[must_use]
     pub fn small(self) -> Self {
         self.size(ButtonSize::Small)
     }
 
     /// Shorthand for `.size(ButtonSize::Large)`.
+    #[must_use]
     pub fn large(self) -> Self {
         self.size(ButtonSize::Large)
     }
 
     /// Dim the button and ignore clicks.
+    #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
     /// Show a spinner in place of the icon and ignore clicks.
+    #[must_use]
     pub fn loading(mut self, loading: bool) -> Self {
         self.loading = loading;
         self
     }
 
     /// Hover tooltip. Also the accessible name for icon-only buttons.
+    #[must_use]
     pub fn tooltip(mut self, tooltip_text: impl Into<SharedString>) -> Self {
         self.tooltip_text = Some(tooltip_text.into());
         self
     }
 
     /// Called on mouse click, or Enter / Space while focused.
+    #[must_use]
     pub fn on_click(
         mut self,
         handler: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,

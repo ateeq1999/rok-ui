@@ -72,6 +72,7 @@ pub struct Slider {
 crate::implement_style_overrides!(Slider);
 
 impl Slider {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -87,39 +88,49 @@ impl Slider {
     }
 
     /// A single value.
+    #[must_use]
     pub fn value(mut self, value: f32) -> Self {
         self.values = vec![value];
         self
     }
 
     /// Two thumbs selecting `start..=end`.
+    #[must_use]
     pub fn range(mut self, start: f32, end: f32) -> Self {
         self.values = vec![start.min(end), start.max(end)];
         self
     }
 
+    /// The smallest value. Default: 0.
+    #[must_use]
     pub fn min(mut self, min: f32) -> Self {
         self.min = min;
         self
     }
 
+    /// The largest value. Default: 100.
+    #[must_use]
     pub fn max(mut self, max: f32) -> Self {
         self.max = max;
         self
     }
 
     /// Values snap to multiples of `step` from `min`. Arrow keys move by one step.
+    #[must_use]
     pub fn step(mut self, step: f32) -> Self {
         self.step = step;
         self
     }
 
+    /// Disable it: it ignores input and renders muted.
+    #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
     /// Receives every value (one for a single slider, two for a range).
+    #[must_use]
     pub fn on_change(
         mut self,
         handler: impl Fn(&Vec<f32>, &mut Window, &mut App) + 'static,
@@ -186,8 +197,7 @@ impl SliderModel {
                     .partial_cmp(&(*b - value).abs())
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
-            .map(|(index, _)| index)
-            .unwrap_or(0)
+            .map_or(0, |(index, _)| index)
     }
 
     /// Move thumb `index` to `value`, keeping thumbs in order, and report it.
@@ -321,7 +331,7 @@ impl RenderOnce for Slider {
                             }
                         }),
                         Rc::new(move |_, cx| {
-                            end_memory.update(cx, |memory| memory.dragging_thumb = None)
+                            end_memory.update(cx, |memory| memory.dragging_thumb = None);
                         }),
                     ))
             })
@@ -330,6 +340,7 @@ impl RenderOnce for Slider {
 }
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)] // Snapped values are exact.
 mod tests {
     use super::snap;
 

@@ -55,6 +55,7 @@ pub struct Attachment {
 crate::implement_style_overrides!(Attachment);
 
 impl Attachment {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>, name: impl Into<SharedString>) -> Self {
         let name = name.into();
         let icon = icon_for_file_name(&name);
@@ -74,41 +75,49 @@ impl Attachment {
     }
 
     /// Secondary line: size, type, page count…
+    #[must_use]
     pub fn meta(mut self, meta: impl Into<SharedString>) -> Self {
         self.meta = Some(meta.into());
         self
     }
 
     /// Override the icon picked from the file extension.
+    #[must_use]
     pub fn icon(mut self, icon: IconName) -> Self {
         self.icon = icon;
         self
     }
 
     /// Show a thumbnail instead of an icon.
+    #[must_use]
     pub fn image(mut self, image: impl Into<ImageSource>) -> Self {
         self.image = Some(image.into());
         self
     }
 
+    /// Upload state: shows progress, a spinner or an error.
+    #[must_use]
     pub fn state(mut self, state: AttachmentState) -> Self {
         self.state = state;
         self
     }
 
     /// Clicking the attachment opens it.
+    #[must_use]
     pub fn on_open(mut self, handler: impl Fn(&(), &mut Window, &mut App) + 'static) -> Self {
         self.on_open = Some(Rc::new(handler));
         self
     }
 
     /// Show a remove button.
+    #[must_use]
     pub fn on_remove(mut self, handler: impl Fn(&(), &mut Window, &mut App) + 'static) -> Self {
         self.on_remove = Some(Rc::new(handler));
         self
     }
 
     /// Show a retry button when the upload failed.
+    #[must_use]
     pub fn on_retry(mut self, handler: impl Fn(&(), &mut Window, &mut App) + 'static) -> Self {
         self.on_retry = Some(Rc::new(handler));
         self
@@ -116,6 +125,7 @@ impl Attachment {
 }
 
 /// A file-type icon from the extension of `name`.
+#[must_use]
 pub fn icon_for_file_name(name: &str) -> IconName {
     let extension = name
         .rsplit_once('.')

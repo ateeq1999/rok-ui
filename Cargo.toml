@@ -2,6 +2,32 @@
 members = [".", "macros"]
 resolver = "2"
 
+[workspace.lints.rust]
+# One allowed site: the DirectWrite lookup in `fonts`, in its own module with SAFETY docs.
+unsafe_code = "deny"
+missing_docs = "warn"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+mod_module_files = "deny"
+too_many_lines = "allow"
+# Layout code converts between pixels (f32), indices and counts constantly.
+cast_possible_truncation = "allow"
+cast_possible_wrap = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+# Colors are written as 0xRRGGBB.
+unreadable_literal = "allow"
+# Builders carry many independent flags (`disabled`, `loading`, ...).
+struct_excessive_bools = "allow"
+# Explicit per-case tables (key maps, alignments) read better unmerged.
+match_same_arms = "allow"
+# Callbacks are `Rc`s passed by value and cloned into handlers.
+needless_pass_by_value = "allow"
+
 [workspace.package]
 version = "0.5.0"
 edition = "2021"
@@ -24,6 +50,9 @@ categories = ["gui"]
 # README links to screenshots on raw.githubusercontent.com, so they stay out of
 # the .crate tarball, along with repository tooling.
 exclude = ["docs/screenshots", ".github", "scripts", ".gitattributes", ".gitignore"]
+
+[lints]
+workspace = true
 
 [dependencies]
 gpui = "0.2.2"
@@ -84,10 +113,12 @@ font-noto-sans-arabic = []
 # App infrastructure.
 # Reactive state from rok-ui-hooks (signals, memos, effects, stores), wired into GPUI.
 state = ["dep:rok-ui-hooks"]
+# The shared tokio runtime for background work (`rok_ui::runtime`).
+runtime = ["dep:tokio"]
 # Routes with params, back / forward history and links (not part of `full`).
 router = []
 # PostgreSQL through rok-db, on a background tokio runtime (not part of `full`).
-db = ["dep:rok-db", "dep:tokio"]
+db = ["dep:rok-db", "runtime"]
 # rok-db column types and migrations.
 db-chrono = ["db", "rok-db/chrono"]
 db-uuid = ["db", "rok-db/uuid"]

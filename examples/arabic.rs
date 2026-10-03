@@ -191,6 +191,7 @@ fn InvoicesCard() -> impl IntoElement {
 
 /// With `font-noto-sans-arabic` enabled, a button that switches between Cairo and
 /// Noto Sans Arabic.
+#[allow(clippy::unnecessary_wraps)] // `None` without the feature.
 fn font_switch() -> Option<Button> {
     #[cfg(feature = "font-noto-sans-arabic")]
     {
@@ -223,7 +224,7 @@ impl Render for ArabicWindow {
             this.dialog_open = true;
             cx.notify();
         });
-        let close_dialog = cx.listener(|this, _: &(), _, cx| {
+        let close_dialog = cx.listener(|this, (): &(), _, cx| {
             this.dialog_open = false;
             cx.notify();
         });

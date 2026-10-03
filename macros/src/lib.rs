@@ -48,7 +48,7 @@ use syn::{
 ///   so callers can chain `.w_full()`, `.mt_4()`, … like a `className`. Apply it in
 ///   the body with `.apply_style_overrides(&style_overrides)`.
 /// - One `#[sx] sx: Sx` parameter makes the component accept `.sx(..)` styles
-///   (StyleX's `xstyle`). Apply them last in the body: `.sx((&MY_STYLES.base, &sx))`.
+///   (`StyleX`'s `xstyle`). Apply them last in the body: `.sx((&MY_STYLES.base, &sx))`.
 #[proc_macro_attribute]
 pub fn component(attribute_arguments: TokenStream, item: TokenStream) -> TokenStream {
     if !attribute_arguments.is_empty() {
@@ -60,7 +60,7 @@ pub fn component(attribute_arguments: TokenStream, item: TokenStream) -> TokenSt
         .into();
     }
     let function = parse_macro_input!(item as ItemFn);
-    match expand_component(function) {
+    match expand_component(&function) {
         Ok(tokens) => tokens.into(),
         Err(error) => error.to_compile_error().into(),
     }
@@ -81,7 +81,7 @@ struct ComponentProperty {
     documentation: Vec<Attribute>,
 }
 
-fn expand_component(function: ItemFn) -> syn::Result<TokenStream2> {
+fn expand_component(function: &ItemFn) -> syn::Result<TokenStream2> {
     if !function.sig.generics.params.is_empty() {
         return Err(syn::Error::new(
             function.sig.generics.span(),
@@ -179,12 +179,14 @@ fn expand_component(function: ItemFn) -> syn::Result<TokenStream2> {
 
     let gpui_path = quote!(::rok_ui::gpui);
     // Keep the caller's spelling of `&mut Window` / `&mut App` so their imports stay used.
-    let window_type = window_type
-        .map(|window_type| quote!(#window_type))
-        .unwrap_or_else(|| quote!(&mut #gpui_path::Window));
-    let context_type = context_type
-        .map(|context_type| quote!(#context_type))
-        .unwrap_or_else(|| quote!(&mut #gpui_path::App));
+    let window_type = window_type.map_or_else(
+        || quote!(&mut #gpui_path::Window),
+        |window_type| quote!(#window_type),
+    );
+    let context_type = context_type.map_or_else(
+        || quote!(&mut #gpui_path::App),
+        |context_type| quote!(#context_type),
+    );
 
     let struct_fields = properties.iter().map(|property| {
         let name = &property.name;
@@ -200,7 +202,16 @@ fn expand_component(function: ItemFn) -> syn::Result<TokenStream2> {
     for property in &properties {
         let name = &property.name;
         let property_type = &property.property_type;
-        let method_documentation = &property.documentation;
+        let fallback_documentation = format!("Set the `{name}` prop.");
+        let method_documentation = if property.documentation.is_empty() {
+            vec![quote!(#[doc = #fallback_documentation])]
+        } else {
+            property
+                .documentation
+                .iter()
+                .map(|attribute| quote!(#attribute))
+                .collect()
+        };
         match property.kind {
             PropertyKind::Required => {
                 if let Some(event_type) = event_handler_event_type(property_type) {

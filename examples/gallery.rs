@@ -212,7 +212,7 @@ impl Gallery {
         }
     }
 
-    fn header(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn header(cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme();
         let current_preset = theme.preset;
         let is_dark = theme.mode.is_dark();
@@ -258,7 +258,7 @@ impl Gallery {
                             .tab("Neutral")
                             .selected_index(selected_preset_index)
                             .on_change(|index, _, cx| {
-                                Theme::change_preset(ThemePreset::ALL[*index], cx)
+                                Theme::change_preset(ThemePreset::ALL[*index], cx);
                             }),
                     )
                     .child(
@@ -294,7 +294,7 @@ impl Gallery {
             )
     }
 
-    fn buttons_card(&self) -> impl IntoElement {
+    fn buttons_card() -> impl IntoElement {
         Card::new()
             .child(
                 CardHeader::new()
@@ -549,7 +549,7 @@ impl Gallery {
             )
     }
 
-    fn alerts_column(&self) -> impl IntoElement {
+    fn alerts_column() -> impl IntoElement {
         div()
             .flex_dir()
             .flex_col()
@@ -593,7 +593,7 @@ impl Gallery {
                         cx.notify();
                     })),
             )
-            .on_close(cx.listener(|gallery, _: &(), _, cx| {
+            .on_close(cx.listener(|gallery, (): &(), _, cx| {
                 gallery.dialog_open = false;
                 cx.notify();
             }))
@@ -635,7 +635,7 @@ impl Render for Gallery {
             GalleryPage::Motion => motion_page::MotionPage::new().into_any_element(),
         };
         AppRoot::new()
-            .child(self.header(cx))
+            .child(Self::header(cx))
             .child(
                 div()
                     .flex_dir()
@@ -660,7 +660,7 @@ impl Render for Gallery {
                                             .items_center()
                                             .gap(px(8.))
                                             .child(SidebarTrigger::new("toggle-sidebar").on_toggle(
-                                                cx.listener(|gallery, _: &(), _, cx| {
+                                                cx.listener(|gallery, (): &(), _, cx| {
                                                     gallery.sidebar_collapsed =
                                                         !gallery.sidebar_collapsed;
                                                     cx.notify();
@@ -698,7 +698,7 @@ impl Gallery {
                         SidebarItem::new(page.title())
                             .icon(page.icon())
                             .active(self.page == page)
-                            .on_click(cx.listener(move |gallery, _: &(), _, cx| {
+                            .on_click(cx.listener(move |gallery, (): &(), _, cx| {
                                 gallery.page = page;
                                 cx.notify();
                             })),
@@ -711,7 +711,7 @@ impl Gallery {
                 SidebarGroup::new().label("Resources").item(
                     SidebarItem::new("shadcn/ui")
                         .icon(IconName::ExternalLink)
-                        .on_click(|_, _, cx| cx.open_url("https://ui.shadcn.com/docs/components")),
+                        .on_click(|(), _, cx| cx.open_url("https://ui.shadcn.com/docs/components")),
                 ),
             )
     }
@@ -727,9 +727,9 @@ impl Gallery {
                     .flex_1()
                     .gap(px(16.))
                     .child(SectionTitle::new("Actions"))
-                    .child(self.buttons_card())
+                    .child(Self::buttons_card())
                     .child(SectionTitle::new("Feedback"))
-                    .child(self.alerts_column())
+                    .child(Self::alerts_column())
                     .child(SectionTitle::new("Data display"))
                     .child(self.display_card(cx)),
             )

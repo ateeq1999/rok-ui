@@ -1,4 +1,4 @@
-//! Select and NativeSelect: pick one value from a list opened by a button.
+//! Select and `NativeSelect`: pick one value from a list opened by a button.
 
 use std::rc::Rc;
 
@@ -59,6 +59,7 @@ pub struct Select {
 crate::implement_style_overrides!(Select);
 
 impl Select {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -76,6 +77,7 @@ impl Select {
     }
 
     /// Add an option: `value` is what `on_change` receives, `label` is what is shown.
+    #[must_use]
     pub fn option(
         mut self,
         value: impl Into<SharedString>,
@@ -90,6 +92,7 @@ impl Select {
     }
 
     /// Add an option that cannot be picked.
+    #[must_use]
     pub fn disabled_option(
         mut self,
         value: impl Into<SharedString>,
@@ -104,45 +107,56 @@ impl Select {
     }
 
     /// A heading above the options that follow it.
+    #[must_use]
     pub fn group_label(mut self, label: impl Into<SharedString>) -> Self {
         self.entries.push(SelectEntry::Label(label.into()));
         self
     }
 
+    /// Add a separator line after the options so far.
+    #[must_use]
     pub fn separator(mut self) -> Self {
         self.entries.push(SelectEntry::Separator);
         self
     }
 
     /// The selected option's value, or `None` to show the placeholder.
+    #[must_use]
     pub fn value(mut self, value: Option<impl Into<SharedString>>) -> Self {
         self.value = value.map(Into::into);
         self
     }
 
+    /// Text shown while nothing is entered or selected.
+    #[must_use]
     pub fn placeholder(mut self, placeholder: impl Into<SharedString>) -> Self {
         self.placeholder = placeholder.into();
         self
     }
 
+    /// Disable it: it ignores input and renders muted.
+    #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
     /// Red border, for validation errors.
+    #[must_use]
     pub fn invalid(mut self, invalid: bool) -> Self {
         self.invalid = invalid;
         self
     }
 
     /// 32px tall instead of 36px.
+    #[must_use]
     pub fn small(mut self) -> Self {
         self.small = true;
         self
     }
 
     /// Receives the chosen option's value.
+    #[must_use]
     pub fn on_change(
         mut self,
         handler: impl Fn(&SharedString, &mut Window, &mut App) + 'static,
@@ -176,7 +190,7 @@ impl Select {
                     let on_change = self.on_change.clone();
                     let item = MenuItem::new(label).disabled(disabled);
                     let item = item.select_option(is_selected);
-                    menu.item(item.on_select(move |_, window, cx| {
+                    menu.item(item.on_select(move |(), window, cx| {
                         if let Some(handler) = on_change.as_ref() {
                             handler(&value, window, cx);
                         }
@@ -305,6 +319,7 @@ impl RenderOnce for Select {
 pub struct NativeSelect;
 
 impl NativeSelect {
+    /// A select with the platform-like trigger. `id` must be unique among its siblings.
     #[allow(clippy::new_ret_no_self)]
     pub fn new(id: impl Into<ElementId>) -> Select {
         let mut select = Select::new(id);

@@ -13,10 +13,14 @@ use crate::{
 /// Visual style, matching shadcn/ui's badge variants.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum BadgeVariant {
+    /// Filled with the primary color.
     #[default]
     Primary,
+    /// Filled with the secondary color.
     Secondary,
+    /// Filled red, for errors and warnings.
     Destructive,
+    /// A border and no fill.
     Outline,
 }
 
@@ -33,6 +37,7 @@ pub struct Badge {
 crate::implement_style_overrides!(Badge);
 
 impl Badge {
+    /// Create it with its label.
     pub fn new(label: impl Into<SharedString>) -> Self {
         Self {
             label: label.into(),
@@ -43,11 +48,15 @@ impl Badge {
         }
     }
 
+    /// The visual variant.
+    #[must_use]
     pub fn variant(mut self, variant: BadgeVariant) -> Self {
         self.variant = variant;
         self
     }
 
+    /// An icon shown with the label.
+    #[must_use]
     pub fn icon(mut self, icon: IconName) -> Self {
         self.icon = Some(icon);
         self

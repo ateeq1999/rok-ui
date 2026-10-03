@@ -1,5 +1,7 @@
 //! Motion: `keyframes!`, `.motion(..)`, `use_transition` and `use_presence`.
 
+#![allow(clippy::float_cmp)] // Finished transitions land exactly on their targets.
+
 use std::{cell::Cell, rc::Rc};
 
 use rok_ui::prelude::*;

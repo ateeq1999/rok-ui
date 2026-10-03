@@ -32,8 +32,10 @@ pub enum BubbleVariant {
 /// Which side the bubble's tail is on.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum BubbleAlign {
+    /// At the reading-direction start (messages from others).
     #[default]
     Start,
+    /// At the reading-direction end (your own messages).
     End,
 }
 
@@ -41,10 +43,14 @@ pub enum BubbleAlign {
 /// side tighten so a run reads as one group.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum BubbleGroupPosition {
+    /// A message on its own: every corner rounded.
     #[default]
     Single,
+    /// The first of consecutive messages from one sender.
     First,
+    /// Between the first and last of a group.
     Middle,
+    /// The last of consecutive messages from one sender.
     Last,
 }
 
@@ -57,6 +63,7 @@ pub struct BubbleReaction {
 }
 
 impl BubbleReaction {
+    /// An `emoji` reaction with its `count`.
     pub fn new(emoji: impl Into<SharedString>, count: usize) -> Self {
         Self {
             emoji: emoji.into(),
@@ -66,6 +73,7 @@ impl BubbleReaction {
     }
 
     /// Highlight the chip: the current user added this reaction.
+    #[must_use]
     pub fn reacted(mut self, reacted: bool) -> Self {
         self.reacted = reacted;
         self
@@ -98,6 +106,7 @@ pub struct Bubble {
 crate::implement_style_overrides!(Bubble);
 
 impl Bubble {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -113,27 +122,36 @@ impl Bubble {
         }
     }
 
+    /// The visual variant.
+    #[must_use]
     pub fn variant(mut self, variant: BubbleVariant) -> Self {
         self.variant = variant;
         self
     }
 
+    /// Which side of the conversation the bubble sits on.
+    #[must_use]
     pub fn align(mut self, align: BubbleAlign) -> Self {
         self.align = align;
         self
     }
 
+    /// Where the bubble sits in a run of messages from one sender.
+    #[must_use]
     pub fn group_position(mut self, position: BubbleGroupPosition) -> Self {
         self.group_position = position;
         self
     }
 
+    /// Add a reaction below the bubble.
+    #[must_use]
     pub fn reaction(mut self, reaction: BubbleReaction) -> Self {
         self.reactions.push(reaction);
         self
     }
 
     /// Called with the emoji when a reaction chip is clicked.
+    #[must_use]
     pub fn on_reaction(
         mut self,
         handler: impl Fn(&SharedString, &mut Window, &mut App) + 'static,
@@ -143,6 +161,7 @@ impl Bubble {
     }
 
     /// Clip content taller than `height` behind a "Show more" toggle.
+    #[must_use]
     pub fn collapse_after(mut self, height: impl Into<Pixels>) -> Self {
         self.collapse_after = Some(height.into());
         self
@@ -266,17 +285,20 @@ impl RenderOnce for Bubble {
         let bubble = div()
             .sx((&BUBBLE.bubble, BUBBLE.variant(self.variant)))
             // The tail is on the left for start-aligned bubbles in LTR, the right in RTL.
-            .map(|bubble| match on_right {
-                false => bubble
-                    .rounded_tr(large)
-                    .rounded_br(large)
-                    .rounded_tl(tail_top)
-                    .rounded_bl(tail_bottom),
-                true => bubble
-                    .rounded_tl(large)
-                    .rounded_bl(large)
-                    .rounded_tr(tail_top)
-                    .rounded_br(tail_bottom),
+            .map(|bubble| {
+                if on_right {
+                    bubble
+                        .rounded_tl(large)
+                        .rounded_bl(large)
+                        .rounded_tr(tail_top)
+                        .rounded_br(tail_bottom)
+                } else {
+                    bubble
+                        .rounded_tr(large)
+                        .rounded_br(large)
+                        .rounded_tl(tail_top)
+                        .rounded_bl(tail_bottom)
+                }
             })
             .child(content)
             .children(collapse_toggle);

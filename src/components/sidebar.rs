@@ -19,8 +19,10 @@ use crate::{
 /// Which edge the sidebar sits on.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum SidebarSide {
+    /// Docked to the left edge.
     #[default]
     Left,
+    /// Docked to the right edge.
     Right,
 }
 
@@ -36,6 +38,7 @@ pub struct SidebarItem {
 }
 
 impl SidebarItem {
+    /// Create it with its label.
     pub fn new(label: impl Into<SharedString>) -> Self {
         Self {
             label: label.into(),
@@ -48,35 +51,43 @@ impl SidebarItem {
         }
     }
 
+    /// An icon shown with the label.
+    #[must_use]
     pub fn icon(mut self, icon: IconName) -> Self {
         self.icon = Some(icon);
         self
     }
 
     /// A count or tag on the right, like unread messages.
+    #[must_use]
     pub fn badge(mut self, badge: impl Into<SharedString>) -> Self {
         self.badge = Some(badge.into());
         self
     }
 
     /// Highlight as the current page.
+    #[must_use]
     pub fn active(mut self, active: bool) -> Self {
         self.active = active;
         self
     }
 
+    /// Called when clicked or activated with the keyboard.
+    #[must_use]
     pub fn on_click(mut self, handler: impl Fn(&(), &mut Window, &mut App) + 'static) -> Self {
         self.on_click = Some(Rc::new(handler));
         self
     }
 
     /// A nested row, shown when this row is expanded.
+    #[must_use]
     pub fn sub_item(mut self, item: SidebarItem) -> Self {
         self.sub_items.push(item);
         self
     }
 
     /// Start expanded (rows with sub-items only).
+    #[must_use]
     pub fn default_open(mut self, open: bool) -> Self {
         self.default_open = open;
         self
@@ -90,6 +101,8 @@ pub struct SidebarGroup {
 }
 
 impl SidebarGroup {
+    /// An empty `SidebarGroup`; add content with the builder methods.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             label: None,
@@ -97,11 +110,15 @@ impl SidebarGroup {
         }
     }
 
+    /// The group heading.
+    #[must_use]
     pub fn label(mut self, label: impl Into<SharedString>) -> Self {
         self.label = Some(label.into());
         self
     }
 
+    /// Add an item.
+    #[must_use]
     pub fn item(mut self, item: SidebarItem) -> Self {
         self.items.push(item);
         self
@@ -144,6 +161,7 @@ pub struct Sidebar {
 crate::implement_style_overrides!(Sidebar);
 
 impl Sidebar {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -158,28 +176,36 @@ impl Sidebar {
         }
     }
 
+    /// Show icons only.
+    #[must_use]
     pub fn collapsed(mut self, collapsed: bool) -> Self {
         self.collapsed = collapsed;
         self
     }
 
+    /// Which window edge the sidebar docks to.
+    #[must_use]
     pub fn side(mut self, side: SidebarSide) -> Self {
         self.side = side;
         self
     }
 
     /// Pinned to the top (an app or team switcher).
+    #[must_use]
     pub fn header(mut self, element: impl IntoElement) -> Self {
         self.header.push(element.into_any_element());
         self
     }
 
     /// Pinned to the bottom (the user menu).
+    #[must_use]
     pub fn footer(mut self, element: impl IntoElement) -> Self {
         self.footer.push(element.into_any_element());
         self
     }
 
+    /// Add a group of items.
+    #[must_use]
     pub fn group(mut self, group: SidebarGroup) -> Self {
         self.groups.push(group);
         self
@@ -410,6 +436,7 @@ pub struct SidebarTrigger {
 }
 
 impl SidebarTrigger {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -417,6 +444,8 @@ impl SidebarTrigger {
         }
     }
 
+    /// Called when clicked; toggle your sidebar state here.
+    #[must_use]
     pub fn on_toggle(mut self, handler: impl Fn(&(), &mut Window, &mut App) + 'static) -> Self {
         self.on_toggle = Some(Rc::new(handler));
         self

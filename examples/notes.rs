@@ -181,16 +181,12 @@ impl NotesApp {
 
 impl Render for NotesApp {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let selected = if router::is_active("/settings", false, cx) {
-            1
-        } else {
-            0
-        };
+        let selected = usize::from(router::is_active("/settings", false, cx));
         let title = match router::location(cx).path() {
             "/settings" => "Settings",
             _ => "Notes",
         };
-        let count = self.notes.with(|notes| notes.len());
+        let count = self.notes.with(std::vec::Vec::len);
         let (list_notes, detail_notes) = (self.notes.clone(), self.notes.clone());
 
         AppRoot::new().child(
@@ -222,7 +218,7 @@ impl Render for NotesApp {
                 .destination(NavigationDestination::new(IconName::Settings, "Settings"))
                 .selected_index(selected)
                 .on_change(|index, _, cx| {
-                    router::navigate(if *index == 1 { "/settings" } else { "/" }, cx)
+                    router::navigate(if *index == 1 { "/settings" } else { "/" }, cx);
                 })
                 .child(
                     Router::new()

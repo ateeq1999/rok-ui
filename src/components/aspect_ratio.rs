@@ -1,4 +1,4 @@
-//! AspectRatio: keeps its content at a fixed width-to-height ratio.
+//! `AspectRatio`: keeps its content at a fixed width-to-height ratio.
 
 use gpui::{div, prelude::*, AnyElement, StyleRefinement};
 
