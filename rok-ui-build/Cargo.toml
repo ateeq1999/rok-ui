@@ -1,0 +1,20 @@
+[package]
+name = "rok-ui-build"
+description = "Build-script support for rok-ui: file-based routes generated from src/routes."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+repository = "https://github.com/ateeq1999/rok-ui"
+documentation = "https://docs.rs/rok-ui-build"
+keywords = ["gpui", "router", "codegen", "build"]
+categories = ["development-tools::build-utils"]
+
+[lints]
+workspace = true
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["full"] }

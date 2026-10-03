@@ -447,8 +447,36 @@ fn single_generic_argument<'a>(property_type: &'a Type, wrapper_name: &str) -> O
 }
 
 mod children;
+mod file_route;
 mod procedure;
+mod search;
 mod styles;
+
+/// Declare the route in a route file under `src/routes/` (see `rok_ui::routes!`).
+///
+/// Keys: `params: { id: u64 }` (types of the path's `$` parameters), `search: Type`,
+/// `component: Page` or `layout: Layout` (a layout renders its child route as its children),
+/// and `before_load: |location, cx| ..` (a guard returning `Result<(), RouteControl>`).
+#[proc_macro]
+pub fn file_route(input: TokenStream) -> TokenStream {
+    match file_route::expand_file_route(input.into()) {
+        Ok(tokens) => tokens.into(),
+        Err(error) => error.to_compile_error().into(),
+    }
+}
+
+/// Implement `rok_ui::router::Search` for a struct of query parameters.
+///
+/// Field attributes: `#[search(default = expr)]` (the value when missing or invalid; otherwise
+/// `Default::default()`), `#[search(rename = "p")]` (the query key). `Option` fields are `None`
+/// when missing.
+#[proc_macro_derive(Search, attributes(search))]
+pub fn derive_search(input: TokenStream) -> TokenStream {
+    match search::expand_search(input.into()) {
+        Ok(tokens) => tokens.into(),
+        Err(error) => error.to_compile_error().into(),
+    }
+}
 
 /// Declare a typed async command: a [`Procedure`](../rok_ui/query/trait.Procedure.html) with
 /// optional queries to invalidate after it succeeds.

@@ -187,18 +187,170 @@ Note that `/settings/*rest` also matches `/settings` itself, with an empty `rest
 
 ## Guards
 
-Route builders are plain closures, so a guard is an `if` in the builder:
+`.guard(prefix, guard)` runs before any route at or below `prefix` renders. A guard returns
+`Ok(())` to continue, or a [`RouteControl`](crate::router::RouteControl): `Redirect(path)`
+replaces the location (the guarded route never renders), `NotFound` shows the "not found"
+route.
 
 ```rust,ignore
-.route("/admin/*rest", move |_, _, cx| {
-    if session.with(|session| session.is_admin()) {
-        AdminPage::new().into_any_element()
-    } else {
-        router::replace("/login?next=/admin", cx);
-        div().into_any_element()
-    }
-})
+Router::new()
+    .route("/login", |_, _, _| LoginPage::new())
+    .route("/admin/*rest", |_, _, _| AdminPage::new())
+    .guard("/admin", move |location, cx| {
+        if session.with(|session| session.is_admin()) {
+            Ok(())
+        } else {
+            Err(RouteControl::redirect(Location::build("/login", &[("next", location.path())])))
+        }
+    })
 ```
+
+## Typed routes
+
+A typed route is a struct whose fields are the pattern's parameters. Links and navigation
+then take the struct, so a missing route or a wrong parameter type is a compile error:
+
+```
+use rok_ui::{prelude::*, router::{self, Route, Router}, typed_route};
+
+typed_route! {
+    /// One message.
+    pub struct MessageRoute = "/inbox/:id" { pub id: u64 }
+}
+
+let router = Router::new().route_to(|message: MessageRoute, _, _| {
+    div().child(format!("Message {}", message.id))
+});
+let link = Link::to(&MessageRoute { id: 7 }).child("Open");
+assert_eq!(MessageRoute { id: 7 }.href(), "/inbox/7");
+# let _ = (router, link);
+```
+
+- `typed_route!` checks at compile time that every field is a parameter of the pattern and
+  every parameter has a field. Field types implement `FromStr` and `Display`.
+- `router::navigate_to(&route, cx)` and `router::replace_to(&route, cx)` navigate;
+  `router::use_params::<MessageRoute>(cx)` reads the current location as the route.
+- `.route_to(|route: R, window, cx| ..)` renders a typed route. When the pattern matches but a
+  parameter does not parse (`/inbox/abc`), the "not found" route shows.
+
+## Search params
+
+Shareable UI state such as filters, tabs and pages belongs in the query string, where links
+and back / forward keep it. `#[derive(Search)]` maps a struct to query parameters:
+
+```
+use rok_ui::router::{Location, Search};
+
+#[derive(Search, Clone, Debug, PartialEq)]
+struct InboxSearch {
+    #[search(default = 1)]
+    page: u32,
+    q: Option<String>,
+    #[search(default, rename = "unread")]
+    unread_only: bool,
+}
+
+let search = InboxSearch::from_location(&Location::parse("/inbox?page=2&unread=true"));
+assert_eq!(search, InboxSearch { page: 2, q: None, unread_only: true });
+```
+
+- Reading never fails: a missing or invalid value falls back to the field's default.
+- `router::use_search::<InboxSearch>(cx)` reads the current values;
+  `router::update_search::<InboxSearch>(cx, |search| search.page += 1)` adds a history entry
+  (`replace_search` replaces it). Other query parameters are kept.
+- `Link::to(&route).search(&InboxSearch { .. })` links with search params. Defaults are left
+  out of the URL.
+
+## Blocking navigation
+
+`router::use_blocker(cx, dirty)` holds back navigation while `dirty` is true, so a form can ask
+before its changes are lost. While a navigation waits, `blocker.is_blocked()` is true; call
+`blocker.proceed(cx)` to let it happen or `blocker.reset(cx)` to stay:
+
+```rust,ignore
+#[component]
+fn Editor(dirty: bool, cx: &mut Cx) -> impl IntoElement {
+    let blocker = router::use_blocker(cx, dirty);
+    let (stay, leave) = (blocker.clone(), blocker.clone());
+    AlertDialog::new("leave")
+        .open(blocker.is_blocked())
+        .title("Discard changes?")
+        .on_cancel(move |_, _, cx| stay.reset(cx))
+        .on_action(move |_, _, cx| leave.proceed(cx))
+}
+```
+
+Redirects and guard redirects are not blocked.
+
+## File-based routes
+
+For larger apps, routes can live in files, one per route, the way TanStack Router does it. A
+build script turns `src/routes/` into a `routes` module with a typed route per page and a
+`routes::tree()` router:
+
+```rust,ignore
+// build.rs (with `rok-ui-build` in [build-dependencies])
+fn main() {
+    rok_ui_build::routes("src/routes").generate().unwrap();
+}
+
+// src/main.rs
+rok_ui::routes!();
+
+// in a view
+AppRoot::new().child(routes::tree())
+```
+
+| File | Route |
+|---|---|
+| `__root.rs` | The root layout, around every route |
+| `__not_found.rs` | Shown when nothing matches |
+| `index.rs` | `/` |
+| `about.rs` | `/about` |
+| `notes.rs` declaring `layout:` | A layout around every route under `/notes` |
+| `notes/index.rs` | `/notes` |
+| `notes/$id.rs` | `/notes/:id` |
+| `notes.$id.edit.rs` | `/notes/:id/edit` (dots separate segments) |
+| `files/$.rs` | `/files/*splat` |
+| `_auth.rs` declaring `layout:` | A layout around `_auth/..` routes without adding a segment |
+| `(marketing)/pricing.rs` | `/pricing` (group folders only organize files) |
+| `-components/..` | Ignored, for colocated helpers |
+| `[rok-ui].rs` | `/rok-ui` (brackets escape special characters) |
+
+Each file declares its route with `file_route!`:
+
+```rust,ignore
+// src/routes/notes/$id.rs
+use rok_ui::prelude::*;
+use rok_ui::router::file_route;
+
+file_route! {
+    params: { id: u64 },            // types of the `$` parameters (default: String)
+    search: NoteSearch,             // optional: `search(cx)` reads it
+    component: NotePage,            // a page; a layout declares `layout: Name` instead
+    before_load: |location, cx| Ok(()), // optional guard, also applied to child routes
+}
+
+#[component]
+fn NotePage(cx: &mut Cx) -> impl IntoElement {
+    let Route { id } = params(cx);  // `Route` is this file's generated type: routes::NotesId
+    div().child(format!("Note {id}"))
+}
+```
+
+- Layout components take `#[children] children: Vec<AnyElement>`; the child route renders as
+  their children. Pages and layouts are constructed with `new()`, so they have no required
+  props.
+- The generated names are `routes::<Path>`: `NotesId` for `/notes/:id`, `Index` for `/`,
+  `FilesSplat` for `/files/*splat`. Adding a file adds its type; nothing is registered by hand.
+- The generator checks that `params` match the file name and reports mistakes with the file
+  name. Route files are included into the generated module, so they cannot declare `mod`
+  children; put shared code in `-components/` folders or elsewhere in the crate.
+- `rok_ui_build::routes(..).write_to("src/route_tree.rs")` writes the same code to a checked-in
+  file, included with `rok_ui::routes!("route_tree.rs")`.
+
+`examples/file_routes` is a complete app: layouts, a guarded pathless layout, typed links,
+search params and queries with `Suspense`.
 
 ## Listening to navigation
 
@@ -222,7 +374,7 @@ if let Ok(path) = std::fs::read_to_string(last_page_file()) {
   current location. For separate navigation per window, keep a page enum in each view and
   skip the router.
 - Builders run during render, inside the router's element, so they can use hooks
-  (`use_state`, `use_signal`, `db::use_query`) like any component.
+  (`use_state`, `use_signal`, `query::use_query`) like any component.
 - Nothing is persisted. The history starts at `/` on every launch; restore it yourself with
   `on_navigate` as shown above.
 
@@ -257,5 +409,11 @@ together in an `AdaptiveScaffold`.
 | `navigate`, `replace`, `back`, `forward` | Change the location |
 | `can_go_back`, `can_go_forward`, `location`, `is_active` | Read the history |
 | `on_navigate(listener, cx)` | Run code after each navigation |
-| `Link::new(id, to)` | Navigates on click, Enter or Space; `.replace(..)`, `.exact(..)` |
+| `Link::new(id, to)`, `Link::to(&route)` | Navigates on click, Enter or Space; `.search(..)`, `.replace(..)`, `.exact(..)` |
+| `.guard(prefix, guard)`, `RouteControl` | Redirect or "not found" before a route renders |
+| `typed_route!`, `Route`, `.route_to(..)` | Typed routes: `href()`, `parse(path)` |
+| `navigate_to`, `replace_to`, `use_params` | Navigate to and read typed routes |
+| `#[derive(Search)]`, `use_search`, `update_search`, `replace_search` | Typed search params |
+| `use_blocker(cx, when)`, `Blocker` | Hold navigation until the user confirms |
+| `file_route!`, `routes!()`, `rok_ui_build::routes` | File-based routes |
 | `GoBack`, `GoForward` | Actions bound to Alt+Left and Alt+Right |

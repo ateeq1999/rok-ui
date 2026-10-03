@@ -4911,6 +4911,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "rok-ui-build"
+version = "0.5.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "rok-ui-example-file-routes"
+version = "0.0.0"
+dependencies = [
+ "gpui",
+ "rok-ui",
+ "rok-ui-build",
+]
+
+[[package]]
 name = "rok-ui-hooks"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

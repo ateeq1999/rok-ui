@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "macros"]
+members = [".", "macros", "rok-ui-build", "examples/file_routes"]
 resolver = "2"
 
 [workspace.lints.rust]
@@ -249,6 +249,10 @@ required-features = ["full"]
 [[test]]
 name = "query"
 required-features = ["full", "query"]
+
+[[test]]
+name = "router"
+required-features = ["full", "router"]
 
 [[test]]
 name = "compile_errors"

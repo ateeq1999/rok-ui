@@ -26,6 +26,17 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - **`Cx`**: one context handle (window and app). `#[component]` functions can take
   `cx: &mut Cx` instead of `window` and `cx`.
 - **`rok_ui::runtime`**: one shared tokio runtime for every async feature.
+- **Router v2** (`router` feature): typed routes with `typed_route!` (fields checked against
+  the pattern at compile time), `Link::to`, `navigate_to`, `use_params` and
+  `Router::route_to`; typed search params with `#[derive(Search)]`, `use_search`,
+  `update_search` and `Link::search`; guards with `Router::guard` and `RouteControl`;
+  `use_blocker` to hold navigation away from unsaved work.
+- **File-based routes:** the new `rok-ui-build` crate generates a typed route tree from
+  `src/routes/` (TanStack Router's conventions: `$param`, `$` splats, `index`, flat
+  `a.b.rs` files, `_pathless` and `layout:` layouts, `(group)` folders, `-ignored` entries,
+  `__root.rs`, `__not_found.rs`), included with `rok_ui::routes!()`. Route files declare
+  `file_route! { params, search, component | layout, before_load }`.
+  `examples/file_routes` is a complete app.
 - `db::db_query` and `db::db_mutation` build query and mutation options on the app's
   connection; `db::invalidate` also invalidates matching queries.
 - `AGENTS.md`, `llms.txt` and `.agents/skills` for coding agents.
