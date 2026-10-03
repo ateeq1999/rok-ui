@@ -4632,7 +4632,7 @@ dependencies = [
 
 [[package]]
 name = "rok-ui"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "env_logger",
  "gpui",
@@ -4646,7 +4646,7 @@ dependencies = [
 
 [[package]]
 name = "rok-ui-macros"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -9,6 +9,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-03
+
 ### Added
 
 - **Noto Sans Arabic** behind the `font-noto-sans-arabic` feature (`rok_ui::fonts::NOTO_SANS_ARABIC`),
@@ -102,7 +104,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - Light and dark themes with the Rok and Neutral presets.
 - Keyboard focus navigation and text inputs with IME, selection and clipboard support.
 
-[Unreleased]: https://github.com/ateeq1999/rok-ui/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/ateeq1999/rok-ui/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/ateeq1999/rok-ui/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/ateeq1999/rok-ui/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/ateeq1999/rok-ui/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ateeq1999/rok-ui/releases/tag/v0.1.0
