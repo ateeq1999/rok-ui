@@ -9,6 +9,41 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **Data layer** (`query` feature, opt-in; enabled by `db`): `rok_ui::query` with
+  `QueryOptions`, hierarchical `query_key!` keys, `use_query` / `use_suspense_query`, one
+  cache per app with shared in-flight fetches, stale and gc times, retries, placeholder and
+  previous data, refetch intervals, prefix `invalidate`, and `fetch_query`,
+  `ensure_query_data`, `prefetch_query`, `set_query_data`, `update_query_data`,
+  `cancel_queries`, `reset_queries`.
+- **Mutations and procedures:** `use_mutation` with pending / success / error state,
+  invalidation and optimistic updates that roll back on failure; `#[procedure]` typed commands
+  with `use_procedure` and `.call(cx, input)`; `query::provide` and `TaskCx` for values that
+  background work reads.
+- **`Suspense` and `ErrorBoundary`**, and `#[memoize]` for async helpers whose concurrent
+  callers share one future.
+- **`Cx`**: one context handle (window and app). `#[component]` functions can take
+  `cx: &mut Cx` instead of `window` and `cx`.
+- **`rok_ui::runtime`**: one shared tokio runtime for every async feature.
+- `db::db_query` and `db::db_mutation` build query and mutation options on the app's
+  connection; `db::invalidate` also invalidates matching queries.
+- `AGENTS.md`, `llms.txt` and `.agents/skills` for coding agents.
+
+### Changed
+
+- The workspace enables clippy pedantic and `missing_docs`; every public item is documented
+  and builders are `#[must_use]`.
+- CI runs `cargo hack` per feature, `cargo udeps`, docs with `--cfg docsrs`, a PostgreSQL
+  service for the database tests, and checks pull request titles. Releases go through
+  release-plz.
+- `src/components/mod.rs` and `src/theme/mod.rs` became `src/components.rs` and
+  `src/theme.rs` (no API change).
+
+### Deprecated
+
+- `db::use_query`: use `query::use_query(cx, db::db_query(..))`. It will be removed in 0.8.
+
 ## [0.5.0] - 2026-10-03
 
 ### Added

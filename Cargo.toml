@@ -65,7 +65,8 @@ ttf-parser = "0.25"
 jiff = { version = "0.2", optional = true }
 rok-ui-hooks = { version = "0.3", optional = true }
 rok-db = { version = "0.1", optional = true }
-tokio = { version = "1", features = ["rt-multi-thread"], optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "time"], optional = true }
+futures = { version = "0.3", optional = true }
 
 # Reads which Arabic letter forms installed fonts have (the same crate GPUI uses).
 [target.'cfg(windows)'.dependencies]
@@ -115,12 +116,14 @@ font-noto-sans-arabic = []
 # App infrastructure.
 # Reactive state from rok-ui-hooks (signals, memos, effects, stores), wired into GPUI.
 state = ["dep:rok-ui-hooks"]
+# Queries, mutations, procedures, Suspense (`rok_ui::query`), on the shared runtime.
+query = ["runtime", "dep:futures"]
 # The shared tokio runtime for background work (`rok_ui::runtime`).
 runtime = ["dep:tokio"]
 # Routes with params, back / forward history and links (not part of `full`).
 router = []
 # PostgreSQL through rok-db, on a background tokio runtime (not part of `full`).
-db = ["dep:rok-db", "runtime"]
+db = ["dep:rok-db", "query"]
 # rok-db column types and migrations.
 db-chrono = ["db", "rok-db/chrono"]
 db-uuid = ["db", "rok-db/uuid"]
@@ -242,6 +245,10 @@ required-features = ["full"]
 [[test]]
 name = "motion"
 required-features = ["full"]
+
+[[test]]
+name = "query"
+required-features = ["full", "query"]
 
 [[test]]
 name = "compile_errors"

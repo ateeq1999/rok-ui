@@ -4896,6 +4896,7 @@ name = "rok-ui"
 version = "0.5.0"
 dependencies = [
  "env_logger",
+ "futures",
  "gpui",
  "jiff",
  "rok-db",

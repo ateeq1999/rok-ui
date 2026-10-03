@@ -7,11 +7,12 @@
 //! ```
 //!
 //! The example creates a `rok_ui_example_users` table if it is missing, lists its
-//! rows with `db::use_query`, and inserts and deletes with `db::run`, invalidating
-//! the query afterwards.
+//! rows with `query::use_query` and `db::db_query`, and inserts and deletes with
+//! `db::run`, invalidating the `users` queries afterwards.
 
 use rok_ui::db::{self, rok_db::prelude::*};
 use rok_ui::prelude::*;
+use rok_ui::{query, query_key};
 
 #[derive(Debug, Clone, Model)]
 #[rok(crate = "rok_ui::db::rok_db", table = "rok_ui_example_users")]
@@ -50,15 +51,19 @@ where
     .detach();
 }
 
-#[component]
-fn UsersCard(window: &mut Window, cx: &mut App) -> impl IntoElement {
-    let users = db::use_query("users", window, cx, |db| async move {
+fn users_query() -> query::QueryOptions<Vec<User>> {
+    db::db_query(query_key!["users"], |db| async move {
         User::query().order_by(User::ID.asc()).all(&db).await
-    });
-    let email = use_input_state("email", window, cx, |state| {
+    })
+}
+
+#[component]
+fn UsersCard(cx: &mut Cx) -> impl IntoElement {
+    let users = query::use_query(cx, users_query());
+    let email = use_input_state("email", cx.window, cx.app, |state| {
         state.with_placeholder("ada@example.com")
     });
-    let name = use_input_state("name", window, cx, |state| {
+    let name = use_input_state("name", cx.window, cx.app, |state| {
         state.with_placeholder("Ada Lovelace")
     });
 

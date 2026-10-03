@@ -37,6 +37,8 @@ use syn::{
 ///
 /// Parameter rules:
 /// - A parameter named `window` or `cx` receives the GPUI window or app context.
+///   `cx: &mut Cx` receives both as one [`Cx`](../rok_ui/struct.Cx.html) handle instead
+///   (then there is no `window` parameter).
 /// - Plain parameters are required props and become arguments of `new(..)` (taking `impl Into<T>`).
 /// - `#[prop(optional)]` parameters start at `Default::default()` and get a builder method
 ///   with the same name. For `Option<T>` the method takes `impl Into<T>`.
@@ -178,6 +180,13 @@ fn expand_component(function: &ItemFn) -> syn::Result<TokenStream2> {
     }
 
     let gpui_path = quote!(::rok_ui::gpui);
+    let uses_cx = context_type.as_ref().is_some_and(is_cx_type);
+    if uses_cx && window_type.is_some() {
+        return Err(syn::Error::new(
+            function.sig.inputs.span(),
+            "a component taking `cx: &mut Cx` reaches the window through `cx.window`; remove the `window` parameter",
+        ));
+    }
     // Keep the caller's spelling of `&mut Window` / `&mut App` so their imports stay used.
     let window_type = window_type.map_or_else(
         || quote!(&mut #gpui_path::Window),
@@ -337,6 +346,30 @@ fn expand_component(function: &ItemFn) -> syn::Result<TokenStream2> {
         syn::ReturnType::Type(_, return_type) => return_type.clone(),
     };
 
+    let render_implementation = if uses_cx {
+        quote! {
+            impl #gpui_path::RenderOnce for #component_name {
+                #[allow(unused_variables, clippy::needless_return)]
+                fn render(self, __rok_window: &mut #gpui_path::Window, __rok_app: &mut #gpui_path::App) -> #return_type {
+                    let Self { #(#field_names,)* } = self;
+                    let mut __rok_cx = ::rok_ui::Cx::new(__rok_window, __rok_app);
+                    let #context_name: &mut ::rok_ui::Cx<'_> = &mut __rok_cx;
+                    #body
+                }
+            }
+        }
+    } else {
+        quote! {
+            impl #gpui_path::RenderOnce for #component_name {
+                #[allow(unused_variables, clippy::needless_return)]
+                fn render(self, #window_name: #window_type, #context_name: #context_type) -> #return_type {
+                    let Self { #(#field_names,)* } = self;
+                    #body
+                }
+            }
+        }
+    };
+
     Ok(quote! {
         #(#documentation)*
         #[must_use = "components do nothing unless rendered as a child"]
@@ -354,13 +387,7 @@ fn expand_component(function: &ItemFn) -> syn::Result<TokenStream2> {
             #(#builder_methods)*
         }
 
-        impl #gpui_path::RenderOnce for #component_name {
-            #[allow(unused_variables, clippy::needless_return)]
-            fn render(self, #window_name: #window_type, #context_name: #context_type) -> #return_type {
-                let Self { #(#field_names,)* } = self;
-                #body
-            }
-        }
+        #render_implementation
 
         impl #gpui_path::IntoElement for #component_name {
             type Element = #gpui_path::Component<Self>;
@@ -375,6 +402,21 @@ fn expand_component(function: &ItemFn) -> syn::Result<TokenStream2> {
         #styled_implementation
         #sx_implementation
     })
+}
+
+/// Whether `context_type` is `&mut Cx` (any path ending in `Cx`).
+fn is_cx_type(context_type: &Type) -> bool {
+    let Type::Reference(reference) = context_type else {
+        return false;
+    };
+    let Type::Path(type_path) = reference.elem.as_ref() else {
+        return false;
+    };
+    type_path
+        .path
+        .segments
+        .last()
+        .is_some_and(|segment| segment.ident == "Cx")
 }
 
 /// `Option<T>` -> `Some(T)`.
@@ -405,7 +447,43 @@ fn single_generic_argument<'a>(property_type: &'a Type, wrapper_name: &str) -> O
 }
 
 mod children;
+mod procedure;
 mod styles;
+
+/// Declare a typed async command: a [`Procedure`](../rok_ui/query/trait.Procedure.html) with
+/// optional queries to invalidate after it succeeds.
+///
+/// The function is `async`, takes an optional `TaskCx` and one input, and returns
+/// `Result<Output, Error>`. The attribute turns it into a unit struct of the same name that
+/// implements `Procedure`, for `use_procedure(cx, create_note)` or `create_note.call(cx, input)`.
+///
+/// ```ignore
+/// #[procedure(invalidates = [query_key!["notes"]])]
+/// async fn create_note(cx: TaskCx, input: NewNote) -> Result<Note, NoteError> { .. }
+/// ```
+#[proc_macro_attribute]
+pub fn procedure(arguments: TokenStream, item: TokenStream) -> TokenStream {
+    match procedure::expand_procedure(arguments.into(), item.into()) {
+        Ok(tokens) => tokens.into(),
+        Err(error) => error.to_compile_error().into(),
+    }
+}
+
+/// Memoize an async function: calls with the same arguments share one in-flight future and its
+/// result, until `rok_ui::query::memo::invalidate` forgets it. Arguments are owned and `Debug`
+/// (they form the cache key); the output is `Clone + Send + Sync`.
+///
+/// ```ignore
+/// #[memoize]
+/// async fn current_user(cx: TaskCx) -> Option<User> { session::load(&cx).await }
+/// ```
+#[proc_macro_attribute]
+pub fn memoize(arguments: TokenStream, item: TokenStream) -> TokenStream {
+    match procedure::expand_memoize(arguments.into(), item.into()) {
+        Ok(tokens) => tokens.into(),
+        Err(error) => error.to_compile_error().into(),
+    }
+}
 
 /// Define StyleX-style style objects once, at module level.
 ///
