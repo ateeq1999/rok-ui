@@ -13,6 +13,9 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -D warnings
+  GPUI_LINUX_PACKAGES: >-
+    libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libvulkan-dev libfontconfig-dev
+    libx11-xcb-dev libxcb1-dev
 
 jobs:
   fmt:
@@ -25,6 +28,20 @@ jobs:
           components: rustfmt
       - run: cargo fmt --all --check
 
+  clippy:
+    name: Clippy (pedantic)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: Install GPUI's Linux dependencies
+        run: sudo apt-get update && sudo apt-get install -y $GPUI_LINUX_PACKAGES
+      - uses: Swatinem/rust-cache@v2
+      # Lint levels come from [workspace.lints]; RUSTFLAGS turns warnings into errors.
+      - run: cargo clippy --workspace --all-targets --all-features --locked
+
   test:
     name: Test (${{ matrix.os }})
     strategy:
@@ -35,17 +52,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
       - name: Install GPUI's Linux dependencies
         if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y $GPUI_LINUX_PACKAGES
+      # tests/db.rs runs against a real PostgreSQL server on Linux.
+      - name: Start PostgreSQL
+        if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev \
-            libvulkan-dev libfontconfig-dev libx11-xcb-dev libxcb1-dev
+          docker run -d --name postgres -e POSTGRES_PASSWORD=rok -p 55432:5432 postgres:17-alpine
+          echo "ROK_UI_TEST_DATABASE_URL=postgres://postgres:rok@127.0.0.1:55432/postgres" >> "$GITHUB_ENV"
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --workspace --all-targets --all-features
-      - run: cargo test --workspace --all-features
+      - name: Wait for PostgreSQL
+        if: runner.os == 'Linux'
+        run: |
+          for _ in $(seq 1 30); do
+            docker exec postgres pg_isready -U postgres && exit 0
+            sleep 1
+          done
+          exit 1
+      - run: cargo test --workspace --all-features --locked
 
   features:
     name: Each feature on its own
@@ -53,13 +78,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: taiki-e/install-action@cargo-hack
       - name: Install GPUI's Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev \
-            libvulkan-dev libfontconfig-dev libx11-xcb-dev libxcb1-dev
+        run: sudo apt-get update && sudo apt-get install -y $GPUI_LINUX_PACKAGES
       - uses: Swatinem/rust-cache@v2
-      - run: scripts/check-features.sh
+      - run: cargo hack clippy --lib --each-feature --no-dev-deps --package rok-ui
+
+  udeps:
+    name: Unused dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-udeps
+      - name: Install GPUI's Linux dependencies
+        run: sudo apt-get update && sudo apt-get install -y $GPUI_LINUX_PACKAGES
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo udeps --workspace --all-targets --all-features
+        env:
+          RUSTFLAGS: ""
 
   msrv:
     name: Minimum Rust version
@@ -73,10 +114,7 @@ jobs:
         with:
           toolchain: ${{ steps.msrv.outputs.version }}
       - name: Install GPUI's Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev \
-            libvulkan-dev libfontconfig-dev libx11-xcb-dev libxcb1-dev
+        run: sudo apt-get update && sudo apt-get install -y $GPUI_LINUX_PACKAGES
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace --lib
         env:
@@ -87,13 +125,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@nightly
       - name: Install GPUI's Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev \
-            libvulkan-dev libfontconfig-dev libx11-xcb-dev libxcb1-dev
+        run: sudo apt-get update && sudo apt-get install -y $GPUI_LINUX_PACKAGES
       - uses: Swatinem/rust-cache@v2
       - run: cargo doc --workspace --no-deps --all-features
         env:
-          RUSTDOCFLAGS: -D warnings
+          RUSTDOCFLAGS: --cfg docsrs -D warnings

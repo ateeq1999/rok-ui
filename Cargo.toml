@@ -43,13 +43,15 @@ license.workspace = true
 rust-version.workspace = true
 readme = "README.md"
 repository = "https://github.com/ateeq1999/rok-ui"
-homepage = "https://github.com/ateeq1999/rok-ui"
 documentation = "https://docs.rs/rok-ui"
 keywords = ["gpui", "ui", "desktop", "components", "shadcn"]
 categories = ["gui"]
 # README links to screenshots on raw.githubusercontent.com, so they stay out of
 # the .crate tarball, along with repository tooling.
-exclude = ["docs/screenshots", ".github", "scripts", ".gitattributes", ".gitignore"]
+exclude = [
+    "docs/screenshots", ".github", ".agents", ".claude", "scripts", ".gitattributes", ".gitignore",
+    "AGENTS.md", "CLAUDE.md", "enhance.md", "roadmap.md", "release-plz.toml", "cliff.toml",
+]
 
 [lints]
 workspace = true
@@ -199,6 +201,7 @@ toggle-group = ["toggle"]
 
 [package.metadata.docs.rs]
 all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [[example]]
 name = "gallery"

@@ -24,6 +24,8 @@
 //! }
 //! ```
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 // Lets `#[component]` expand to `::rok_ui::…` paths inside this crate too.
 extern crate self as rok_ui;
 

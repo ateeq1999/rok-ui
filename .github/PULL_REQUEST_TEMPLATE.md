@@ -8,7 +8,8 @@
 
 ## Checklist
 
-- [ ] `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test` pass
+- [ ] The title follows Conventional Commits (`feat(router): ...`)
+- [ ] `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features` (no warnings) and `cargo test --workspace --all-features` pass
 - [ ] `scripts/check-features.sh <features I touched>` passes
 - [ ] Tests cover the change
 - [ ] README and `CHANGELOG.md` (`[Unreleased]`) are updated if users will notice the change

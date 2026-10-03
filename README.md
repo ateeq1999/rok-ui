@@ -725,7 +725,7 @@ rok-ui/
 ├── src/
 │   ├── lib.rs              init(), re-exports
 │   ├── prelude.rs          use rok_ui::prelude::*
-│   ├── theme/              Theme, ThemeColors, presets, ActiveTheme
+│   ├── theme.rs, theme/    Theme, ThemeColors, presets, ActiveTheme
 │   ├── sx.rs               Sx, the style values behind styles! and .sx(..)
 │   ├── bidi.rs             bidirectional text reordering and Arabic shaping
 │   ├── fonts.rs            bundled fonts and font registration
@@ -736,7 +736,8 @@ rok-ui/
 │   ├── hooks.rs            use_state, use_keyed_state, State, EventHandler
 │   ├── styles.rs           ApplyStyleOverrides, ComponentSize
 │   ├── icon.rs             Icon, IconName, Assets
-│   └── components/         one file per component, plus shared layers, overlays and direction
+│   ├── runtime.rs          the shared tokio runtime for background work
+│   └── components.rs       the component list; components/ holds one file per component
 ├── examples/               counter, gallery, app_shell, notes, db_users, arabic, arabic_chat
 ├── tests/                  component renders, sx, motion, macro compile errors
 ├── scripts/                check-features.sh, fetch-google-font.sh
@@ -747,11 +748,13 @@ rok-ui/
 
 ```sh
 cargo fmt --all --check
-cargo clippy --all-targets -- -D warnings
-cargo test
+RUSTFLAGS="-D warnings" cargo clippy --workspace --all-targets --all-features
+cargo test --workspace --all-features
 scripts/check-features.sh   # every Cargo feature builds on its own
 cargo run --example gallery
 ```
+
+Coding agents: start with [AGENTS.md](AGENTS.md) and [llms.txt](llms.txt).
 
 ## Contributing
 

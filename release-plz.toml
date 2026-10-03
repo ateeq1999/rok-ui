@@ -1,0 +1,19 @@
+# release-plz opens a release PR with version bumps and changelog entries from
+# Conventional Commits, and publishes to crates.io when that PR is merged.
+# Publish order follows the dependency graph: rok-ui-macros, then rok-ui.
+
+[workspace]
+changelog_update = true
+git_release_enable = true
+git_tag_enable = true
+# Keep the hand-written CHANGELOG.md format; release-plz adds a section per release.
+changelog_config = "cliff.toml"
+
+[[package]]
+name = "rok-ui"
+changelog_path = "CHANGELOG.md"
+
+[[package]]
+name = "rok-ui-macros"
+changelog_update = false
+git_release_enable = false

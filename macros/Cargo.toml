@@ -7,7 +7,6 @@ license.workspace = true
 rust-version.workspace = true
 readme = "README.md"
 repository = "https://github.com/ateeq1999/rok-ui"
-homepage = "https://github.com/ateeq1999/rok-ui"
 documentation = "https://docs.rs/rok-ui-macros"
 keywords = ["gpui", "macros", "component", "ui", "attributes"]
 categories = ["development-tools::procedural-macro-helpers"]

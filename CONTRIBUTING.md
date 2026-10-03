@@ -40,13 +40,19 @@ Run the same checks CI runs:
 
 ```sh
 cargo fmt --all --check
-cargo clippy --all-targets -- -D warnings
-cargo test
+RUSTFLAGS="-D warnings" cargo clippy --workspace --all-targets --all-features
+cargo test --workspace --all-features
 scripts/check-features.sh            # every Cargo feature builds on its own
 ```
 
+Lint levels live in `[workspace.lints]` in `Cargo.toml`: clippy pedantic, `missing_docs` and
+`unsafe_code = "deny"`. Fix warnings rather than silencing them; when an `#[allow]` is the
+clearer choice, add a comment saying why.
+
 `scripts/check-features.sh` is slow (one build per feature). While iterating, pass only the
-features you touched: `scripts/check-features.sh button dialog`.
+features you touched: `scripts/check-features.sh button dialog`. CI runs the same check with
+`cargo hack clippy --lib --each-feature --no-dev-deps -p rok-ui`, and also `cargo udeps` and the
+docs on nightly with `--cfg docsrs`.
 
 A pull request should also:
 
@@ -94,18 +100,29 @@ A pull request should also:
 Use [Conventional Commits](https://www.conventionalcommits.org/): `feat: add Toggle component`,
 `fix(select): keep the menu open while scrolling`, `docs: ...`, `refactor: ...`, `test: ...`,
 `chore: ...`. Mark breaking changes with `!` (`feat!: rename Sheet::side`) and explain them in
-the body.
+the body. Pull request titles follow the same format (a CI check enforces it).
+
+Scopes name an area: `router`, `query`, `forms`, `state`, `db`, `procedure`, `shard`, `macros`,
+`build`, `cli`, `theme`, `bidi`, `fonts`, `motion`, `sx`, or a component name (`date-picker`).
+
+## Coding agents
+
+`AGENTS.md` (also loaded as `CLAUDE.md`) points coding agents at `llms.txt`, a digest of the API
+and conventions, and at task checklists in `.agents/skills/`. Keep them current when you change
+a convention.
 
 ## Releasing (maintainers)
 
-1. Move the `[Unreleased]` changelog entries under a new version heading with today's date.
-2. Bump `version` in `[workspace.package]` and the `rok-ui-macros` dependency version in
-   `Cargo.toml`, and update the version in the README install snippets.
-3. Check both crates: `cargo publish --workspace --dry-run`.
-4. Commit, tag `vX.Y.Z`, and push the tag.
-5. Publish the macro crate first, then the main crate:
-   `cargo publish -p rok-ui-macros && cargo publish -p rok-ui`.
-6. Create a GitHub release from the tag with the changelog section as its notes.
+Releases are automated with [release-plz](https://release-plz.dev):
+
+1. Every push to `main` opens or updates a release PR with version bumps and a `CHANGELOG.md`
+   section built from the commit messages.
+2. Review the PR (changelog wording, README install snippets, a migration note in
+   `docs/migration/` for breaking changes) and merge it.
+3. release-plz publishes `rok-ui-macros`, then `rok-ui`, tags the release and creates the
+   GitHub release. It needs the `CARGO_REGISTRY_TOKEN` repository secret.
+
+Manual fallback: `cargo publish -p rok-ui-macros && cargo publish -p rok-ui`.
 
 ## License
 
