@@ -360,7 +360,7 @@ fn windows_keep_their_own_histories(cx: &mut TestAppContext) {
             router::navigate("/settings/profile", cx);
         });
         router::with_window(window_a, || {
-            assert_eq!(router::location(cx).path(), "/inbox")
+            assert_eq!(router::location(cx).path(), "/inbox");
         });
         router::with_window(window_b, || {
             assert_eq!(router::location(cx).path(), "/settings/profile");
@@ -370,7 +370,7 @@ fn windows_keep_their_own_histories(cx: &mut TestAppContext) {
         router::with_window(window_a, || assert!(router::can_go_back(cx)));
     });
     cx.run_until_parked();
-    cx.update(|cx| cx.refresh_windows());
+    cx.update(gpui::App::refresh_windows);
     cx.run_until_parked();
     assert_eq!(seen_a.borrow().last().map(String::as_str), Some("/inbox"));
     assert_eq!(
