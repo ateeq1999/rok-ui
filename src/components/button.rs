@@ -61,10 +61,14 @@ pub enum IconPosition {
 
 /// A clickable button. Focusable with Tab, activated with Enter or Space.
 ///
-/// ```ignore
-/// Button::new("save").label("Save changes").on_click(|_, _, cx| save(cx))
-/// Button::new("delete").destructive().icon(IconName::Close).label("Delete")
-/// Button::new("theme").ghost().icon_only(IconName::Moon).tooltip("Toggle theme")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # fn save(_: &mut App) {}
+/// let save_button = Button::new("save").label("Save changes").on_click(|_, _, cx| save(cx));
+/// let delete = Button::new("delete").destructive().icon(IconName::Close).label("Delete");
+/// let theme = Button::new("theme").ghost().icon_only(IconName::Moon).tooltip("Toggle theme");
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Button {

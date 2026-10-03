@@ -751,9 +751,12 @@ pub fn use_input_state(
 
 /// The styled text field (shadcn/ui's `<Input>`).
 ///
-/// ```ignore
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
 /// let email = use_input_state("email", window, cx, |state| state.with_placeholder("m@example.com"));
-/// Input::new(&email).leading_icon(IconName::Mail)
+/// let field = Input::new(&email).leading_icon(IconName::Mail);
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Input {

@@ -74,8 +74,12 @@ pub fn thumb_geometry(
 
 /// Give it a size (`.h(px(288.))`); content larger than that scrolls.
 ///
-/// ```ignore
-/// ScrollArea::new("tags").h(px(288.)).w(px(192.)).child(tag_list)
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let tag_list = div();
+/// let tags = ScrollArea::new("tags").h(px(288.)).w(px(192.)).child(tag_list);
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct ScrollArea {

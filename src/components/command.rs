@@ -365,14 +365,17 @@ fn select_item(
 /// shadcn/ui's `<Command>`: a search field over grouped items, filtered as you
 /// type. Up / Down move the highlight and Enter runs the highlighted item.
 ///
-/// ```ignore
-/// Command::new("command")
-///     .placeholder("Type a command or search…")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let command = Command::new("command")
+///     .placeholder("Type a command or search...")
 ///     .group("Suggestions", [
 ///         CommandItem::new("Calendar").icon(IconName::Calendar),
 ///         CommandItem::new("Search emoji").icon(IconName::Smile),
 ///     ])
-///     .group("Settings", [CommandItem::new("Profile").shortcut("⌘P")])
+///     .group("Settings", [CommandItem::new("Profile").shortcut("Cmd-P")]);
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Command {
@@ -465,10 +468,18 @@ impl RenderOnce for Command {
 /// A [`Command`] in a modal, the ⌘K palette. Controlled like [`super::Dialog`];
 /// it closes on Escape, on a backdrop click and after an item runs.
 ///
-/// ```ignore
-/// CommandDialog::new("palette", Command::new("palette-command").group(..))
-///     .open(palette_open)
-///     .on_close(move |_, _, cx| set_palette_open(false, cx))
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let palette_open = true;
+/// # fn set_palette_open(_: bool, _: &mut App) {}
+/// let palette = CommandDialog::new(
+///     "palette",
+///     Command::new("palette-command").group("Pages", [CommandItem::new("Home")]),
+/// )
+/// .open(palette_open)
+/// .on_close(move |_, _, cx| set_palette_open(false, cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct CommandDialog {

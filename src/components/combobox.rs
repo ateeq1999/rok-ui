@@ -26,14 +26,18 @@ use crate::{
 /// Controlled like [`super::Select`]: pass `value`, update it in `on_change`.
 /// Picking the current value again clears it, like shadcn/ui's example.
 ///
-/// ```ignore
-/// Combobox::new("framework")
-///     .placeholder("Select framework…")
-///     .search_placeholder("Search framework…")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let framework = use_state(window, cx, || None::<SharedString>);
+/// let picker = Combobox::new("framework")
+///     .placeholder("Select framework...")
+///     .search_placeholder("Search framework...")
 ///     .option("next", "Next.js")
 ///     .option("svelte", "SvelteKit")
 ///     .value(framework.get(cx))
-///     .on_change(move |value, _, cx| framework.set(value.clone(), cx))
+///     .on_change(move |value, _, cx| framework.set(value.clone(), cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Combobox {

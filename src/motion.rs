@@ -1,6 +1,7 @@
 //! Motion: keyframe animations, transitions and enter / exit presence.
 //!
-//! ```ignore
+//! ```no_run
+//! # use rok_ui::prelude::*;
 //! keyframes! {
 //!     pub FADE_UP = {
 //!         from: { opacity: 0, y: 2 },
@@ -8,18 +9,27 @@
 //!     }
 //! }
 //!
+//! # fn example(window: &mut Window, cx: &mut App, open: bool) {
 //! // Keyframes, CSS-animation style.
-//! div().motion("card-enter", Motion::new(&FADE_UP).duration_ms(200).easing(Easing::EaseOut))
-//! div().motion("badge-pulse", motion::pulse().infinite())
+//! let card = div().motion("card-enter", Motion::new(&FADE_UP).duration_ms(200).easing(Easing::EaseOut));
+//! let badge = div().motion("badge-pulse", motion::pulse().infinite());
 //!
 //! // A value that animates toward its target whenever the target changes.
-//! let width = use_transition("sidebar-width", window, cx, if open { 256. } else { 48. },
-//!                            Transition::spring());
-//! div().w(px(width))
+//! let width = use_transition(
+//!     "sidebar-width",
+//!     window,
+//!     cx,
+//!     if open { 256. } else { 48. },
+//!     Transition::ease_out(200),
+//! );
+//! let sidebar = div().w(px(width));
 //!
 //! // Keep an element mounted while it animates out.
 //! let presence = use_presence("panel", window, cx, open, Transition::ease_out(150));
-//! div().when(presence.is_mounted(), |div| div.child(panel.opacity(presence.progress())))
+//! let panel = div().when(presence.is_mounted(), |div| {
+//!     div.child(Card::new().opacity(presence.progress()))
+//! });
+//! # }
 //! ```
 //!
 //! GPUI has no transforms for divs, so `x` / `y` move an element by offsetting

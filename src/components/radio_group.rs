@@ -18,13 +18,17 @@ struct RadioOption {
 /// Controlled: pass `value`, update it in `on_change`. Arrow keys change the
 /// selection while an option has focus.
 ///
-/// ```ignore
-/// RadioGroup::new("density")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let density = use_state(window, cx, || Some(SharedString::from("default")));
+/// let options = RadioGroup::new("density")
 ///     .option("default", "Default")
 ///     .option("comfortable", "Comfortable")
 ///     .option("compact", "Compact")
 ///     .value(density.get(cx))
-///     .on_change(move |value, _, cx| density.set(value.clone(), cx))
+///     .on_change(move |value, _, cx| density.set(Some(value.clone()), cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct RadioGroup {

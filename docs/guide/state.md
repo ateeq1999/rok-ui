@@ -77,10 +77,11 @@ then subscribes to exactly those.
 
 ### `cx.track(..)`: a view that follows signals
 
-```rust,ignore
+```rust,no_run
 use rok_ui::prelude::*;
 use rok_ui::state::{Store, TrackSignals};
 
+# #[derive(Clone)] struct Item;
 struct CartBadge {
     cart: Store<Vec<Item>>,
 }
@@ -112,7 +113,8 @@ impl Render for CartBadge {
 The signal is created on the first render and kept while the component stays at the same
 place in the tree, like `use_state`. Changing it re-renders the window.
 
-```rust,ignore
+```rust,no_run
+# use rok_ui::prelude::*;
 #[component]
 fn Counter(window: &mut Window, cx: &mut App) -> impl IntoElement {
     let (count, set_count) = use_signal(window, cx, || 0);
@@ -128,7 +130,9 @@ components through props, and the component still updates. That's the difference
 
 ### `use_tracked(..)`: a component that reads shared signals
 
-```rust,ignore
+```rust,no_run
+# use rok_ui::{prelude::*, state::Store};
+# #[derive(Clone)] struct Item { price: f64 }
 #[component]
 fn CartTotal(cart: Store<Vec<Item>>, window: &mut Window, cx: &mut App) -> impl IntoElement {
     let watched = cart.clone();
@@ -147,7 +151,8 @@ change identity every render.
 An effect runs a side effect now, and again whenever a signal it read changes. Keep the
 returned `Effect`; dropping it stops the effect.
 
-```rust,ignore
+```rust,no_run
+# #[derive(Clone, Default, Debug)] struct Settings { theme: String }
 use rok_ui::state::{create_effect, create_store};
 
 let settings = create_store(Settings::default());
@@ -155,7 +160,7 @@ let saved = settings.clone();
 let _autosave = create_effect(
     move || {
         let settings = saved.get();
-        let _ = std::fs::write("settings.json", serde_json::to_string(&settings).unwrap());
+        let _ = std::fs::write("settings.txt", format!("{settings:?}"));
     },
     (),
 );
@@ -173,10 +178,11 @@ effects next to what they serve, for example in a view's struct, so they live ex
 `rok_ui::init` runs rok-ui-hooks' `tick` on GPUI's executor, so these work in a rok-ui app
 without a loop of your own:
 
-```rust,ignore
+```rust,no_run
 use std::time::Duration;
-use rok_ui::state::signals::{use_debounced, use_resource, ResourceState};
+use rok_ui::state::{create_signal, signals::{use_debounced, use_resource, ResourceState}};
 
+# async fn search(term: &str) -> Result<Vec<String>, String> { Ok(vec![term.to_string()]) }
 // A search box: wait for 300 ms of quiet before searching.
 let (query, set_query) = create_signal(String::new());
 let settled = use_debounced(&query, Duration::from_millis(300));
@@ -206,7 +212,9 @@ For `PostgreSQL`, use the `db` feature, which has its own runtime.
 A `Store<T>` notifies every reader when any part of `T` changes. `#[derive(Store)]` generates
 a store with one signal per field instead, so a view re-renders only for the fields it reads:
 
-```rust,ignore
+```rust,no_run
+use rok_ui::state::Store;
+
 #[derive(Store, Clone)]
 struct Todo {
     title: String,
@@ -235,22 +243,34 @@ older versions, and `.directory(..)` saves elsewhere. Name the app's folder with
 **App-wide state.** Create stores once at startup and pass them to the views that need them.
 Or keep them in a GPUI global, which you can reach from anywhere with `cx`:
 
-```rust,ignore
+```rust,no_run
+# use rok_ui::{prelude::*, state::{create_store, Store}};
+# #[derive(Clone)] struct User;
+# #[derive(Clone)] struct Item;
 #[derive(Clone)]
 struct AppState { user: Store<Option<User>>, cart: Store<Vec<Item>> }
 impl gpui::Global for AppState {}
 
+# fn example(cx: &mut App) {
 cx.set_global(AppState { user: create_store(None), cart: create_store(Vec::new()) });
 let cart = cx.global::<AppState>().cart.clone();
+# }
 ```
 
 **Updating from a click.** Clone the write handle into the handler. No `cx` is needed to
 write a signal:
 
-```rust,ignore
-let add = { let cart = cart.clone(); move |_: &ClickEvent, _: &mut Window, _: &mut App| {
-    cart.update(|items| items.push(Item::new("Coffee", 12.0)));
-} };
+```rust,no_run
+# use rok_ui::{prelude::*, state::{create_store, Store}};
+# #[derive(Clone)] struct Item { name: &'static str, price: f64 }
+# impl Item { fn new(name: &'static str, price: f64) -> Self { Self { name, price } } }
+# let cart: Store<Vec<Item>> = create_store(Vec::new());
+let add = {
+    let cart = cart.clone();
+    move |_: &ClickEvent, _: &mut Window, _: &mut App| {
+        cart.update(|items| items.push(Item::new("Coffee", 12.0)));
+    }
+};
 ```
 
 **Testing.** Signals, memos, stores and effects run without GPUI, so plain `#[test]`s cover

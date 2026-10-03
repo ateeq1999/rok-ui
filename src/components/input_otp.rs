@@ -49,12 +49,17 @@ impl OtpPattern {
 /// Controlled: pass `value`, update it in `on_change`. Typing fills the next
 /// box, Backspace clears the last one and Ctrl/Cmd-V pastes a whole code.
 ///
-/// ```ignore
-/// InputOtp::new("verification", 6)
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # fn verify(_: &SharedString, _: &mut App) {}
+/// let code = use_state(window, cx, SharedString::default);
+/// let otp = InputOtp::new("verification", 6)
 ///     .groups([3, 3])
 ///     .value(code.get(cx))
 ///     .on_change(move |value, _, cx| code.set(value.clone(), cx))
-///     .on_complete(|value, _, cx| verify(value, cx))
+///     .on_complete(|value, _, cx| verify(value, cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct InputOtp {

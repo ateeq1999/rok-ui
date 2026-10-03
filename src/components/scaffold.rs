@@ -3,8 +3,15 @@
 //! [`AdaptiveScaffold`] that moves its navigation between a bottom bar, a rail and
 //! an extended rail as the window grows.
 //!
-//! ```ignore
-//! Scaffold::new("mail")
+//! ```no_run
+//! # use rok_ui::prelude::*;
+//! # fn example(window: &mut Window, cx: &mut App) {
+//! # let search_button = Button::new("search").ghost().icon_only(IconName::Search);
+//! # let destinations: Vec<NavigationDestination> = Vec::new();
+//! # let page = 0;
+//! # fn set_page(_: usize, _: &mut App) {}
+//! # let message_list = div();
+//! let mail = Scaffold::new("mail")
 //!     .app_bar(AppBar::new().title("Inbox").action(search_button))
 //!     .drawer(
 //!         NavigationDrawer::new("mail-drawer")
@@ -12,10 +19,9 @@
 //!             .selected_index(page)
 //!             .on_change(move |index, _, cx| set_page(*index, cx)),
 //!     )
-//!     .floating_action_button(
-//!         FloatingActionButton::new("compose", IconName::Pencil).label("Compose"),
-//!     )
-//!     .child(message_list)
+//!     .floating_action_button(FloatingActionButton::new("compose", IconName::Pencil).label("Compose"))
+//!     .child(message_list);
+//! # }
 //! ```
 
 use std::rc::Rc;
@@ -756,8 +762,13 @@ impl RenderOnce for Scaffold {
 /// medium widths and an extended rail with labels from large widths. The
 /// floating action button moves into the rail with it.
 ///
-/// ```ignore
-/// AdaptiveScaffold::new("app")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let page = 0;
+/// # fn set_page(_: usize, _: &mut App) {}
+/// # let page_content = div();
+/// let app = AdaptiveScaffold::new("app")
 ///     .app_bar(AppBar::new().title("Photos"))
 ///     .destination(NavigationDestination::new(IconName::Home, "Home"))
 ///     .destination(NavigationDestination::new(IconName::Image, "Albums"))
@@ -765,7 +776,8 @@ impl RenderOnce for Scaffold {
 ///     .selected_index(page)
 ///     .on_change(move |index, _, cx| set_page(*index, cx))
 ///     .floating_action_button(FloatingActionButton::new("add", IconName::Plus).label("Add"))
-///     .child(page_content)
+///     .child(page_content);
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct AdaptiveScaffold {

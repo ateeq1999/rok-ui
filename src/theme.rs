@@ -149,9 +149,13 @@ impl Theme {
     /// Use `family` for all UI text, for example a font registered with
     /// [`crate::fonts`]. Preset and mode changes keep it.
     ///
-    /// ```ignore
+    /// ```no_run
+    /// # use rok_ui::prelude::*;
+    /// # fn example(cx: &mut App) -> gpui::Result<()> {
     /// rok_ui::fonts::CAIRO.register(cx)?;
     /// Theme::set_font_family(rok_ui::fonts::CAIRO.family(), cx);
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn set_font_family(family: impl Into<SharedString>, cx: &mut App) {
         let mut theme = Theme::global(cx).clone();

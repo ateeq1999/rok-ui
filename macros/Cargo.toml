@@ -17,6 +17,10 @@ proc-macro = true
 [lints]
 workspace = true
 
+[dev-dependencies]
+# The documentation examples use the macros through rok-ui.
+rok-ui = { path = "..", features = ["query"] }
+
 [dependencies]
 proc-macro2 = "1"
 rok-ui-grammar = { version = "0.5.0", path = "../rok-ui-grammar" }

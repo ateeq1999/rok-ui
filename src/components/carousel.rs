@@ -37,12 +37,16 @@ struct CarouselMemory {
 /// Uncontrolled by default (the current slide is kept per id); pass `index` and
 /// `on_index_change` to control it. Left / Right move while it has focus.
 ///
-/// ```ignore
-/// Carousel::new("gallery")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # fn slide(number: usize) -> impl IntoElement { div().child(number.to_string()) }
+/// let gallery = Carousel::new("gallery")
 ///     .items_per_view(1)
 ///     .item(slide(1))
 ///     .item(slide(2))
-///     .item(slide(3))
+///     .item(slide(3));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Carousel {

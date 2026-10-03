@@ -32,14 +32,18 @@ enum SelectEntry {
 /// shadcn/ui's `<Select>`: a button showing the chosen option that opens a list.
 /// Controlled: pass `value`, update it in `on_change`.
 ///
-/// ```ignore
-/// Select::new("fruit")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let fruit = use_state(window, cx, || None::<SharedString>);
+/// let select = Select::new("fruit")
 ///     .placeholder("Select a fruit")
 ///     .group_label("Fruits")
 ///     .option("apple", "Apple")
 ///     .option("banana", "Banana")
 ///     .value(fruit.get(cx))
-///     .on_change(move |value, _, cx| fruit.set(Some(value.clone()), cx))
+///     .on_change(move |value, _, cx| fruit.set(Some(value.clone()), cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Select {

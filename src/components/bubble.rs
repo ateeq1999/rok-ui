@@ -80,14 +80,21 @@ impl BubbleReaction {
     }
 }
 
-/// ```ignore
-/// Bubble::new("m1").align(BubbleAlign::End).variant(BubbleVariant::Primary)
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let long_text = "A long message.";
+/// let question = Bubble::new("m1")
+///     .align(BubbleAlign::End)
+///     .variant(BubbleVariant::Primary)
 ///     .group_position(BubbleGroupPosition::First)
-///     .child("Are we still on for tomorrow?")
+///     .child("Are we still on for tomorrow?");
 ///
-/// Bubble::new("m2").reaction(BubbleReaction::new("👍", 2))
+/// let reply = Bubble::new("m2")
+///     .reaction(BubbleReaction::new("👍", 2))
 ///     .collapse_after(px(120.))
-///     .child(long_text)
+///     .child(long_text);
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Bubble {

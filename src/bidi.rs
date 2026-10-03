@@ -13,8 +13,11 @@
 //! rok-ui components apply this to the text they render. Use [`BidiText`](crate::components::BidiText)
 //! (or [`display_text`] for single-line strings) for text you render yourself:
 //!
-//! ```ignore
-//! div().child(BidiText::new("مرحبا بك في rok-ui"))
+//! ```no_run
+//! # use rok_ui::prelude::*;
+//! # fn example(window: &mut Window, cx: &mut App) {
+//! let greeting = div().child(BidiText::new("مرحبا بك في rok-ui"));
+//! # }
 //! ```
 
 use std::ops::Range;

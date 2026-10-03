@@ -20,10 +20,13 @@ pub enum AlertVariant {
     Destructive,
 }
 
-/// ```ignore
-/// Alert::new("Heads up!")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let alert = Alert::new("Heads up!")
 ///     .icon(IconName::Info)
-///     .description("You can add components to your app using the CLI.")
+///     .description("You can add components to your app using the CLI.");
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Alert {

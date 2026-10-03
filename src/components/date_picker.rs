@@ -34,15 +34,22 @@ enum PickerValue {
 /// Controlled like [`Calendar`]. Single mode closes after a pick; range mode
 /// closes once both ends are chosen. `.preset(..)` adds quick picks beside the calendar.
 ///
-/// ```ignore
-/// DatePicker::new("due")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let due = use_state(window, cx, || None::<CalendarDate>);
+/// let trip = use_state(window, cx, || None::<DateRange>);
+/// let single = DatePicker::new("due")
 ///     .date(due.get(cx))
 ///     .on_change(move |date, _, cx| due.set(Some(*date), cx))
 ///     .preset("Today", CalendarDate::today())
-///     .preset("In a week", CalendarDate::today().add_days(7))
+///     .preset("In a week", CalendarDate::today().add_days(7));
 ///
-/// DatePicker::new("trip").range(trip.get(cx)).number_of_months(2)
-///     .on_range_change(move |range, _, cx| trip.set(Some(*range), cx))
+/// let range = DatePicker::new("trip")
+///     .range(trip.get(cx))
+///     .number_of_months(2)
+///     .on_range_change(move |range, _, cx| trip.set(Some(*range), cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct DatePicker {

@@ -13,8 +13,16 @@
 //! | `const [n, setN] = useState(0)`      | `let n = use_state(window, cx, \|\| 0)`              |
 //! | CSS variables (`--primary`)          | `cx.theme().colors.primary`                         |
 //!
-//! ```ignore
+//! ```no_run
 //! use rok_ui::prelude::*;
+//!
+//! struct MyView;
+//!
+//! impl Render for MyView {
+//!     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+//!         AppRoot::new().child(Button::new("hello").label("Hello"))
+//!     }
+//! }
 //!
 //! fn main() {
 //!     Application::new().with_assets(rok_ui::Assets).run(|cx: &mut App| {

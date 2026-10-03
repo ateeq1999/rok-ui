@@ -114,14 +114,29 @@ impl MessageScrollerState {
 
 type RenderMessage = Rc<dyn Fn(usize, &mut Window, &mut App) -> AnyElement>;
 
-/// ```ignore
-/// // In your view: scroller: MessageScrollerState, messages: Vec<ChatMessage>
-/// MessageScroller::new(&self.scroller, {
-///     let messages = self.messages.clone();
-///     move |index, _, _| render_message(&messages[index]).into_any_element()
-/// })
-/// .on_reach_top(cx.listener(|view, _, _, cx| view.load_older_messages(cx)))
-/// .h_full()
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # #[derive(Clone)] struct ChatMessage(SharedString);
+/// # fn render_message(message: &ChatMessage) -> impl IntoElement { div().child(message.0.clone()) }
+/// struct Chat {
+///     scroller: MessageScrollerState,
+///     messages: Vec<ChatMessage>,
+/// }
+///
+/// impl Chat {
+///     fn load_older_messages(&mut self, _: &mut Context<Self>) {}
+/// }
+///
+/// impl Render for Chat {
+///     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+///         MessageScroller::new(&self.scroller, {
+///             let messages = self.messages.clone();
+///             move |index, _, _| render_message(&messages[index]).into_any_element()
+///         })
+///         .on_reach_top(cx.listener(|view, _, _, cx| view.load_older_messages(cx)))
+///         .h_full()
+///     }
+/// }
 /// ```
 #[derive(IntoElement)]
 pub struct MessageScroller {

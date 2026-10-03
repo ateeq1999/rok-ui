@@ -20,11 +20,14 @@ enum MarkerKind {
     Separator,
 }
 
-/// ```ignore
-/// Marker::status("Ada is typing…").busy(true)
-/// Marker::note("Conversation renamed to “Launch plan”")
-/// Marker::row("Searched the web").icon(IconName::Globe).detail("4 results")
-/// Marker::separator("Today")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let typing = Marker::status("Ada is typing...").busy(true);
+/// let renamed = Marker::note("Conversation renamed to \"Launch plan\"");
+/// let searched = Marker::row("Searched the web").icon(IconName::Globe).detail("4 results");
+/// let today = Marker::separator("Today");
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Marker {

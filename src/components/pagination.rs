@@ -59,10 +59,15 @@ pub fn page_slots(current_page: usize, page_count: usize, siblings: usize) -> Ve
 
 /// Controlled: pass `current_page` (1-based), update it in `on_change`.
 ///
-/// ```ignore
-/// Pagination::new("results", 10)
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let page = 1;
+/// # fn set_page(_: usize, _: &mut App) {}
+/// let pages = Pagination::new("results", 10)
 ///     .current_page(page)
-///     .on_change(move |page, _, cx| set_page(*page, cx))
+///     .on_change(move |page, _, cx| set_page(*page, cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Pagination {

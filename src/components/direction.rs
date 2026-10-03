@@ -11,11 +11,15 @@
 //! GPUI shapes each line of text left to right, so this does not reorder
 //! characters inside mixed-direction text.
 //!
-//! ```ignore
-//! set_text_direction(TextDirection::from_locale("ar-EG"), cx);   // whole app
+//! ```no_run
+//! # use rok_ui::prelude::*;
+//! # fn example(window: &mut Window, cx: &mut App) {
+//! # #[component] fn Settings() -> impl IntoElement { div() }
+//! set_text_direction(TextDirection::from_locale("ar-EG"), cx); // the whole app
 //!
-//! Direction::new(TextDirection::Rtl).child(Settings::new())      // a subtree
-//! Direction::build(TextDirection::Rtl, || view! { div(sx = ROW.base) { .. } })
+//! let subtree = Direction::new(TextDirection::Rtl).child(Settings::new()); // one subtree
+//! let built = Direction::build(TextDirection::Rtl, || view! { div { "Built inside" } });
+//! # }
 //! ```
 
 use std::cell::Cell;

@@ -266,14 +266,20 @@ type DateFilter = Rc<dyn Fn(&CalendarDate) -> bool>;
 /// Controlled: pass the selection, update it in the handler. The visible month
 /// is remembered per id and starts at the selection (or today).
 ///
-/// ```ignore
-/// Calendar::new("due-date")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let due_date = use_state(window, cx, || None::<CalendarDate>);
+/// let trip = use_state(window, cx, || None::<DateRange>);
+/// let single = Calendar::new("due-date")
 ///     .selected(due_date.get(cx))
-///     .on_select(move |date, _, cx| due_date.set(Some(*date), cx))
+///     .on_select(move |date, _, cx| due_date.set(Some(*date), cx));
 ///
-/// Calendar::new("trip").number_of_months(2)
+/// let range = Calendar::new("trip")
+///     .number_of_months(2)
 ///     .range(trip.get(cx))
-///     .on_range_select(move |range, _, cx| trip.set(Some(*range), cx))
+///     .on_range_select(move |range, _, cx| trip.set(Some(*range), cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Calendar {

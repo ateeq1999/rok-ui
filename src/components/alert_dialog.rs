@@ -14,15 +14,21 @@ use crate::{hooks::EventHandler, styles};
 /// Unlike [`super::Dialog`], a click on the backdrop does not dismiss it: the
 /// user must pick Cancel (or press Escape, which counts as Cancel) or the action.
 ///
-/// ```ignore
-/// AlertDialog::new("delete-account")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let confirm_open = true;
+/// # fn delete_account(_: &mut App) {}
+/// # fn set_confirm_open(_: bool, _: &mut App) {}
+/// let dialog = AlertDialog::new("delete-account")
 ///     .open(confirm_open)
 ///     .title("Are you absolutely sure?")
 ///     .description("This action cannot be undone.")
 ///     .action_label("Delete account")
 ///     .destructive(true)
 ///     .on_action(move |_, _, cx| delete_account(cx))
-///     .on_cancel(move |_, _, cx| set_confirm_open(false, cx))
+///     .on_cancel(move |_, _, cx| set_confirm_open(false, cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct AlertDialog {

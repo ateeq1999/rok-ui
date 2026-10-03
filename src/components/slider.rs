@@ -51,10 +51,18 @@ styles! {
 /// Controlled: pass the value(s), update them in `on_change`. One value makes a
 /// single slider; two (`.range(..)`) make a range with two thumbs.
 ///
-/// ```ignore
-/// Slider::new("volume").value(volume).max(100.).step(1.)
-///     .on_change(move |values, _, cx| set_volume(values[0], cx))
-/// Slider::new("price").range(25., 75.).on_change(..)
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let volume = 50.;
+/// # fn set_volume(_: f32, _: &mut App) {}
+/// let volume_slider = Slider::new("volume")
+///     .value(volume)
+///     .max(100.)
+///     .step(1.)
+///     .on_change(move |values, _, cx| set_volume(values[0], cx));
+/// let price = Slider::new("price").range(25., 75.).on_change(|_, _, _| {});
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Slider {

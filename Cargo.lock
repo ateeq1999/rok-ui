@@ -4946,6 +4946,7 @@ dependencies = [
  "gpui",
  "jiff",
  "rok-db",
+ "rok-ui-build",
  "rok-ui-hooks",
  "rok-ui-macros",
  "serde",
@@ -5004,6 +5005,7 @@ name = "rok-ui-macros"
 version = "0.5.0"
 dependencies = [
  "proc-macro2",
+ "rok-ui",
  "rok-ui-grammar",
  "syn 2.0.119",
 ]

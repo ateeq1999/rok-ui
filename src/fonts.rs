@@ -3,7 +3,8 @@
 //! GPUI draws text with fonts the platform knows about plus any you register at
 //! startup. Register a font, then make it the theme's UI font:
 //!
-//! ```ignore
+//! ```no_run
+//! # use rok_ui::prelude::*;
 //! Application::new().with_assets(rok_ui::Assets).run(|cx: &mut App| {
 //!     rok_ui::init(cx);
 //!     rok_ui::fonts::CAIRO.register(cx).expect("Cairo is bundled");
@@ -199,7 +200,10 @@ pub struct FontFamily {
 impl FontFamily {
     /// A family from embedded files, for your own bundled fonts:
     ///
-    /// ```ignore
+    /// ```no_run
+    /// # use rok_ui::fonts::FontFamily;
+    /// # macro_rules! include_bytes { ($path:literal) => { &[] }; }
+    /// # macro_rules! include_str { ($path:literal) => { "" }; }
     /// const BRAND: FontFamily = FontFamily::new(
     ///     "Brand Sans",
     ///     &[include_bytes!("../fonts/BrandSans-400.ttf"), include_bytes!("../fonts/BrandSans-700.ttf")],

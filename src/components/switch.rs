@@ -9,11 +9,16 @@ use crate::{hooks::EventHandler, styles, styles::ApplyStyleOverrides, theme::Act
 
 /// Controlled like [`super::Checkbox`]: pass `checked`, update it in `on_change`.
 ///
-/// ```ignore
-/// Switch::new("airplane-mode")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let airplane_mode = use_state(window, cx, || false);
+/// let enabled = airplane_mode.get(cx);
+/// let switch = Switch::new("airplane-mode")
 ///     .checked(enabled)
 ///     .label("Airplane mode")
-///     .on_change(move |checked, _, cx| airplane_mode.set(*checked, cx))
+///     .on_change(move |checked, _, cx| airplane_mode.set(*checked, cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Switch {

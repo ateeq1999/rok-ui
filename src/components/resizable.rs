@@ -176,11 +176,16 @@ struct ResizableMemory {
     bounds: Rc<Cell<Bounds<Pixels>>>,
 }
 
-/// ```ignore
-/// ResizablePanelGroup::new("layout")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let sidebar = div();
+/// # let editor = div();
+/// let layout = ResizablePanelGroup::new("layout")
 ///     .with_handle(true)
 ///     .panel(ResizablePanel::new().default_size(25.).min_size(15.).child(sidebar))
-///     .panel(ResizablePanel::new().child(editor))
+///     .panel(ResizablePanel::new().child(editor));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct ResizablePanelGroup {

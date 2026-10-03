@@ -140,15 +140,21 @@ fn to_callback(handler: Option<EventHandler<()>>) -> Callback {
 /// A dialog attached to an edge of the window (shadcn/ui's `<Sheet>`), for
 /// content that complements the main screen. Controlled like [`super::Dialog`].
 ///
-/// ```ignore
-/// Sheet::new("edit-profile")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let sheet_open = true;
+/// # let form = div();
+/// # fn set_sheet_open(_: bool, _: &mut App) {}
+/// let sheet = Sheet::new("edit-profile")
 ///     .open(sheet_open)
 ///     .side(SheetSide::Right)
 ///     .title("Edit profile")
 ///     .description("Make changes to your profile here.")
 ///     .child(form)
 ///     .footer(Button::new("save").label("Save changes"))
-///     .on_close(move |_, _, cx| set_sheet_open(false, cx))
+///     .on_close(move |_, _, cx| set_sheet_open(false, cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Sheet {
@@ -274,14 +280,20 @@ impl RenderOnce for Sheet {
 /// A bottom sheet with a grab handle (shadcn/ui's `<Drawer>`), good for short
 /// focused tasks. Controlled like [`super::Dialog`].
 ///
-/// ```ignore
-/// Drawer::new("move-goal")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let drawer_open = true;
+/// # let goal_picker = div();
+/// # fn set_drawer_open(_: bool, _: &mut App) {}
+/// let drawer = Drawer::new("move-goal")
 ///     .open(drawer_open)
 ///     .title("Move Goal")
 ///     .description("Set your daily activity goal.")
 ///     .child(goal_picker)
 ///     .footer(Button::new("submit").label("Submit"))
-///     .on_close(move |_, _, cx| set_drawer_open(false, cx))
+///     .on_close(move |_, _, cx| set_drawer_open(false, cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Drawer {

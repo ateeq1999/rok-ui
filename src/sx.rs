@@ -1,6 +1,7 @@
 //! StyleX-style styling: style objects defined once, merged at use, last wins.
 //!
-//! ```ignore
+//! ```no_run
+//! # use rok_ui::{prelude::*, sx};
 //! styles! {
 //!     pub CARD = {
 //!         base: { display: flex, direction: column, gap: 6, padding: 6, radius: xl,
@@ -10,8 +11,10 @@
 //!     }
 //! }
 //!
-//! div().sx((&CARD.base, compact.then_some(&CARD.compact)))
-//! div().sx(sx![CARD.base, compact => CARD.compact])
+//! # fn example(compact: bool) {
+//! let card = div().sx((&CARD.base, compact.then_some(&CARD.compact)));
+//! let same = div().sx(sx![CARD.base, compact => CARD.compact]);
+//! # }
 //! ```
 //!
 //! An [`Sx`] is an ordered list of declarations per state (base, hover, focus,

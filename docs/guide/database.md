@@ -65,7 +65,8 @@ the full query API.
 Connect once at startup. Queries that render before the connection is ready show
 `DbError::NotConnected`, then run again automatically once it connects:
 
-```rust,ignore
+```rust,no_run
+# use rok_ui::prelude::*;
 use rok_ui::db;
 
 Application::new().with_assets(rok_ui::Assets).run(|cx: &mut App| {
@@ -78,26 +79,30 @@ Application::new().with_assets(rok_ui::Assets).run(|cx: &mut App| {
         }
     })
     .detach();
-    // open windows…
+    // open windows...
 });
 ```
 
 To configure the pool, query cache or slow-query logging, build the `Db` yourself on the
 database runtime and hand it over:
 
-```rust,ignore
+```rust,no_run
+# use rok_ui::prelude::*;
 use std::time::Duration;
 use rok_ui::db::{self, Db};
 
+# fn example(cx: &mut App, url: &str) -> Result<(), rok_ui::db::rok_db::Error> {
 let db = db::runtime().block_on(
     Db::builder()
         .max_connections(10)
         .acquire_timeout(Duration::from_secs(5))
         .query_cache(500)
         .slow_query_threshold(Duration::from_millis(200))
-        .connect(&url),
+        .connect(url),
 )?;
 db::set_connection(db, cx);
+# Ok(())
+# }
 ```
 
 `set_connection` can be called again at any time, for example to switch accounts. Every query
@@ -116,7 +121,11 @@ TanStack Query's `useQuery`:
    with `["users"]` stale. Readers refetch and keep showing the old data until the new data
    arrives, so lists don't flash empty.
 
-```rust,ignore
+```rust,no_run
+# use rok_ui::{prelude::*, db::{self, rok_db::prelude::*}, query::{self, QueryOptions, QueryState}, query_key};
+# #[derive(Debug, Clone, Model)]
+# #[rok(crate = "rok_ui::db::rok_db", table = "users")]
+# struct User { #[rok(primary_key, generated)] id: i64, email: String, name: Option<String> }
 fn users_query() -> QueryOptions<Vec<User>> {
     db::db_query(query_key!["users"], |db| async move {
         User::query().order_by(User::EMAIL.asc()).all(&db).await
@@ -157,7 +166,12 @@ in 0.8. `db::invalidate("users", cx)` invalidates both kinds of queries.
 Include every input the query depends on in the key, so different inputs are cached
 separately. Keys are hierarchical, so one invalidation covers every page:
 
-```rust,ignore
+```rust,no_run
+# use rok_ui::{prelude::*, db::{self, rok_db::prelude::*}, query::{self, QueryOptions, QueryState}, query_key};
+# #[derive(Debug, Clone, Model)]
+# #[rok(crate = "rok_ui::db::rok_db", table = "users")]
+# struct User { #[rok(primary_key, generated)] id: i64, email: String, name: Option<String> }
+# fn example(cx: &mut Cx) {
 let page = cx.use_state(|| 1u64);
 let current = page.get(cx);
 let users = query::use_query(
@@ -168,13 +182,19 @@ let users = query::use_query(
     .keep_previous_data(true),
 );
 // After an insert: query::invalidate(cx, &query_key!["users"]) refetches every page.
+# }
 ```
 
 ### Filtering from input
 
 Put the filter in the key and the closure. Each new value gets its own cache entry:
 
-```rust,ignore
+```rust,no_run
+# use rok_ui::{prelude::*, db::{self, rok_db::prelude::*}, query::{self, QueryOptions, QueryState}, query_key};
+# #[derive(Debug, Clone, Model)]
+# #[rok(crate = "rok_ui::db::rok_db", table = "users")]
+# struct User { #[rok(primary_key, generated)] id: i64, email: String, name: Option<String> }
+# fn example(cx: &mut Cx) {
 let search = use_input_state("search", cx.window, cx.app, |state| state.with_placeholder("Search"));
 let term = search.read(cx).text().to_string();
 let pattern = format!("%{term}%");
@@ -185,6 +205,7 @@ let matches = query::use_query(
         async move { User::filter(User::EMAIL.ilike(pattern)).limit(50).all(&db).await }
     }),
 );
+# }
 ```
 
 Every keystroke starts a query for the new term. To query less often, debounce the term with
@@ -195,13 +216,19 @@ the `state` feature's `use_debounced` and key on the debounced value.
 `db::db_mutation(|db, input| async move { .. })` gives mutation options for
 `query::use_mutation`, with pending and error state, invalidation and optimistic updates:
 
-```rust,ignore
+```rust,no_run
+# use rok_ui::{prelude::*, db::{self, rok_db::prelude::*}, query::{self, QueryOptions, QueryState}, query_key};
+# #[derive(Debug, Clone, Model)]
+# #[rok(crate = "rok_ui::db::rok_db", table = "users")]
+# struct User { #[rok(primary_key, generated)] id: i64, email: String, name: Option<String> }
+# fn example(cx: &mut Cx, new_user: User) {
 let add = query::use_mutation(
     cx,
     db::db_mutation(|db, user: User| async move { user.insert(&db).await })
         .invalidates(query_key!["users"]),
 );
-Button::new("add").loading(add.is_pending()).on_click(add.mutate_handler(new_user));
+let button = Button::new("add").loading(add.is_pending()).on_click(add.mutate_handler(new_user));
+# }
 ```
 
 ## Writing data: `run`
@@ -210,7 +237,11 @@ Button::new("add").loading(add.is_pending()).on_click(add.mutate_handler(new_use
 transactions, raw SQL) and returns a GPUI `Task<Result<T, DbError>>`. Await it in `cx.spawn` to
 react to the result, then invalidate the queries that read the changed tables:
 
-```rust,ignore
+```rust,no_run
+# use rok_ui::{prelude::*, db::{self, rok_db::prelude::*}, query::{self, QueryOptions, QueryState}, query_key};
+# #[derive(Debug, Clone, Model)]
+# #[rok(crate = "rok_ui::db::rok_db", table = "users")]
+# struct User { #[rok(primary_key, generated)] id: i64, email: String, name: Option<String> }
 fn add_user(email: String, cx: &mut App) {
     let insert = db::run(cx, move |db| async move {
         User { id: 0, email, name: None }.insert(&db).await
@@ -236,7 +267,12 @@ For writes nobody needs to wait for, `db::run(..).detach()` is enough.
 
 ### Transactions
 
-```rust,ignore
+```rust,no_run
+# use rok_ui::{prelude::*, db::{self, rok_db::{self, prelude::*}}};
+# #[derive(Debug, Clone, Model)]
+# #[rok(crate = "rok_ui::db::rok_db", table = "accounts")]
+# struct Account { #[rok(primary_key, generated)] id: i64, balance: i64 }
+# fn example(cx: &mut App, from: i64, to: i64, amount: i64) {
 let transfer = db::run(cx, move |db| async move {
     db.transaction(|tx| Box::pin(async move {
         Account::filter(Account::ID.eq(from)).update().increment(Account::BALANCE, -amount).exec(&mut *tx).await?;
@@ -245,18 +281,22 @@ let transfer = db::run(cx, move |db| async move {
     }))
     .await
 });
+# }
 ```
 
 The transaction commits when the closure returns `Ok` and rolls back on `Err`.
 
 ### Schema setup and migrations
 
-```rust,ignore
+```rust,no_run
+# use rok_ui::{prelude::*, db};
+# fn example(cx: &mut App) {
 // One statement or a whole script, without parameters:
-db::run(cx, |db| async move { db.execute(include_str!("schema.sql")).await }).detach();
+db::run(cx, |db| async move { db.execute("CREATE TABLE IF NOT EXISTS notes (id BIGSERIAL PRIMARY KEY)").await }).detach();
 
 // With `db-migrate`, sqlx migrations from a folder:
 db::run(cx, |db| async move { db.migrate("./migrations").await }).detach();
+# }
 ```
 
 ## Errors
@@ -272,13 +312,19 @@ Every call returns `DbError`:
 `DbError` implements `Display` and `std::error::Error`. To act on a specific database error,
 such as a unique violation, inspect `rok_db::Error` inside the closure before it is converted:
 
-```rust,ignore
+```rust,no_run
+# use rok_ui::{prelude::*, db::{self, rok_db::prelude::*}, query::{self, QueryOptions, QueryState}, query_key};
+# #[derive(Debug, Clone, Model)]
+# #[rok(crate = "rok_ui::db::rok_db", table = "users")]
+# struct User { #[rok(primary_key, generated)] id: i64, email: String, name: Option<String> }
+# fn example(cx: &mut App, user: User) {
 let insert = db::run(cx, move |db| async move {
     match user.insert(&db).await {
         Err(error) if error.is_unique_violation() => Ok(None),   // already registered
         other => other.map(Some),
     }
 });
+# }
 ```
 
 ## Escape hatches
@@ -302,14 +348,18 @@ ROK_UI_TEST_DATABASE_URL=postgres://postgres:test@127.0.0.1:55432/postgres cargo
 Database replies arrive on real threads, outside GPUI's test scheduler, so call
 `cx.executor().allow_parking()` and wait with `cx.executor().block_test(task)`:
 
-```rust,ignore
+```rust,no_run
+# use rok_ui::{prelude::*, db::{self, rok_db::prelude::*}, query::{self, QueryOptions, QueryState}, query_key};
+# #[derive(Debug, Clone, Model)]
+# #[rok(crate = "rok_ui::db::rok_db", table = "users")]
+# struct User { #[rok(primary_key, generated)] id: i64, email: String, name: Option<String> }
 #[gpui::test]
 fn loads_users(cx: &mut gpui::TestAppContext) {
     let Ok(url) = std::env::var("ROK_UI_TEST_DATABASE_URL") else { return };
     cx.executor().allow_parking();
     let connecting = cx.update(|cx| db::connect(url, cx));
     cx.executor().block_test(connecting).unwrap();
-    let count = cx.update(|cx| db::run(cx, |db| async move { User::count(&db).await }));
+    let count = cx.update(|cx| db::run(cx, |db| async move { User::query().count(&db).await }));
     assert!(cx.executor().block_test(count).is_ok());
 }
 ```

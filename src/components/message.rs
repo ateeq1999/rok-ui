@@ -6,16 +6,23 @@ use super::bubble::BubbleAlign;
 use crate::sx::SxStyled;
 use crate::{styles, styles::ApplyStyleOverrides};
 
-/// ```ignore
-/// Message::new()
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let received = Message::new()
 ///     .avatar(Avatar::new("AL"))
 ///     .name("Ada Lovelace")
 ///     .timestamp("10:42")
 ///     .child(Bubble::new("m1").child("Have you seen the new engine drawings?"))
-///     .footer("Read")
+///     .footer("Read");
 ///
-/// Message::new().align(BubbleAlign::End)
-///     .child(Bubble::new("m2").variant(BubbleVariant::Primary).align(BubbleAlign::End).child("Yes!"))
+/// let sent = Message::new().align(BubbleAlign::End).child(
+///     Bubble::new("m2")
+///         .variant(BubbleVariant::Primary)
+///         .align(BubbleAlign::End)
+///         .child("Yes!"),
+/// );
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Message {

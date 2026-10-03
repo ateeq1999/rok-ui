@@ -284,4 +284,6 @@ name = "compile_errors"
 gpui = { version = "0.2.2", features = ["test-support"] }
 env_logger = "0.11"
 trybuild = "1"
+# The router guide's build-script example.
+rok-ui-build = { path = "rok-ui-build" }
 garde = { version = "0.23", features = ["derive"] }

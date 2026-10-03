@@ -17,15 +17,15 @@ fn expansion(result: syn::Result<proc_macro2::TokenStream>) -> TokenStream {
 
 /// Turn a function into a reusable component, React style.
 ///
-/// ```ignore
+/// ```no_run
 /// use rok_ui::prelude::*;
 ///
 /// /// A greeting card.
 /// #[component]
 /// pub fn Greeting(
 ///     name: SharedString,
-///     #[prop(optional)] excited: bool,
-///     #[prop(optional)] on_wave: Option<EventHandler<ClickEvent>>,
+///     #[default] excited: bool,
+///     #[default] on_wave: Option<EventHandler<ClickEvent>>,
 ///     #[children] children: Vec<AnyElement>,
 ///     window: &mut Window,
 ///     cx: &mut App,
@@ -35,7 +35,7 @@ fn expansion(result: syn::Result<proc_macro2::TokenStream>) -> TokenStream {
 ///
 /// // Usage: required props go to `new`, optional props are builder methods,
 /// // children use the familiar `.child(..)`.
-/// Greeting::new("Ada").excited(true).on_wave(|_, _, _| {}).child("Welcome back");
+/// let greeting = Greeting::new("Ada").excited(true).on_wave(|_, _, _| {}).child("Welcome back");
 /// ```
 ///
 /// Parameter rules:
@@ -103,9 +103,18 @@ pub fn derive_search(input: TokenStream) -> TokenStream {
 /// `Result<Output, Error>`. The attribute turns it into a unit struct of the same name that
 /// implements `Procedure`, for `use_procedure(cx, create_note)` or `create_note.call(cx, input)`.
 ///
-/// ```ignore
+/// ```no_run
+/// # use rok_ui::{procedure, query::TaskCx, query_key};
+/// # #[derive(Clone)] struct NewNote { title: String }
+/// # struct Note { title: String }
+/// # #[derive(Debug)] enum NoteError { Empty }
 /// #[procedure(invalidates = [query_key!["notes"]])]
-/// async fn create_note(cx: TaskCx, input: NewNote) -> Result<Note, NoteError> { .. }
+/// async fn create_note(cx: TaskCx, input: NewNote) -> Result<Note, NoteError> {
+///     if input.title.is_empty() {
+///         return Err(NoteError::Empty);
+///     }
+///     Ok(Note { title: input.title })
+/// }
 /// ```
 #[proc_macro_attribute]
 pub fn procedure(arguments: TokenStream, item: TokenStream) -> TokenStream {
@@ -116,9 +125,14 @@ pub fn procedure(arguments: TokenStream, item: TokenStream) -> TokenStream {
 /// result, until `rok_ui::query::memo::invalidate` forgets it. Arguments are owned and `Debug`
 /// (they form the cache key); the output is `Clone + Send + Sync`.
 ///
-/// ```ignore
+/// ```no_run
+/// # use rok_ui::{memoize, query::TaskCx};
+/// # #[derive(Clone)] struct User;
+/// # async fn load_session(_: &TaskCx) -> Option<User> { None }
 /// #[memoize]
-/// async fn current_user(cx: TaskCx) -> Option<User> { session::load(&cx).await }
+/// async fn current_user(cx: TaskCx) -> Option<User> {
+///     load_session(&cx).await
+/// }
 /// ```
 #[proc_macro_attribute]
 pub fn memoize(arguments: TokenStream, item: TokenStream) -> TokenStream {
@@ -127,7 +141,8 @@ pub fn memoize(arguments: TokenStream, item: TokenStream) -> TokenStream {
 
 /// Define StyleX-style style objects once, at module level.
 ///
-/// ```ignore
+/// ```no_run
+/// # use rok_ui::prelude::*;
 /// styles! {
 ///     pub CARD = {
 ///         base: {
@@ -138,12 +153,18 @@ pub fn memoize(arguments: TokenStream, item: TokenStream) -> TokenStream {
 ///         compact: { padding: 3, gap: 3 },
 ///         variant(ButtonVariant): {
 ///             Primary: { background: primary, color: primary_foreground },
+///             Destructive: { background: destructive },
 ///             Outline: { border: 1, border_color: input },
+///             Secondary: { background: secondary },
+///             Ghost: { background: transparent },
+///             Link: { color: primary },
 ///         },
 ///     }
 /// }
 ///
-/// div().sx((&CARD.base, compact.then_some(&CARD.compact), CARD.variant(variant)))
+/// # fn example(compact: bool, variant: ButtonVariant) {
+/// let card = div().sx((&CARD.base, compact.then_some(&CARD.compact), CARD.variant(variant)));
+/// # }
 /// ```
 ///
 /// Each object becomes a static (`CARD`) with one `Sx` field per key and one
@@ -168,14 +189,19 @@ pub fn style(input: TokenStream) -> TokenStream {
 
 /// A `Vec<AnyElement>` from mixed element types, with control flow:
 ///
-/// ```ignore
-/// div().children(children![
-///     Title::new("Projects"),
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # struct Project { id: usize, name: SharedString }
+/// # enum Status { Ok, Stale }
+/// # fn example(loading: bool, projects: Vec<Project>, status: Status) {
+/// let list = div().children(children![
+///     H3::new("Projects"),
 ///     if loading { Spinner::new() } else { Badge::new("Ready") },
 ///     for project in &projects => Item::new(project.id).title(project.name.clone()),
 ///     match status { Status::Ok => "Up to date", Status::Stale => Button::new("refresh") },
 ///     "plain text",
-/// ])
+/// ]);
+/// # }
 /// ```
 #[proc_macro]
 pub fn children(input: TokenStream) -> TokenStream {
@@ -184,8 +210,12 @@ pub fn children(input: TokenStream) -> TokenStream {
 
 /// JSX-like markup compiled to builder calls.
 ///
-/// ```ignore
-/// view! {
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # styles! { CARD = { base: { padding: 6 }, compact: { padding: 3 } } ROW = { end: { justify: end } } }
+/// # struct Project { id: usize, name: SharedString }
+/// # fn example(compact: bool, error: Option<SharedString>, projects: Vec<Project>, some_element: Div) {
+/// let card = view! {
 ///     Card(sx = [CARD.base, compact => CARD.compact]) {
 ///         CardHeader {
 ///             CardTitle("Create project")
@@ -199,7 +229,8 @@ pub fn children(input: TokenStream) -> TokenStream {
 ///         }
 ///         div(sx = ROW.end) { "Raw text" {some_element} }
 ///     }
-/// }
+/// };
+/// # }
 /// ```
 ///
 /// - `Name(a, b, key = value)` is `Name::new(a, b).key(value)`; lowercase
@@ -215,7 +246,8 @@ pub fn view(input: TokenStream) -> TokenStream {
 
 /// Define keyframe sequences for [`Motion`](../rok_ui/motion/struct.Motion.html).
 ///
-/// ```ignore
+/// ```no_run
+/// # use rok_ui::prelude::*;
 /// keyframes! {
 ///     pub FADE_UP = {
 ///         from: { opacity: 0, y: 2 },
@@ -224,7 +256,9 @@ pub fn view(input: TokenStream) -> TokenStream {
 ///     }
 /// }
 ///
-/// div().motion("enter", Motion::new(&FADE_UP).duration_ms(250).easing(Easing::EaseOut))
+/// # fn example() {
+/// let card = div().motion("enter", Motion::new(&FADE_UP).duration_ms(250).easing(Easing::EaseOut));
+/// # }
 /// ```
 ///
 /// Offsets are `from`, `to` or percentages. Animatable properties: `opacity`,
