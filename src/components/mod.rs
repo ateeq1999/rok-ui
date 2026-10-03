@@ -76,6 +76,8 @@ pub mod keyboard_shortcut;
 #[cfg(feature = "label")]
 pub mod label;
 pub(crate) mod layer;
+#[cfg(feature = "layout-widgets")]
+pub mod layout_widgets;
 #[cfg(feature = "marker")]
 pub mod marker;
 #[cfg(feature = "menu")]
@@ -86,6 +88,8 @@ pub mod menubar;
 pub mod message;
 #[cfg(feature = "message-scroller")]
 pub mod message_scroller;
+#[cfg(feature = "navigation")]
+pub mod navigation;
 pub(crate) mod overlay;
 #[cfg(feature = "pagination")]
 pub mod pagination;
@@ -99,6 +103,8 @@ pub mod questionnaire;
 pub mod radio_group;
 #[cfg(feature = "resizable")]
 pub mod resizable;
+#[cfg(feature = "scaffold")]
+pub mod scaffold;
 #[cfg(feature = "scroll-area")]
 pub mod scroll_area;
 #[cfg(feature = "select")]
@@ -205,6 +211,12 @@ pub use item::{Item, ItemGroup, ItemVariant};
 pub use keyboard_shortcut::{Kbd, KbdGroup, KeyboardShortcut};
 #[cfg(feature = "label")]
 pub use label::Label;
+#[cfg(feature = "layout-widgets")]
+pub use layout_widgets::{
+    Aligned, Alignment, BoxConstraints, Center, Column, CrossAxisAlignment, EdgeInsets, Expanded,
+    Flexible, GridView, LayoutBuilder, MainAxisAlignment, MainAxisSize, Padding, Positioned, Row,
+    SizedBox, Spacer, Stack, StackFit, WindowSizeClass, Wrap,
+};
 #[cfg(feature = "marker")]
 pub use marker::Marker;
 #[cfg(feature = "menu")]
@@ -215,6 +227,11 @@ pub use menubar::{Menubar, NavigationMenu, NavigationMenuLink};
 pub use message::Message;
 #[cfg(feature = "message-scroller")]
 pub use message_scroller::{MessageScroller, MessageScrollerState};
+#[cfg(feature = "navigation")]
+pub use navigation::{
+    NavigationBar, NavigationDestination, NavigationDrawer, NavigationLabelBehavior,
+    NavigationRail, NavigationRailAlignment,
+};
 pub use overlay::{Align, Side};
 #[cfg(feature = "pagination")]
 pub use pagination::{page_slots, PageSlot, Pagination};
@@ -228,6 +245,10 @@ pub use questionnaire::{Answer, Question, Questionnaire, QuestionnaireAnswer};
 pub use radio_group::RadioGroup;
 #[cfg(feature = "resizable")]
 pub use resizable::{ResizableDirection, ResizablePanel, ResizablePanelGroup};
+#[cfg(feature = "scaffold")]
+pub use scaffold::{
+    AdaptiveScaffold, AppBar, FabLocation, FabSize, FabVariant, FloatingActionButton, Scaffold,
+};
 #[cfg(feature = "scroll-area")]
 pub use scroll_area::{ScrollArea, ScrollAxis};
 #[cfg(feature = "select")]

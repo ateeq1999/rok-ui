@@ -104,10 +104,14 @@ fn children_macro_handles_mixed_types_and_control_flow() {
     let maybe: Option<&str> = Some("present");
     let items = ["a", "b", "c"];
     let status = 2;
+    let user_name = String::from("ليلى");
+    let greeting = SharedString::from("Hello");
     let built: Vec<AnyElement> = children![
         "text",
         "مرحبا",
         Badge::new("badge"),
+        user_name,
+        greeting.clone(),
         if loading { Spinner::new() } else { Badge::new("ready") },
         if let Some(text) = maybe { div().child(text) },
         for item in items => div().child(item),
@@ -118,8 +122,8 @@ fn children_macro_handles_mixed_types_and_control_flow() {
             _ => Spinner::new(),
         },
     ];
-    // 2 + 1 + 1 + 1 + 3 + 6 + 2
-    assert_eq!(built.len(), 16);
+    // 2 + 2 + 1 + 1 + 1 + 3 + 6 + 2
+    assert_eq!(built.len(), 18);
 }
 
 struct StyledView {
@@ -157,6 +161,7 @@ impl Render for StyledView {
                 }
                 div(sx = [ROW.text, ROW.position, ROW.misc]) { "styled" }
                 div { "مرحبا بك في rok-ui" }
+                div { {format!("{} مشاريع", 3)} {SharedString::from("rok-ui")} }
             }
         })
     }

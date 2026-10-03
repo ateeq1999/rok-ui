@@ -17,6 +17,9 @@ developer experience.
   works like `useState`.
 - **Overridable styles.** Every visual component implements GPUI's `Styled`, so `.w_full().mt_4()`
   overrides its defaults the way `className` does.
+- **Flutter-style app shells and layouts.** `Scaffold`, `AppBar`, `NavigationBar`,
+  `NavigationRail`, `NavigationDrawer` and an `AdaptiveScaffold` that follows the window
+  width, plus `Row`, `Column`, `Expanded`, `Stack`, `GridView`, `LayoutBuilder` and friends.
 - **Themes.** Light and dark modes, two presets (Rok and Neutral), and every text/surface pair is
   tested to reach at least 4.5:1 contrast.
 - **Keyboard support.** Tab and Shift-Tab move focus, Enter and Space activate buttons, and Escape
@@ -54,7 +57,8 @@ rok-ui = { version = "0.3", default-features = false, features = ["button", "dia
 - **Naming:** features use kebab-case module names (`alert-dialog`, `data-table`). shadcn/ui
   names work as aliases: `dropdown-menu`, `context-menu`, `navigation-menu`, `drawer`,
   `textarea`, `kbd`, `native-select` and `toggle-group`.
-- **Groups:** `forms`, `overlays`, `layout`, `data` and `chat` each enable a whole group.
+- **Groups:** `forms`, `overlays`, `layout`, `data`, `chat` and `shell` (Scaffold, navigation
+  and layout widgets) each enable a whole group.
 - **Always included:** `AppRoot`, `Direction`, `BidiText`, the theme, icons, hooks, styling
   (`styles!`, `view!`) and motion, whatever features you pick.
 - **Fonts:** `font-cairo`, `font-noto-sans-arabic` and `font-inter` bundle Google Fonts (see
@@ -322,17 +326,18 @@ right order on every platform:
 - **Component text** (labels, titles, descriptions, options, menu items, table heads, badges)
   is handled automatically.
 - **Your own text:** wrap it in `BidiText`, which also wraps long paragraphs and truncates with
-  an ellipsis under `.truncate()`: `div().child(BidiText::new("مرحبا بك في rok-ui"))`. String
-  literals with right-to-left letters in `view!` and `children!` markup are wrapped for you.
+  an ellipsis under `.truncate()`: `div().child(BidiText::new("مرحبا بك في rok-ui"))`. In `view!`
+  and `children!` markup, string literals and string expressions (`{user.name}`) are wrapped
+  for you.
 - **Inputs:** inputs and textareas keep the caret, selection, clicks and IME in the right place
   while you type Arabic, including across wrapped textarea rows.
 
 macOS and Linux lay out bidirectional text natively. GPUI 0.2.2's Windows backend draws every
 run left to right, so on Windows rok-ui reorders text itself: `rok_ui::bidi` runs the Unicode
 Bidirectional Algorithm and converts joined Arabic letters to their contextual presentation
-forms. Many Arabic fonts, Cairo among them, leave the isolated presentation forms out. For fonts
-registered through `rok_ui::fonts`, rok-ui reads which forms each font has and draws isolated
-letters so they stay in that font. Noto Sans Arabic maps every form.
+forms. Many Arabic fonts, Cairo among them, leave the isolated presentation forms out. rok-ui reads
+which forms each font has (fonts registered through `rok_ui::fonts`, and installed fonts through
+DirectWrite) and draws isolated letters so they stay in that font. Noto Sans Arabic maps every form.
 
 ## Motion
 
@@ -383,6 +388,80 @@ div().when(panel.is_mounted(), |div| div.child(panel.apply(content, &FADE_UP)))
   out. Popovers, menus, selects and hover cards fade and slide in. Toasts spring up.
 - **Reduced motion:** `rok_ui::motion::set_reduced_motion(true)` turns animation off app-wide.
   Motions jump to their end and transitions finish at once.
+
+## App shells and layouts
+
+For people coming from Flutter, rok-ui has its Material app structure and layout widgets, built
+on the same theme and controlled like every other component. Run
+`cargo run --example app_shell` and resize the window.
+
+| Wide (`NavigationRail`, extended) | Compact (`NavigationBar`) |
+|---|---|
+| ![App shell, wide](https://raw.githubusercontent.com/ateeq1999/rok-ui/main/docs/screenshots/app-shell-wide.png) | ![App shell, compact](https://raw.githubusercontent.com/ateeq1999/rok-ui/main/docs/screenshots/app-shell-compact.png) |
+
+### Scaffold
+
+```rust
+Scaffold::new("mail")
+    .app_bar(AppBar::new().title("Inbox").action(search_button))
+    .drawer(                                  // the app bar gets a menu button that opens it
+        NavigationDrawer::new("mail-drawer")
+            .destination(NavigationDestination::new(IconName::Inbox, "Inbox").badge("24"))
+            .destination(NavigationDestination::new(IconName::Send, "Sent"))
+            .divider()
+            .section("Labels")
+            .destination(NavigationDestination::new(IconName::Star, "Starred"))
+            .selected_index(page)
+            .on_change(move |index, _, cx| page_state.set(*index, cx)),  // also closes the drawer
+    )
+    .floating_action_button(FloatingActionButton::new("compose", IconName::Pencil).label("Compose"))
+    .child(message_list)
+```
+
+| Flutter | rok-ui |
+|---|---|
+| `Scaffold` | `Scaffold`: `app_bar`, body children, `drawer`, `end_drawer`, `navigation` (a permanent rail), `bottom_navigation_bar`, `bottom_sheet`, `footer_button`, `floating_action_button` and `fab_location` |
+| `AppBar` | `AppBar`: `leading`, `title`, `action`, `center_title`, `bottom` (for tabs) |
+| `FloatingActionButton`, `.extended` | `FloatingActionButton` with an optional `label`; `Small`, `Regular`, `Large`; `Primary`, `Secondary`, `Surface` |
+| `NavigationBar`, `NavigationDestination` | `NavigationBar`, `NavigationDestination` (icon, selected icon, label, badge or dot, disabled) |
+| `NavigationRail` | `NavigationRail`: `extended`, `leading`, `trailing`, label behavior, alignment |
+| `NavigationDrawer` | `NavigationDrawer`: header, sections, dividers |
+| `AdaptiveScaffold` (flutter_adaptive_scaffold) | `AdaptiveScaffold`: bottom bar under 600 px, rail from 600 px, extended rail from 1200 px |
+
+### Layout widgets
+
+```rust
+Column::new()
+    .cross_axis_alignment(CrossAxisAlignment::Stretch)
+    .spacing(px(12.))
+    .child(
+        Row::new()
+            .child(H3::new("Recent photos"))
+            .child(Spacer::new())
+            .child(Button::new("see-all").ghost().label("See all")),
+    )
+    .child(Wrap::new().spacing(px(8.)).run_spacing(px(8.)).children(tags))
+    .child(GridView::extent("photos", px(240.)).spacing(px(12.)).children(photos))
+```
+
+| Flutter | rok-ui |
+|---|---|
+| `Row`, `Column` | `Row`, `Column` with `MainAxisAlignment`, `CrossAxisAlignment`, `MainAxisSize` and `spacing` |
+| `Expanded`, `Flexible`, `Spacer` | Same names, with `flex` factors |
+| `Center`, `Align` | `Center`, `Aligned::new(Alignment::BottomEnd)` |
+| `Padding`, `EdgeInsets` | `Padding::all(..)`, `Padding::symmetric(..)`, `Padding::new(EdgeInsets::zero().top(..).start(..))` |
+| `SizedBox` | `SizedBox::new(w, h)`, `::width`, `::height`, `::square`, `::expand`, `::shrink` |
+| `Stack`, `Positioned` | `Stack` with `alignment` and `fit`; `.positioned(Positioned::new().top(..).end(..))` |
+| `Wrap` | `Wrap` with `spacing` and `run_spacing` |
+| `GridView.count`, `GridView.extent` | `GridView::count(3)`, `GridView::extent(id, max_width)` |
+| `LayoutBuilder` | `LayoutBuilder::new(id, \|constraints, window, cx\| ..)` |
+| Material window size classes | `WindowSizeClass::of(window)`, `constraints.size_class()` |
+
+"Start" and "end" follow the reading direction, like Flutter's `AlignmentDirectional`: rows,
+grids, `Positioned` and the shells mirror in right-to-left layouts. Sizing is CSS flexbox
+rather than Flutter's constraints. The one difference you will notice: a `Column` inside a
+`Column` fills the parent's height by default; give it `MainAxisSize::Min` or wrap it in
+`Expanded`.
 
 ## Components
 
@@ -555,7 +634,7 @@ rok-ui/
 │   ├── styles.rs           ApplyStyleOverrides, ComponentSize
 │   ├── icon.rs             Icon, IconName, Assets
 │   └── components/         one file per component, plus shared layers, overlays and direction
-├── examples/               counter, gallery, arabic, arabic_chat
+├── examples/               counter, gallery, app_shell, arabic, arabic_chat
 ├── tests/                  component renders, sx, motion, macro compile errors
 ├── scripts/                check-features.sh, fetch-google-font.sh
 └── docs/screenshots/
@@ -582,12 +661,9 @@ Contributions are welcome: bug reports, fixes, new components and docs. Read
 ## Known limitations (0.3)
 
 - **Right-to-left text on Windows** is reordered by rok-ui (see
-  [Arabic and mixed-direction text](#arabic-and-mixed-direction-text)), with two gaps:
-  - Text built at runtime and passed as a plain string child (`div().child(name)`) needs
-    `BidiText`. Elements you pass to a component, such as `Message::footer` or bubble content,
-    count as your own text.
-  - Isolated letters in fonts registered outside `rok_ui::fonts` (for example installed system
-    fonts) assume the font has every presentation form.
+  [Arabic and mixed-direction text](#arabic-and-mixed-direction-text)). Strings passed to GPUI's
+  own `.child(..)` (`div().child(name)`) need `BidiText`; in `view!` and `children!` markup,
+  string literals and string expressions are wrapped for you.
 - **System font weights:** they depend on the platform UI font. Some Linux fonts have no medium
   or semibold weight, so those render as regular. Bundled fonts avoid this.
 

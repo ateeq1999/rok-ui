@@ -33,6 +33,10 @@ unicode-bidi = "0.3"
 ttf-parser = "0.25"
 jiff = { version = "0.2", optional = true }
 
+# Reads which Arabic letter forms installed fonts have (the same crate GPUI uses).
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = ["Win32_Graphics_DirectWrite"] }
+
 # Every component is a feature, so you compile only what you use:
 #
 #     rok-ui = { version = "0.3", default-features = false, features = ["button", "dialog", "select"] }
@@ -45,7 +49,7 @@ jiff = { version = "0.2", optional = true }
 # macros are always available.
 [features]
 default = ["full"]
-full = ["forms", "overlays", "layout", "data", "chat"]
+full = ["forms", "overlays", "layout", "data", "chat", "shell"]
 
 # Groups.
 forms = [
@@ -58,13 +62,15 @@ overlays = [
 ]
 layout = [
     "accordion", "aspect-ratio", "breadcrumb", "button-group", "card", "carousel", "collapsible",
-    "empty", "item", "pagination", "resizable", "scroll-area", "separator", "sidebar", "tabs",
+    "empty", "item", "layout-widgets", "pagination", "resizable", "scroll-area", "separator",
+    "sidebar", "tabs",
 ]
 data = [
     "alert", "avatar", "badge", "chart", "data-table", "keyboard-shortcut", "progress",
     "skeleton", "spinner", "table", "typography",
 ]
 chat = ["attachment", "bubble", "marker", "message", "message-scroller", "questionnaire"]
+shell = ["layout-widgets", "navigation", "scaffold"]
 
 # Bundled Google Fonts (not part of `full`: each adds its font files to your binary).
 fonts = ["font-cairo", "font-inter", "font-noto-sans-arabic"]
@@ -104,17 +110,20 @@ input-otp = []
 item = []
 keyboard-shortcut = []
 label = []
+layout-widgets = []
 marker = ["spinner"]
 menu = []
 menubar = ["menu"]
 message = ["bubble"]
 message-scroller = ["button"]
+navigation = ["tooltip"]
 pagination = ["button"]
 popover = []
 progress = []
 questionnaire = ["button", "input", "progress"]
 radio-group = []
 resizable = []
+scaffold = ["button", "layout-widgets", "navigation", "tooltip"]
 scroll-area = []
 select = ["menu"]
 separator = []
@@ -159,6 +168,10 @@ required-features = ["full", "font-cairo"]
 [[example]]
 name = "arabic_chat"
 required-features = ["full", "font-cairo"]
+
+[[example]]
+name = "app_shell"
+required-features = ["full"]
 
 [[test]]
 name = "components"

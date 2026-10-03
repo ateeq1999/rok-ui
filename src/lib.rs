@@ -42,6 +42,50 @@ pub use gpui;
 pub use icon::{Assets, AssetsWithFallback, Icon, IconName};
 pub use rok_ui_macros::{children, component, keyframes, style, styles, view};
 
+/// Support code for the `view!` and `children!` macros. Not public API.
+#[doc(hidden)]
+pub mod __private {
+    use std::cell::Cell;
+
+    use gpui::{AnyElement, IntoElement, SharedString};
+
+    /// A child expression from markup. Text (anything `Into<SharedString>`) becomes
+    /// a [`crate::components::BidiText`] through [`TextChild`]; other elements go
+    /// through [`ElementChild`]. Method resolution tries `TextChild` first because
+    /// it needs one reference less (autoref specialization).
+    pub struct Child<T>(Cell<Option<T>>);
+
+    impl<T> Child<T> {
+        pub fn new(value: T) -> Self {
+            Self(Cell::new(Some(value)))
+        }
+
+        fn take(&self) -> T {
+            self.0.take().expect("a markup child is converted once")
+        }
+    }
+
+    pub trait TextChild {
+        fn take_child(&self) -> AnyElement;
+    }
+
+    impl<T: Into<SharedString>> TextChild for Child<T> {
+        fn take_child(&self) -> AnyElement {
+            crate::components::BidiText::new(self.take()).into_any_element()
+        }
+    }
+
+    pub trait ElementChild {
+        fn take_child(&self) -> AnyElement;
+    }
+
+    impl<T: IntoElement> ElementChild for &Child<T> {
+        fn take_child(&self) -> AnyElement {
+            self.take().into_any_element()
+        }
+    }
+}
+
 /// Install the default theme and the key bindings rok-ui components rely on
 /// (text editing, Tab focus navigation). Call once at startup.
 pub fn init(cx: &mut gpui::App) {

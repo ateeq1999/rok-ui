@@ -87,14 +87,76 @@ fn record_presentation_coverage(font: &[u8]) {
     gaps.entry(family).or_default().extend(missing);
 }
 
-/// Whether the registered font family `family` lacks the presentation form `form`.
-/// False for fonts not registered through this module (system fonts cover them).
+/// Whether the font family `family` lacks the presentation form `form`. Families
+/// registered through this module are known; installed fonts are looked up once
+/// on Windows, the only platform that draws these forms. Unknown families are
+/// assumed to have every form.
 pub(crate) fn lacks_presentation_form(family: &str, form: char) -> bool {
-    presentation_gaps()
+    let mut gaps = presentation_gaps()
         .lock()
-        .unwrap_or_else(|error| error.into_inner())
-        .get(family)
+        .unwrap_or_else(|error| error.into_inner());
+    if !gaps.contains_key(family) {
+        let missing = installed_presentation_gaps(family).unwrap_or_default();
+        gaps.insert(family.to_string(), missing);
+    }
+    gaps.get(family)
         .is_some_and(|missing| missing.contains(&form))
+}
+
+/// The presentation forms the installed font family `family` lacks, from
+/// DirectWrite. `None` when no such family is installed.
+#[cfg(windows)]
+fn installed_presentation_gaps(family: &str) -> Option<HashSet<char>> {
+    use windows::{
+        core::HSTRING,
+        Win32::Graphics::DirectWrite::{
+            DWriteCreateFactory, IDWriteFactory, DWRITE_FACTORY_TYPE_SHARED,
+            DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_WEIGHT_NORMAL,
+        },
+    };
+
+    // SAFETY: plain DirectWrite queries on interfaces this function owns; every
+    // out-pointer is a live local.
+    unsafe {
+        let factory: IDWriteFactory = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).ok()?;
+        let mut collection = None;
+        factory
+            .GetSystemFontCollection(&mut collection, false)
+            .ok()?;
+        let collection = collection?;
+        let (mut index, mut exists) = (0, Default::default());
+        collection
+            .FindFamilyName(&HSTRING::from(family), &mut index, &mut exists)
+            .ok()?;
+        if !exists.as_bool() {
+            return None;
+        }
+        let font = collection
+            .GetFontFamily(index)
+            .ok()?
+            .GetFirstMatchingFont(
+                DWRITE_FONT_WEIGHT_NORMAL,
+                DWRITE_FONT_STRETCH_NORMAL,
+                DWRITE_FONT_STYLE_NORMAL,
+            )
+            .ok()?;
+        Some(
+            crate::bidi::presentation_forms()
+                .into_iter()
+                .filter(|form| {
+                    !font
+                        .HasCharacter(*form as u32)
+                        .map(|has| has.as_bool())
+                        .unwrap_or(true)
+                })
+                .collect(),
+        )
+    }
+}
+
+#[cfg(not(windows))]
+fn installed_presentation_gaps(_family: &str) -> Option<HashSet<char>> {
+    None
 }
 
 /// Read font files from disk and register them, for example fonts downloaded next to
@@ -215,4 +277,25 @@ pub(crate) fn mark_missing_presentation_forms(family: &str, forms: impl IntoIter
         .entry(family.to_string())
         .or_default()
         .extend(forms);
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn installed_fonts_report_their_presentation_forms() {
+        // Segoe UI ships with Windows and covers Arabic.
+        assert_eq!(
+            installed_presentation_gaps("Segoe UI").map(|gaps| gaps.len()),
+            Some(0)
+        );
+        // Consolas has no Arabic letters at all.
+        if let Some(gaps) = installed_presentation_gaps("Consolas") {
+            assert!(gaps.contains(&'\u{FEAF}'));
+            assert!(lacks_presentation_form("Consolas", '\u{FEAF}'));
+        }
+        assert_eq!(installed_presentation_gaps("No Such Font Family"), None);
+        assert!(!lacks_presentation_form("No Such Font Family", '\u{FEAF}'));
+    }
 }

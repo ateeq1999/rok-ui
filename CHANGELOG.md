@@ -9,6 +9,32 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **Flutter-style app shells** (`scaffold` and `navigation` features): `Scaffold` with an
+  `AppBar`, start and end drawers, permanent side navigation, bottom sheet, footer buttons,
+  bottom navigation bar and `FloatingActionButton`; `NavigationBar`, `NavigationRail` and
+  `NavigationDrawer` built from shared `NavigationDestination`s; and `AdaptiveScaffold`, which
+  switches between a bottom bar, a rail and an extended rail by width (Material 3 breakpoints).
+  A `NavigationDrawer` inside a scaffold's drawer closes it when a destination is picked.
+- **Flutter-style layout widgets** (`layout-widgets` feature): `Row`, `Column`, `Expanded`,
+  `Flexible`, `Spacer`, `Center`, `Aligned`, `Padding` with `EdgeInsets`, `SizedBox`, `Stack`
+  with `Positioned`, `Wrap`, `GridView` (`count` and `extent`), `LayoutBuilder` and
+  `WindowSizeClass`. Start and end follow the reading direction.
+- The `shell` feature group (part of `full`) and the `app_shell` example.
+
+### Changed
+
+- String expressions in `view!` and `children!` markup (`{name}` where `name` is a `String` or
+  `SharedString`) become `BidiText`, like string literals, so runtime Arabic text displays
+  correctly on Windows.
+
+### Fixed
+
+- Isolated Arabic letters in installed fonts that lack the isolated presentation forms stay in
+  that font on Windows: rok-ui now reads installed fonts' coverage through DirectWrite. This adds
+  the `windows` crate on Windows, the version GPUI already uses.
+
 ## [0.3.1] - 2026-10-03
 
 ### Added

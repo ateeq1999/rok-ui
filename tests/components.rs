@@ -458,6 +458,81 @@ impl Render for ShadcnParityView {
                     SidebarGroup::new().item(SidebarItem::new("Inbox").icon(IconName::Inbox)),
                 ),
             )
+            .child(
+                SizedBox::new(px(800.), px(400.)).child(
+                    AdaptiveScaffold::new("adaptive")
+                        .app_bar(AppBar::new().title("Photos").center_title(true))
+                        .destination(NavigationDestination::new(IconName::Home, "Home"))
+                        .destination(
+                            NavigationDestination::new(IconName::Heart, "Favorites").badge(""),
+                        )
+                        .floating_action_button(
+                            FloatingActionButton::new("adaptive-fab", IconName::Plus).label("Add"),
+                        )
+                        .child(
+                            Stack::new()
+                                .alignment(Alignment::Center)
+                                .child(SizedBox::square(px(40.)))
+                                .positioned(Positioned::fill().child("Overlay")),
+                        ),
+                ),
+            )
+            .child(
+                SizedBox::new(px(600.), px(300.)).child(
+                    Scaffold::new("scaffold")
+                        .app_bar(
+                            AppBar::new()
+                                .title("Mail")
+                                .bottom(Tabs::new("mail-tabs").tab("All")),
+                        )
+                        .drawer(
+                            NavigationDrawer::new("mail-drawer")
+                                .section("Mail")
+                                .divider(),
+                        )
+                        .end_drawer("Filters")
+                        .navigation(
+                            NavigationRail::new("rail")
+                                .extended(true)
+                                .destination(NavigationDestination::new(IconName::Inbox, "Inbox")),
+                        )
+                        .bottom_navigation_bar(
+                            NavigationBar::new("bottom-nav")
+                                .label_behavior(NavigationLabelBehavior::OnlyShowSelected)
+                                .destination(NavigationDestination::new(IconName::Inbox, "Inbox"))
+                                .destination(
+                                    NavigationDestination::new(IconName::Send, "Sent")
+                                        .disabled(true),
+                                ),
+                        )
+                        .bottom_sheet("Draft saved")
+                        .footer_button(Button::new("scaffold-send").label("Send"))
+                        .fab_location(FabLocation::CenterFloat)
+                        .child(
+                            Column::new()
+                                .main_axis_size(MainAxisSize::Min)
+                                .child(Padding::symmetric(px(8.), px(4.)).child("Padded"))
+                                .child(Center::new().child("Centered"))
+                                .child(Aligned::new(Alignment::BottomEnd).child("Aligned"))
+                                .child(
+                                    Row::new()
+                                        .child(Flexible::new().child("Flexible"))
+                                        .child(Expanded::new().flex(2.).child("Expanded")),
+                                )
+                                .child(Wrap::new().spacing(px(4.)).children(["a", "b", "c"]))
+                                .child(
+                                    GridView::extent("scaffold-grid", px(100.))
+                                        .children(["1", "2", "3"]),
+                                )
+                                .child(LayoutBuilder::new(
+                                    "scaffold-layout",
+                                    |constraints, _, _| {
+                                        format!("{:?}", constraints.size_class()).into_any_element()
+                                    },
+                                )),
+                        ),
+                ),
+            )
             .child(Slider::new("slider").value(50.))
             .child(Slider::new("range-slider").range(25., 75.).step(5.))
             .child(
@@ -854,4 +929,115 @@ fn focus_rings_follow_the_last_input_device(cx: &mut gpui::TestAppContext) {
     rok_ui::sx::set_focus_ring_mode(rok_ui::sx::FocusRingMode::Always);
     assert!(rok_ui::sx::focus_visible(), "Always shows them regardless");
     rok_ui::sx::set_focus_ring_mode(rok_ui::sx::FocusRingMode::KeyboardOnly);
+}
+
+/// A row and a grid of three labeled boxes, right to left.
+struct RtlLayoutView;
+
+impl Render for RtlLayoutView {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let cell = |name: &'static str| div().debug_selector(move || name.into()).size(px(40.));
+        AppRoot::new().child(
+            Direction::new(TextDirection::Rtl).child(
+                Column::new()
+                    .cross_axis_alignment(CrossAxisAlignment::Start)
+                    .w(px(600.))
+                    .child(
+                        Row::new()
+                            .spacing(px(8.))
+                            .child(cell("row-first"))
+                            .child(Spacer::new())
+                            .child(cell("row-last")),
+                    )
+                    .child(GridView::count(3).children(["grid-0", "grid-1", "grid-2"].map(cell)))
+                    .child(cell("column-start")),
+            ),
+        )
+    }
+}
+
+#[gpui::test]
+fn layout_widgets_follow_the_reading_direction(cx: &mut gpui::TestAppContext) {
+    cx.update(rok_ui::init);
+    let (_view, window_context) = cx.add_window_view(|_, _| RtlLayoutView);
+    window_context.run_until_parked();
+    let mut left = |selector: &'static str| {
+        window_context
+            .debug_bounds(selector)
+            .unwrap_or_else(|| panic!("{selector} is not rendered"))
+            .left()
+    };
+    // The row starts on the right and the spacer pushes its last child to the left.
+    assert!(left("row-first") > left("row-last"));
+    assert_eq!(left("row-first") - left("row-last"), px(560.));
+    // Grid cells fill from the right.
+    assert!(left("grid-0") > left("grid-1"));
+    assert!(left("grid-1") > left("grid-2"));
+    // A column's cross-axis start is the right edge.
+    assert_eq!(left("column-start"), left("row-first"));
+}
+
+/// A scaffold whose start drawer is controlled by the view.
+struct DrawerShellView {
+    drawer_open: bool,
+    page: usize,
+    log: std::rc::Rc<std::cell::RefCell<Vec<bool>>>,
+}
+
+impl Render for DrawerShellView {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let log = self.log.clone();
+        AppRoot::new().child(
+            Scaffold::new("shell")
+                .app_bar(AppBar::new().title("Mail"))
+                .drawer(
+                    NavigationDrawer::new("drawer")
+                        .destination(NavigationDestination::new(IconName::Inbox, "Inbox"))
+                        .destination(NavigationDestination::new(IconName::Send, "Sent"))
+                        .selected_index(self.page)
+                        .on_change(cx.listener(|view, index: &usize, _, cx| {
+                            view.page = *index;
+                            cx.notify();
+                        })),
+                )
+                .drawer_open(self.drawer_open)
+                .on_drawer_change(cx.listener(move |view, open: &bool, _, cx| {
+                    log.borrow_mut().push(*open);
+                    view.drawer_open = *open;
+                    cx.notify();
+                }))
+                .child("Messages"),
+        )
+    }
+}
+
+#[gpui::test]
+fn scaffold_drawer_opens_from_the_menu_and_closes_on_navigation(cx: &mut gpui::TestAppContext) {
+    cx.update(rok_ui::init);
+    // Drawers slide in on real time; without motion they open in one frame.
+    rok_ui::motion::set_reduced_motion(true);
+    let log = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+    let view_log = log.clone();
+    let (view, window_context) = cx.add_window_view(move |_, _| DrawerShellView {
+        drawer_open: false,
+        page: 0,
+        log: view_log.clone(),
+    });
+    window_context.run_until_parked();
+
+    // The app bar's implied menu button: 8 px padding plus half of a 36 px button.
+    window_context.simulate_click(gpui::point(px(26.), px(32.)), gpui::Modifiers::none());
+    window_context.run_until_parked();
+    assert_eq!(*log.borrow(), [true], "the menu button opens the drawer");
+
+    // Pick the second destination: rows are 48 px under 12 px of padding, 2 px apart.
+    window_context.simulate_click(gpui::point(px(100.), px(86.)), gpui::Modifiers::none());
+    window_context.run_until_parked();
+    assert_eq!(
+        *log.borrow(),
+        [true, false],
+        "picking a destination closes it"
+    );
+    assert_eq!(view.read_with(window_context, |view, _| view.page), 1);
+    rok_ui::motion::set_reduced_motion(false);
 }

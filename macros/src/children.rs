@@ -166,7 +166,7 @@ fn parse_single(input: ParseStream, syntax: Syntax) -> syn::Result<Node> {
             {
                 return Ok(Node::Element(text_child(text)));
             }
-            Ok(Node::Element(expression.into_token_stream()))
+            Ok(Node::Element(expression_child(&expression)))
         }
         Syntax::Markup => parse_markup_element(input),
     }
@@ -188,6 +188,16 @@ fn text_child(text: &syn::LitStr) -> TokenStream {
     }
 }
 
+/// An expression child. Strings built at runtime (`String`, `SharedString`, …)
+/// become a `BidiText` like literals do; anything else is used as an element.
+fn expression_child(expression: &Expr) -> TokenStream {
+    quote! {{
+        #[allow(unused_imports)]
+        use ::rok_ui::__private::{ElementChild as _, TextChild as _};
+        (&::rok_ui::__private::Child::new(#expression)).take_child()
+    }}
+}
+
 /// One markup child:
 /// - `"text"`: a string literal,
 /// - `{ expr }`: any `IntoElement` expression,
@@ -201,7 +211,7 @@ fn parse_markup_element(input: ParseStream) -> syn::Result<Node> {
         let content;
         braced!(content in input);
         let expression: Expr = content.parse()?;
-        return Ok(Node::Element(expression.into_token_stream()));
+        return Ok(Node::Element(expression_child(&expression)));
     }
 
     let path: Path = input.call(Path::parse_mod_style)?;
