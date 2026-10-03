@@ -166,6 +166,6 @@ mod tests {
             super::extra_dependencies("use jiff::civil::Date;"),
             ["jiff = \"0.2\""]
         );
-        assert!(super::extra_dependencies("use gpui::div;").is_empty());
+        assert_eq!(super::extra_dependencies("use gpui::div;"), [] as [&str; 0]);
     }
 }
