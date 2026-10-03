@@ -37,7 +37,7 @@ These are real renders of `cargo run --example gallery` on Linux.
 
 ```toml
 [dependencies]
-rok-ui = "0.3"
+rok-ui = "0.4"
 gpui = "0.2.2"   # rok-ui re-exports it as rok_ui::gpui; keep the versions in step
 ```
 
@@ -49,7 +49,7 @@ Every component is a Cargo feature. The default, `full`, enables all of them. To
 what you use, turn off the defaults and list the components you want:
 
 ```toml
-rok-ui = { version = "0.3", default-features = false, features = ["button", "dialog", "select"] }
+rok-ui = { version = "0.4", default-features = false, features = ["button", "dialog", "select"] }
 ```
 
 - **Dependencies:** a feature pulls in the components it is built from (`combobox` enables
@@ -580,7 +580,7 @@ default because they add their files (about 360 KB for Cairo, 760 KB for Noto Sa
 1.3 MB for Inter) to your binary:
 
 ```toml
-rok-ui = { version = "0.3", features = ["font-cairo"] }
+rok-ui = { version = "0.4", features = ["font-cairo"] }
 ```
 
 ```rust
@@ -658,7 +658,7 @@ Contributions are welcome: bug reports, fixes, new components and docs. Read
 [Code of Conduct](CODE_OF_CONDUCT.md). Report security problems privately as described in
 [SECURITY.md](SECURITY.md).
 
-## Known limitations (0.3)
+## Known limitations (0.4)
 
 - **Right-to-left text on Windows** is reordered by rok-ui (see
   [Arabic and mixed-direction text](#arabic-and-mixed-direction-text)). Strings passed to GPUI's
