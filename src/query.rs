@@ -14,7 +14,7 @@ mod suspense;
 pub use cache::{
     cancel_queries, ensure_query_data, fetch_query, fetching_count, get_query_data, invalidate,
     prefetch_query, queries, reset_queries, set_query_data, update_query_data, use_query,
-    use_suspense_query, QueryInfo, QueryResult, QueryState,
+    use_query_select, use_suspense_query, QueryInfo, QueryResult, QueryState,
 };
 pub use error::QueryError;
 pub use key::QueryKey;

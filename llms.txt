@@ -175,6 +175,8 @@ block_on}`):
   `.refetch_interval`, `.refetch_on_window_focus`. Define options in a function and reuse them.
 - Read: `query::use_query(cx, options)` -> `.state()` is `QueryState::{Pending, Error,
   Success}`; `use_suspense_query` inside `Suspense`; `ErrorBoundary` catches errors.
+- Part of the data: `query::use_query_select(cx, options, |data| derived)`; derived again only
+  when the cached data changes, and the cache keeps the full value.
 - Cache: `invalidate(cx, &key)`, `fetch_query`, `prefetch_query`, `ensure_query_data`,
   `set_query_data`, `update_query_data`, `cancel_queries`, `reset_queries`.
 - Writes: `MutationOptions::new(..).invalidates(key).optimistic(..).on_success(..)` with
@@ -191,7 +193,9 @@ block_on}`):
   .validators(FormValidators::new().on_submit(|v| Some(FormError::field(&SignUp::CONFIRM, ".."))))
   .on_submit(|values, cx| Task<Result<(), FormError>>)`.
 - `let form = form::use_form(cx, opts); let email = form.field(cx, SignUp::EMAIL);`
-  `TextField::new(&email, "Email")`, `CheckboxField`, `SwitchField`, `BoundInput`,
+  `TextField::new(&email, "Email")`, `TextareaField`, `CheckboxField`, `SwitchField`,
+  `SelectField::new(&f, "Plan").option("pro", "Pro")`, `RadioGroupField`, `ComboboxField`, `SliderField`,
+  `DatePickerField` (`Option<CalendarDate>`), `InputOtpField::new(&f, "Code", 6)`, `BoundInput`,
   `SubmitButton::new(&form, "Save")`, `FormErrors::new(&form)`.
 - `form.array_field(cx, SignUp::TEAM)`: `push_value`, `remove_value`, `swap_values`,
   `move_value`, `insert_value`, `replace_value`, `push_handler`, `remove_handler`.
@@ -207,6 +211,8 @@ PostgreSQL through rok-db (a type-safe async ORM on sqlx), run on the shared run
 - `db::db_query(query_key!["users"], |db| async move { User::query().all(&db).await })` ->
   `QueryOptions`; `db::db_mutation(|db, input| async move { .. })` -> `MutationOptions`;
   `db::run(cx, |db| async move { .. })` for one-off work; `db::invalidate("users", cx)`.
+- `db::watch_changes::<User>(cx).detach()` invalidates `query_key![User::TABLE]` whenever a row
+  changes in the database (any process); needs `User::install_change_notifications(&db)` once.
 - Models derive rok-db's `Model`; without a direct rok-db dependency add
   `#[rok(crate = "rok_ui::db::rok_db")]`.
 - Futures passed in must be `Send + 'static`: clone the data they need, never capture UI

@@ -7,6 +7,19 @@ mod path;
 mod state;
 mod validators;
 
+#[cfg(feature = "combobox")]
+pub use fields::ComboboxField;
+#[cfg(feature = "date-picker")]
+pub use fields::DatePickerField;
+#[cfg(feature = "input-otp")]
+pub use fields::InputOtpField;
+#[cfg(feature = "radio-group")]
+pub use fields::RadioGroupField;
+#[cfg(feature = "select")]
+pub use fields::SelectField;
+#[cfg(feature = "slider")]
+pub use fields::SliderField;
+pub use fields::TextareaField;
 pub use fields::{BoundInput, CheckboxField, FormErrors, SubmitButton, SwitchField, TextField};
 #[cfg(feature = "form-garde")]
 pub use garde::GardeSchema;

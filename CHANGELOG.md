@@ -11,12 +11,26 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ### Added
 
+- Bound form controls `TextareaField`, `SelectField`, `RadioGroupField`, `ComboboxField`,
+  `SliderField`, `DatePickerField` and `InputOtpField` (the pickers behind their components'
+  features).
+- `query::use_query_select`, TanStack Query's `select`: read a value derived from a query's
+  data, derived again only when the data changes.
+- `db::watch_changes::<M>(cx)`: queries on `M`'s table refetch when its rows change in the
+  database, from this app or any other (rok-db change feeds).
 - `llms.txt`, a digest of the API and conventions for coding agents, and `roadmap.md`, which
   tracks progress against `enhance.md`.
 - Agent skills for the `db` feature (rok-db) and for code-quality review; the `route` skill now
   describes the router as it is.
 - `cargo deny` in CI (`deny.toml`: allowed licenses and accepted advisories), `SUPPORT.md`,
   `CODEOWNERS` and `.editorconfig`.
+
+### Changed
+
+- The `db` feature uses rok-db 0.3 (was 0.1), which adds typed joins, keyset pagination,
+  composite keys, soft deletes, optimistic locking, validation and change feeds. Two rok-db
+  changes can break app code: `Column` predicates need `M: Model`, and `find` takes
+  `impl IntoKey`. rok-ui itself needed no changes.
 
 ### Fixed
 

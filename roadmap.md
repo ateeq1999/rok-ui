@@ -58,8 +58,9 @@ What exists now, by crate:
 |---|---|---|
 | C.1 `Cx` | Partial | `rok_ui::Cx` (window and app, derefs to `App`, `get` / `try_get` / `use_state`); `#[component]` accepts `cx: &mut Cx`. Scoped values (`cx.with`, `cx.keyed`) are not implemented; `Keyed` (G.2) covers stable identity. |
 | Shared runtime | Done | `rok_ui::runtime` (feature `runtime`); `db` and `query` use it. |
-| C.2 Query cache | Partial | `QueryOptions`, `query_key!`, shared in-flight fetches, stale and gc times, retries with backoff, `enabled`, initial / placeholder / previous data, refetch interval, refetch on window focus, prefix invalidation, the imperative API, `queries(cx)`. Not done: `select`. |
+| C.2 Query cache | Done | `QueryOptions`, `query_key!`, shared in-flight fetches, stale and gc times, retries with backoff, `enabled`, initial / placeholder / previous data, refetch interval, refetch on window focus, prefix invalidation, the imperative API, `queries(cx)`, and `use_query_select` (TanStack's `select`, derived once per data change). |
 | C.2 `db::use_query` migration | Done | `db::db_query` / `db_mutation`; the 0.5 hook is deprecated and `db::invalidate` forwards. |
+| rok-db 0.3 | Done | The `db` feature depends on rok-db 0.3. `db::watch_changes::<M>(cx)` uses its change feeds to invalidate `M::TABLE` when rows change in any process (`tests/db.rs`, against PostgreSQL). |
 | C.3 `Suspense`, `ErrorBoundary` | Done | Content returns `Result` and uses `?` on `use_suspense_query`. |
 | C.3 `#[shard]` | Deferred | An `async fn` that returns elements needs a macro that splits the body into a `Send` data phase and a UI phase; `Suspense` plus queries cover the use case. |
 | C.4 Procedures and mutations | Done | `use_mutation` (pending / success / error, optimistic updates with rollback, supersession), `#[procedure]` with typed input, output and error, `Procedure::call`, `provide` / `TaskCx`. |
@@ -78,7 +79,7 @@ What exists now, by crate:
 | D.3 Field and form state | Done | `FieldMeta` (touched, blurred, dirty, validating, `error_map`, `form_error_map`) and `FormState`. |
 | D.4 Validation | Done | Mount / change / blur / submit events, errors per event, debounced async validators (latest run wins), form validators, `listen_to`, `Schema`, `GardeSchema` (`form-garde`), server errors from the submit handler. The `validator` adapter waits on decision K.5. |
 | D.5 Array and nested fields | Done | Composable paths; list operations move each row's state, input and focus with the row. |
-| D.6 Bound inputs | Partial | `BoundInput` / `TextField`, `CheckboxField`, `SwitchField`, `SubmitButton`, `FormErrors`, and `field.change_handler()` for any control whose `on_change` passes the value (`Select`, `Slider`, ...). No dedicated bound `Combobox`, `DatePicker`, `InputOtp` or `Textarea` yet. |
+| D.6 Bound inputs | Done | `BoundInput` / `TextField`, `TextareaField`, `CheckboxField`, `SwitchField`, `SelectField`, `RadioGroupField`, `ComboboxField`, `SliderField`, `DatePickerField`, `InputOtpField`, `SubmitButton`, `FormErrors`, and `field.change_handler()` for any other control whose `on_change` passes the value. Pickers sit behind their components' features. |
 | D.6 `create_form_hook!` | Deferred | The bound field components already make forms one line per field. |
 | D.7 Behavior | Partial | Enter submits, a failed submit focuses the first invalid field, `reset` / `reset_field` / `set_value` / `validate`, `is_dirty()` with `use_blocker`. Not yet: scrolling the invalid field into view, persisted drafts. |
 
@@ -154,16 +155,16 @@ The plan left these open. The work so far assumed the following; each can still 
 | K.5 Form validation adapters | `garde` only. |
 | K.6 Remote procedures | Local only for now. |
 | K.7 Signal primitives in rok-ui-hooks | Nothing moved; queries and forms did not need new primitives. |
-| K.8 rok-db helpers | rok-db stays one data source (`db_query`, `db_mutation`). |
+| K.8 rok-db helpers | rok-db stays one data source (`db_query`, `db_mutation`, `watch_changes`). |
 | K.9 Formatting | Stable rustfmt. |
 
 ## Still open
 
 - The workspace split (F.2, decision K.2) and remote procedures (C.4, decision K.6).
-- `#[shard]` (C.3); scoped `Cx` values (C.1); query `select` (C.2); memoize scopes (C.5).
+- `#[shard]` (C.3); scoped `Cx` values (C.1); memoize scopes (C.5).
 - Router: async guards, pending timing (`pending_ms`), viewport preloading, scroll
   restoration, transitions.
-- Forms: more dedicated bound controls, scroll-into-view on a failed submit, persisted drafts.
+- Forms: scroll-into-view on a failed submit, persisted drafts.
 - Devtools: mutations, forms and the signal graph.
 - 1.0: an API review against the component contract and Part B conventions, and
   `cargo public-api` checks in CI.

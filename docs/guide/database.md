@@ -57,8 +57,9 @@ struct User {
 ```
 
 Every column gets a typed constant (`User::EMAIL`, `User::NAME`) for filters and ordering. See
-rok-db's README for relations (`has_many`, `belongs_to`), timestamps, custom column names and
-the full query API.
+rok-db's README for relations (`has_many`, `belongs_to`), joins, timestamps, soft deletes,
+optimistic locking, keyset pagination, custom column names and the full query API. rok-ui
+depends on rok-db 0.3.
 
 ## Connecting
 
@@ -299,6 +300,38 @@ db::run(cx, |db| async move { db.migrate("./migrations").await }).detach();
 # }
 ```
 
+## Live updates from the database
+
+Queries refetch when your app invalidates them, but rows can also change behind its back: in
+another window, another process or a database console. `db::watch_changes::<M>(cx)` listens to
+rok-db's change feed for `M`'s table and invalidates `M::TABLE`, so every query whose key starts
+with the table name (`query_key!["users"]`, `query_key!["users", id]`) fetches again. A burst of
+changes, like a bulk insert, refetches once.
+
+The table needs rok-db's change trigger, installed once (from a migration or at startup):
+
+```rust,no_run
+# use rok_ui::{prelude::*, db::{self, rok_db::prelude::*}};
+# #[derive(Debug, Clone, Model)]
+# #[rok(crate = "rok_ui::db::rok_db", table = "users")]
+# struct User { #[rok(primary_key)] id: i64 }
+# fn example(cx: &mut App) {
+let installing = db::run(cx, |db| async move { User::install_change_notifications(&db).await });
+cx.spawn(async move |cx| {
+    installing.await?;
+    cx.update(|cx| db::watch_changes::<User>(cx).detach())
+        .map_err(|_| db::DbError::Cancelled)
+})
+.detach();
+# }
+```
+
+Watching stops when the returned task is dropped, so `.detach()` it to watch for the life of
+the app, or keep it in a view to watch while that view exists. PostgreSQL delivers each change
+when its transaction commits, at most once, and only to listeners connected at the time: a
+change made while the listener reconnects is missed. Use it to keep screens fresh, not as a
+log.
+
 ## Errors
 
 Every call returns `DbError`:
@@ -384,6 +417,7 @@ DATABASE_URL=postgres://user:password@localhost/app cargo run --example db_users
 | `db_mutation(\|db, input\| async { … })` | Mutation options for `query::use_mutation` |
 | `use_query(key, window, cx, \|db\| async { … })` | Deprecated 0.5 hook; use `db_query` |
 | `invalidate(key, cx)`, `invalidate_all(cx)` | Make queries fetch again |
+| `watch_changes::<M>(cx)` | Invalidate `M::TABLE` when its rows change in the database |
 | `runtime()` | The shared tokio runtime rok-db runs on |
 | `DbError` | `NotConnected`, `Failed(message)`, `Cancelled` |
 | `rok_db` | The rok-db crate: models, queries, transactions, raw SQL |
