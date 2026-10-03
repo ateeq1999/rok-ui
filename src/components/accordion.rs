@@ -51,11 +51,14 @@ impl ParentElement for AccordionItem {
 /// `open_items` + `on_change` to control it. One item open at a time unless
 /// `.multiple(true)`.
 ///
-/// ```ignore
-/// Accordion::new("faq")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let faq = Accordion::new("faq")
 ///     .item(AccordionItem::new("Is it accessible?").child("Yes. It adheres to WAI-ARIA."))
 ///     .item(AccordionItem::new("Is it styled?").child("Yes. It comes with default styles."))
-///     .default_open([0])
+///     .default_open([0]);
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Accordion {

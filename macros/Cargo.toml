@@ -17,7 +17,15 @@ proc-macro = true
 [lints]
 workspace = true
 
+[dev-dependencies]
+# The documentation examples use the macros through rok-ui.
+rok-ui = { path = "..", features = ["query"] }
+
+# The documentation examples are doctests, which cargo-udeps cannot see.
+[package.metadata.cargo-udeps.ignore]
+development = ["rok-ui"]
+
 [dependencies]
 proc-macro2 = "1"
-quote = "1"
+rok-ui-grammar = { version = "0.6.0", path = "../rok-ui-grammar" }
 syn = { version = "2", features = ["full"] }

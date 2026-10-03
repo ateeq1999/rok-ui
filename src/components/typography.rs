@@ -1,14 +1,17 @@
 //! Typography: shadcn/ui's text styles as components.
 //!
-//! ```ignore
-//! div()
+//! ```no_run
+//! # use rok_ui::prelude::*;
+//! # fn example(window: &mut Window, cx: &mut App) {
+//! let article = div()
 //!     .child(H1::new("The Joke Tax Chronicles"))
 //!     .child(Lead::new("A modal dialog that interrupts the user."))
 //!     .child(H2::new("The King's Plan"))
-//!     .child(P::new("The king thought long and hard…"))
+//!     .child(P::new("The king thought long and hard..."))
 //!     .child(Blockquote::new("\"After all,\" he said, \"everyone enjoys a good joke.\""))
-//!     .child(List::new(["1st level of puns: 5 gold coins", "2nd level of jokes: 10 gold coins"]))
-//!     .child(InlineCode::new("@radix-ui/react-alert-dialog"))
+//!     .child(List::new(vec!["1st level of puns: 5 gold coins".into(), "2nd level of jokes: 10 gold coins".into()]))
+//!     .child(InlineCode::new("@radix-ui/react-alert-dialog"));
+//! # }
 //! ```
 
 use gpui::{div, prelude::*, px, App, SharedString, StyleRefinement};

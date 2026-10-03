@@ -17,8 +17,11 @@ Run `cargo run --example app_shell` and resize the window to see them adapt.
 
 ### Row and Column
 
-```rust,ignore
-Column::new()
+```rust,no_run
+# use rok_ui::prelude::*;
+# fn example(window: &mut Window, cx: &mut App) {
+# let search = use_input_state("search", window, cx, |state| state);
+let recent = Column::new()
     .main_axis_alignment(MainAxisAlignment::Start)        // along the column
     .cross_axis_alignment(CrossAxisAlignment::Stretch)    // across it
     .main_axis_size(MainAxisSize::Min)                    // only as tall as the children
@@ -29,7 +32,8 @@ Column::new()
             .spacing(px(8.))
             .child(Expanded::new().child(Input::new(&search)))   // takes the free width
             .child(Button::new("go").label("Search")),
-    )
+    );
+# }
 ```
 
 | Setting | Values | Default |
@@ -44,16 +48,20 @@ flows right to left in RTL, and `CrossAxisAlignment::Start` in a `Column` hugs t
 
 ### Expanded, Flexible and Spacer
 
-```rust,ignore
-Row::new()
+```rust,no_run
+# use rok_ui::prelude::*;
+# fn example(window: &mut Window, cx: &mut App) {
+# let (main_panel, side_panel, logo, user_menu, long_label) = (div(), div(), div(), div(), div());
+let split = Row::new()
     .child(Expanded::new().flex(2.).child(main_panel))     // two thirds of the free space
-    .child(Expanded::new().child(side_panel))              // one third
-Row::new()
+    .child(Expanded::new().child(side_panel));             // one third
+let header = Row::new()
     .child(logo)
     .child(Spacer::new())                                  // pushes what follows to the end
-    .child(user_menu)
-Row::new()
-    .child(Flexible::new().child(long_label))              // may grow, keeps its natural size
+    .child(user_menu);
+let label = Row::new()
+    .child(Flexible::new().child(long_label));             // may grow, keeps its natural size
+# }
 ```
 
 `Expanded` makes its children fill the space it gets. `Flexible` lets them stay smaller
@@ -61,26 +69,33 @@ Row::new()
 
 ### Padding, SizedBox, Center, Aligned
 
-```rust,ignore
-Padding::all(px(16.)).child(content)
-Padding::symmetric(px(24.), px(8.)).child(content)                  // horizontal, vertical
-Padding::new(EdgeInsets::zero().top(px(8.)).start(px(16.))).child(content)
+```rust,no_run
+# use rok_ui::prelude::*;
+# fn example(window: &mut Window, cx: &mut App) {
+# let content = || div();
+# let (chart, canvas) = (div(), div());
+let padded = Padding::all(px(16.)).child(content());
+let wide = Padding::symmetric(px(24.), px(8.)).child(content());        // horizontal, vertical
+let custom = Padding::new(EdgeInsets::zero().top(px(8.)).start(px(16.))).child(content());
 
-SizedBox::height(px(24.))                                           // a vertical gap
-SizedBox::new(px(320.), px(200.)).child(chart)                      // a fixed frame
-SizedBox::square(px(48.)).child(Avatar::new("LA"))
-SizedBox::expand().child(canvas)                                    // fill the parent
+let gap = SizedBox::height(px(24.));                                   // a vertical gap
+let frame = SizedBox::new(px(320.), px(200.)).child(chart);            // a fixed frame
+let square = SizedBox::square(px(48.)).child(Avatar::new("LA"));
+let fill = SizedBox::expand().child(canvas);                           // fill the parent
 
-Center::new().child(Spinner::new())                                 // fills, centers
-Aligned::new(Alignment::BottomEnd).child(Button::new("next").label("Next"))
+let centered = Center::new().child(Spinner::new());                    // fills, centers
+let corner = Aligned::new(Alignment::BottomEnd).child(Button::new("next").label("Next"));
+# }
 ```
 
 `EdgeInsets` uses `start` and `end`, which follow the reading direction.
 
 ### Stack and Positioned
 
-```rust,ignore
-Stack::new()
+```rust,no_run
+# use rok_ui::prelude::*;
+# fn example(window: &mut Window, cx: &mut App) {
+let avatar = Stack::new()
     .alignment(Alignment::Center)                        // where `.child(..)` children sit
     .child(SizedBox::square(px(64.)).child(Avatar::new("LA")))
     .positioned(
@@ -88,7 +103,8 @@ Stack::new()
             .bottom(px(0.))
             .end(px(0.))
             .child(div().size(px(14.)).rounded_full().bg(gpui::green())),
-    )
+    );
+# }
 ```
 
 `.child(..)` children are layered and size the stack. `.positioned(..)` children are pinned to
@@ -97,14 +113,20 @@ its edges (`top`, `bottom`, `start`, `end`, `width`, `height`, or `Positioned::f
 
 ### Wrap and GridView
 
-```rust,ignore
-Wrap::new().spacing(px(8.)).run_spacing(px(8.)).children(tags.map(Badge::new))
+```rust,no_run
+# use rok_ui::prelude::*;
+# fn example(window: &mut Window, cx: &mut App) {
+# let tags = ["rust", "gpui"].into_iter();
+# let cards: Vec<AnyElement> = Vec::new();
+# let photos: Vec<AnyElement> = Vec::new();
+let tag_cloud = Wrap::new().spacing(px(8.)).run_spacing(px(8.)).children(tags.map(Badge::new));
 
-GridView::count(3).spacing(px(12.)).children(cards)           // always 3 columns
-GridView::extent("photos", px(240.))                          // as many ≤240 px columns as fit
+let grid = GridView::count(3).spacing(px(12.)).children(cards);   // always 3 columns
+let gallery = GridView::extent("photos", px(240.))                // as many 240 px columns as fit
     .spacing(px(12.))
     .row_height(px(180.))
-    .children(photos)
+    .children(photos);
+# }
 ```
 
 Grids fill in reading order, right to left in RTL. `extent` measures its own width, so it
@@ -113,15 +135,22 @@ default.
 
 ### LayoutBuilder and size classes
 
-```rust,ignore
-LayoutBuilder::new("inbox", |constraints, _, _| {
+```rust,no_run
+# use rok_ui::prelude::*;
+# fn example(window: &mut Window, cx: &mut App) {
+# fn list() -> Div { div() }
+# fn detail() -> Div { div() }
+let inbox = LayoutBuilder::new("inbox", |constraints, _, _| {
     if constraints.max_width >= px(900.) {
-        Row::new().child(SizedBox::width(px(320.)).child(list())).child(Expanded::new().child(detail()))
+        Row::new()
+            .child(SizedBox::width(px(320.)).child(list()))
+            .child(Expanded::new().child(detail()))
             .into_any_element()
     } else {
         list().into_any_element()
     }
-})
+});
+# }
 ```
 
 `LayoutBuilder` fills its parent's width, measures itself after layout, and rebuilds when its
@@ -156,13 +185,16 @@ Sizing is CSS flexbox, not Flutter's box constraints. In practice:
 list of them, a `selected_index` and an `on_change` callback. Like every rok-ui control, they
 are controlled: you store the selection.
 
-```rust,ignore
+```rust,no_run
+# use rok_ui::prelude::*;
+# fn example(window: &mut Window, cx: &mut App) {
 let destinations = vec![
     NavigationDestination::new(IconName::Inbox, "Inbox").badge("24"),     // a count
     NavigationDestination::new(IconName::Star, "Starred").badge(""),      // a dot
     NavigationDestination::new(IconName::Send, "Sent").selected_icon(IconName::Check),
     NavigationDestination::new(IconName::Trash, "Trash").disabled(true),
 ];
+# }
 ```
 
 | Component | Use it for |
@@ -175,8 +207,14 @@ All of them support the keyboard (Tab, then Enter or Space) and mirror in RTL.
 
 ## Scaffold
 
-```rust,ignore
-Scaffold::new("mail")
+```rust,no_run
+# use rok_ui::prelude::*;
+# fn example(window: &mut Window, cx: &mut App) {
+# let destinations: Vec<NavigationDestination> = Vec::new();
+# let page = 0;
+# fn set_page(_: usize, _: &mut App) {}
+# let (filters_panel, message_list) = (div(), div());
+let mail = Scaffold::new("mail")
     .app_bar(
         AppBar::new()
             .title("Inbox")
@@ -193,7 +231,8 @@ Scaffold::new("mail")
     .end_drawer(filters_panel)
     .floating_action_button(FloatingActionButton::new("compose", IconName::Pencil).label("Compose"))
     .fab_location(FabLocation::EndFloat)
-    .child(message_list)
+    .child(message_list);
+# }
 ```
 
 | Slot | Notes |
@@ -213,10 +252,15 @@ Escape and clicking the backdrop close it too.
 
 ### FloatingActionButton
 
-```rust,ignore
-FloatingActionButton::new("add", IconName::Plus)                       // 56 px, primary
-FloatingActionButton::new("add", IconName::Plus).label("New note")     // extended
-FloatingActionButton::new("edit", IconName::Pencil).size(FabSize::Small).variant(FabVariant::Surface)
+```rust,no_run
+# use rok_ui::prelude::*;
+# fn example(window: &mut Window, cx: &mut App) {
+let primary = FloatingActionButton::new("add", IconName::Plus);                         // 56 px, primary
+let extended = FloatingActionButton::new("add", IconName::Plus).label("New note");    // extended
+let small = FloatingActionButton::new("edit", IconName::Pencil)
+    .size(FabSize::Small)
+    .variant(FabVariant::Surface);
+# }
 ```
 
 Sizes are `Small` (40 px), `Regular` (56 px) and `Large` (96 px). Variants are `Primary`,
@@ -226,14 +270,21 @@ Sizes are `Small` (40 px), `Regular` (56 px) and `Large` (96 px). Variants are `
 
 One description of your app's destinations, three layouts:
 
-```rust,ignore
-AdaptiveScaffold::new("app")
+```rust,no_run
+# use rok_ui::prelude::*;
+# fn example(window: &mut Window, cx: &mut App) {
+# let destinations: Vec<NavigationDestination> = Vec::new();
+# let page = 0;
+# fn set_page(_: usize, _: &mut App) {}
+# let page_content = div();
+let app = AdaptiveScaffold::new("app")
     .app_bar(AppBar::new().title("Photos"))
     .destinations(destinations)
     .selected_index(page)
     .on_change(move |index, _, cx| set_page(*index, cx))
     .floating_action_button(FloatingActionButton::new("upload", IconName::Upload).label("Upload"))
-    .child(page_content)
+    .child(page_content);
+# }
 ```
 
 | Width | Navigation | FAB |

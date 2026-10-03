@@ -23,9 +23,12 @@ styles! {
 
 /// A text tooltip. Attach it to any interactive element:
 ///
-/// ```ignore
-/// div().id("help").tooltip(Tooltip::text("Opens the docs"))
-/// Button::new("save").tooltip("Save")   // buttons have a shortcut
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let help = div().id("help").tooltip(Tooltip::text("Opens the docs"));
+/// let save = Button::new("save").tooltip("Save"); // buttons have a shortcut
+/// # }
 /// ```
 pub struct Tooltip {
     text: SharedString,

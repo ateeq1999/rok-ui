@@ -354,12 +354,17 @@ fn row_item(
 /// A bar of three to five destinations along the bottom of the window, for
 /// compact (phone-sized) layouts.
 ///
-/// ```ignore
-/// NavigationBar::new("main-nav")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let page = 0;
+/// # fn set_page(_: usize, _: &mut App) {}
+/// let bar = NavigationBar::new("main-nav")
 ///     .destination(NavigationDestination::new(IconName::Home, "Home"))
 ///     .destination(NavigationDestination::new(IconName::Inbox, "Inbox").badge("3"))
 ///     .selected_index(page)
-///     .on_change(move |index, _, cx| set_page(*index, cx))
+///     .on_change(move |index, _, cx| set_page(*index, cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct NavigationBar {
@@ -470,13 +475,18 @@ impl RenderOnce for NavigationBar {
 /// A narrow column of destinations along the start edge, for medium and
 /// expanded layouts. `extended` widens it to show labels beside the icons.
 ///
-/// ```ignore
-/// NavigationRail::new("rail")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let page = 0;
+/// # fn set_page(_: usize, _: &mut App) {}
+/// let rail = NavigationRail::new("rail")
 ///     .leading(FloatingActionButton::new("compose", IconName::Pencil))
 ///     .destination(NavigationDestination::new(IconName::Inbox, "Inbox"))
 ///     .destination(NavigationDestination::new(IconName::Send, "Sent"))
 ///     .selected_index(page)
-///     .on_change(move |index, _, cx| set_page(*index, cx))
+///     .on_change(move |index, _, cx| set_page(*index, cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct NavigationRail {
@@ -692,8 +702,12 @@ enum DrawerEntry {
 /// Destinations are numbered in order across sections, ignoring headings and
 /// dividers.
 ///
-/// ```ignore
-/// NavigationDrawer::new("drawer")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let page = 0;
+/// # fn set_page(_: usize, _: &mut App) {}
+/// let drawer = NavigationDrawer::new("drawer")
 ///     .header(H4::new("Mail"))
 ///     .destination(NavigationDestination::new(IconName::Inbox, "Inbox").badge("24"))
 ///     .destination(NavigationDestination::new(IconName::Send, "Outbox"))
@@ -701,7 +715,8 @@ enum DrawerEntry {
 ///     .section("Labels")
 ///     .destination(NavigationDestination::new(IconName::Star, "Starred"))
 ///     .selected_index(page)
-///     .on_change(move |index, _, cx| set_page(*index, cx))
+///     .on_change(move |index, _, cx| set_page(*index, cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct NavigationDrawer {
@@ -835,7 +850,8 @@ thread_local! {
 /// the drawer when a destination is picked. Components render while their parent
 /// lays out, so the closer is set during layout.
 #[cfg_attr(not(feature = "scaffold"), allow(dead_code))]
-pub(crate) struct DrawerScope {
+#[doc(hidden)]
+pub struct DrawerScope {
     pub closer: Callback,
     pub child: AnyElement,
 }

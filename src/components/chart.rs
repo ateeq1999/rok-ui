@@ -105,17 +105,20 @@ impl ChartSeries {
     }
 }
 
-/// ```ignore
-/// Chart::new("visitors", ChartKind::Bar)
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let visitors = Chart::new("visitors", ChartKind::Bar)
 ///     .categories(["January", "February", "March"])
 ///     .series(ChartSeries::new("Desktop", [186., 305., 237.]))
 ///     .series(ChartSeries::new("Mobile", [80., 200., 120.]))
-///     .legend(true)
+///     .legend(true);
 ///
-/// Chart::new("browsers", ChartKind::Donut)
+/// let browsers = Chart::new("browsers", ChartKind::Donut)
 ///     .categories(["Chrome", "Safari", "Firefox"])
 ///     .series(ChartSeries::new("Visitors", [275., 200., 187.]))
-///     .center_label("662", "Visitors")
+///     .center_label("662", "Visitors");
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Chart {

@@ -134,16 +134,29 @@ impl Default for SidebarGroup {
 /// Controlled: pass `collapsed`; toggle it from a [`SidebarTrigger`]. Collapsed,
 /// it shrinks to icons with tooltips.
 ///
-/// ```ignore
-/// div().flex_dir().size_full()
-///     .child(Sidebar::new("app-sidebar")
-///         .collapsed(collapsed)
-///         .header(team_switcher)
-///         .group(SidebarGroup::new().label("Application")
-///             .item(SidebarItem::new("Home").icon(IconName::Home).active(true))
-///             .item(SidebarItem::new("Inbox").icon(IconName::Inbox).badge("24")))
-///         .footer(user_menu))
-///     .child(div().flex_1().child(SidebarTrigger::new("toggle").on_toggle(..)))
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let collapsed = false;
+/// # let team_switcher = div();
+/// # let user_menu = div();
+/// let shell = div()
+///     .flex_dir()
+///     .size_full()
+///     .child(
+///         Sidebar::new("app-sidebar")
+///             .collapsed(collapsed)
+///             .header(team_switcher)
+///             .group(
+///                 SidebarGroup::new()
+///                     .label("Application")
+///                     .item(SidebarItem::new("Home").icon(IconName::Home).active(true))
+///                     .item(SidebarItem::new("Inbox").icon(IconName::Inbox).badge("24")),
+///             )
+///             .footer(user_menu),
+///     )
+///     .child(div().flex_1().child(SidebarTrigger::new("toggle").on_toggle(|_, _, _| {})));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Sidebar {

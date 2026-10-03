@@ -1,18 +1,29 @@
 //! Field: labels, controls, help text and errors composed into form fields.
 //!
-//! ```ignore
-//! FieldSet::new()
+//! ```no_run
+//! # use rok_ui::prelude::*;
+//! # fn example(window: &mut Window, cx: &mut App) {
+//! # let name = use_input_state("name", window, cx, |state| state);
+//! # let number = use_input_state("number", window, cx, |state| state);
+//! let payment = FieldSet::new()
 //!     .child(FieldLegend::new("Payment method"))
 //!     .child(FieldDescription::new("All transactions are secure and encrypted."))
-//!     .child(FieldGroup::new()
-//!         .child(Field::new()
-//!             .child(FieldLabel::new("Name on card"))
-//!             .child(Input::new(&name)))
-//!         .child(Field::new()
-//!             .invalid(true)
-//!             .child(FieldLabel::new("Card number"))
-//!             .child(Input::new(&number).invalid(true))
-//!             .child(FieldError::new("Enter a valid card number."))))
+//!     .child(
+//!         FieldGroup::new()
+//!             .child(
+//!                 Field::new()
+//!                     .child(FieldLabel::new("Name on card"))
+//!                     .child(Input::new(&name)),
+//!             )
+//!             .child(
+//!                 Field::new()
+//!                     .invalid(true)
+//!                     .child(FieldLabel::new("Card number"))
+//!                     .child(Input::new(&number).invalid(true))
+//!                     .child(FieldError::new("Enter a valid card number.")),
+//!             ),
+//!     );
+//! # }
 //! ```
 
 use gpui::{div, prelude::*, AnyElement, SharedString, StyleRefinement};

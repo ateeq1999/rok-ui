@@ -54,7 +54,9 @@ struct ScrollMemory {
 
 /// Thumb length and offset along a track of `track_length`, for a viewport of
 /// `viewport_length` scrolled `scrolled` into content longer by `max_scroll`.
-pub(crate) fn thumb_geometry(
+#[doc(hidden)]
+#[must_use]
+pub fn thumb_geometry(
     track_length: Pixels,
     viewport_length: Pixels,
     max_scroll: Pixels,
@@ -72,8 +74,12 @@ pub(crate) fn thumb_geometry(
 
 /// Give it a size (`.h(px(288.))`); content larger than that scrolls.
 ///
-/// ```ignore
-/// ScrollArea::new("tags").h(px(288.)).w(px(192.)).child(tag_list)
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let tag_list = div();
+/// let tags = ScrollArea::new("tags").h(px(288.)).w(px(192.)).child(tag_list);
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct ScrollArea {

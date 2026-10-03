@@ -8,15 +8,23 @@ use gpui::{div, prelude::*, App, ElementId, SharedString, StyleRefinement, Windo
 use crate::sx::SxStyled;
 use crate::{hooks::EventHandler, styles, styles::ApplyStyleOverrides};
 
-/// ```ignore
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # fn account_panel() -> AnyElement { div().into_any_element() }
+/// # fn password_panel() -> AnyElement { div().into_any_element() }
 /// let selected_tab = use_state(window, cx, || 0usize);
 /// let selected = selected_tab.get(cx);
-/// div()
-///     .child(Tabs::new("settings-tabs")
-///         .tab("Account").tab("Password")
-///         .selected_index(selected)
-///         .on_change(move |index, _, cx| selected_tab.set(*index, cx)))
-///     .child(if selected == 0 { account_panel() } else { password_panel() })
+/// let settings = div()
+///     .child(
+///         Tabs::new("settings-tabs")
+///             .tab("Account")
+///             .tab("Password")
+///             .selected_index(selected)
+///             .on_change(move |index, _, cx| selected_tab.set(*index, cx)),
+///     )
+///     .child(if selected == 0 { account_panel() } else { password_panel() });
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Tabs {

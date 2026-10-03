@@ -1,16 +1,19 @@
 //! Card and its parts, composed exactly like shadcn/ui:
 //!
-//! ```ignore
-//! view! {
+//! ```no_run
+//! # use rok_ui::prelude::*;
+//! # fn example(window: &mut Window, cx: &mut App) {
+//! let card = view! {
 //!     Card {
 //!         CardHeader {
 //!             CardTitle("Create project")
 //!             CardDescription("Deploy your new project in one click.")
 //!         }
-//!         CardContent { /* form */ }
+//!         CardContent { "The form goes here." }
 //!         CardFooter { Button("deploy", label = "Deploy") }
 //!     }
-//! }
+//! };
+//! # }
 //! ```
 //!
 //! These parts are written with `#[component]` and `styles!`, the same tools
@@ -25,7 +28,7 @@ use crate::{
 };
 
 styles! {
-    pub(crate) CARD = {
+    pub CARD = {
         root: {
             display: flex,
             direction: column,

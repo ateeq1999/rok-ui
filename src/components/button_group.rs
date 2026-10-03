@@ -30,11 +30,14 @@ type GroupItem = Box<dyn FnOnce(GroupPosition, ButtonGroupOrientation) -> AnyEle
 /// Joins buttons (or any styled control: inputs, selects) so they share borders
 /// and only the outer corners are rounded.
 ///
-/// ```ignore
-/// ButtonGroup::new()
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let actions = ButtonGroup::new()
 ///     .item(Button::new("archive").outline().label("Archive"))
 ///     .item(Button::new("report").outline().label("Report"))
-///     .item(Button::new("snooze").outline().label("Snooze"))
+///     .item(Button::new("snooze").outline().label("Snooze"));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct ButtonGroup {

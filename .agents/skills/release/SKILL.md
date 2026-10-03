@@ -12,8 +12,8 @@ release-plz (`.github/workflows/release-plz.yml`, `release-plz.toml`) runs on ev
    `CHANGELOG.md` section.
 2. Merging that PR publishes to crates.io and tags the release.
 
-Publish order follows the dependency graph: `rok-ui-macros`, then `rok-ui` (later: grammar,
-macros, sub-crates, then the facade).
+Publish order follows the dependency graph: `rok-ui-grammar`, then `rok-ui-macros` and
+`rok-ui-build`, then `rok-ui`, then `rok-ui-cli`.
 
 Before merging a release PR:
 

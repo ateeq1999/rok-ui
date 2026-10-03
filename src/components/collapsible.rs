@@ -15,11 +15,14 @@ use crate::{
 /// Uncontrolled by default; pass `.open(..)` and `.on_open_change(..)` to control it.
 /// `.always_visible(..)` content stays shown in both states (shadcn's peek row).
 ///
-/// ```ignore
-/// Collapsible::new("repos")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let repos = Collapsible::new("repos")
 ///     .trigger(Button::new("toggle").ghost().icon_only(IconName::ChevronsUpDown))
 ///     .always_visible(div().child("@radix-ui/primitives"))
-///     .child(div().child("@radix-ui/colors"))
+///     .child(div().child("@radix-ui/colors"));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Collapsible {

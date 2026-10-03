@@ -72,10 +72,13 @@ actions!(
     ]
 );
 
-pub(crate) const INPUT_KEY_CONTEXT: &str = "RokUiInput";
-pub(crate) const TEXTAREA_KEY_CONTEXT: &str = "RokUiTextarea";
+#[doc(hidden)]
+pub const INPUT_KEY_CONTEXT: &str = "RokUiInput";
+#[doc(hidden)]
+pub const TEXTAREA_KEY_CONTEXT: &str = "RokUiTextarea";
 
-pub(crate) fn bind_text_editing_keys(cx: &mut App) {
+#[doc(hidden)]
+pub fn bind_text_editing_keys(cx: &mut App) {
     let context = Some(INPUT_KEY_CONTEXT);
     cx.bind_keys([
         KeyBinding::new("backspace", DeleteBackward, context),
@@ -201,7 +204,9 @@ impl InputState {
     }
 
     #[cfg_attr(not(feature = "full"), allow(dead_code))]
-    pub(crate) fn focus_handle_ref(&self) -> &FocusHandle {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn focus_handle_ref(&self) -> &FocusHandle {
         &self.focus_handle
     }
 
@@ -447,7 +452,9 @@ impl InputState {
     }
 
     /// Where `offset` is drawn in a multi-line field, relative to the text's top-left.
-    pub(crate) fn multiline_position_for_offset(&self, offset: usize) -> Option<Point<Pixels>> {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn multiline_position_for_offset(&self, offset: usize) -> Option<Point<Pixels>> {
         if let Some(rows) = self.last_bidi_rows.as_ref() {
             return bidi_row_position_for_offset(rows, offset, self.last_line_height);
         }
@@ -471,7 +478,9 @@ impl InputState {
 
     /// Left edge of the text on the visual row at `y` (relative to the text's top).
     /// Zero in LTR; the right-alignment shift in RTL.
-    pub(crate) fn multiline_row_left(&self, y: Pixels) -> Pixels {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn multiline_row_left(&self, y: Pixels) -> Pixels {
         if let Some(rows) = self.last_bidi_rows.as_ref() {
             let row = (y / self.last_line_height).floor().max(0.) as usize;
             return rows.get(row).map_or(px(0.), |row| row.left);
@@ -742,9 +751,12 @@ pub fn use_input_state(
 
 /// The styled text field (shadcn/ui's `<Input>`).
 ///
-/// ```ignore
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
 /// let email = use_input_state("email", window, cx, |state| state.with_placeholder("m@example.com"));
-/// Input::new(&email).leading_icon(IconName::Mail)
+/// let field = Input::new(&email).leading_icon(IconName::Mail);
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Input {
@@ -797,7 +809,9 @@ impl Input {
 
     /// For fields embedded in a larger control that draws its own ring.
     #[cfg_attr(not(feature = "full"), allow(dead_code))]
-    pub(crate) fn without_focus_ring(mut self) -> Self {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn without_focus_ring(mut self) -> Self {
         self.focus_ring = false;
         self
     }
@@ -927,7 +941,8 @@ struct InputTextElement {
 /// One visual row of a multi-line field that rok-ui lays out itself (right-to-left
 /// text on Windows, see [`crate::bidi`]).
 #[derive(Clone)]
-pub(crate) struct BidiRow {
+#[doc(hidden)]
+pub struct BidiRow {
     /// Byte range of the row in the field's content, including trailing spaces.
     pub range: Range<usize>,
     pub line: DisplayLine,
@@ -936,13 +951,17 @@ pub(crate) struct BidiRow {
 }
 
 /// Whether a multi-line field with `content` needs [`bidi_rows`] on this platform.
-pub(crate) fn needs_bidi_rows(content: &str) -> bool {
+#[doc(hidden)]
+#[must_use]
+pub fn needs_bidi_rows(content: &str) -> bool {
     crate::bidi::platform_needs_reordering() && crate::bidi::has_rtl(content)
 }
 
 /// Wrap `text` into rows no wider than `width`, breaking between words in logical
 /// order (explicit newlines always break), and shape each row for display.
-pub(crate) fn bidi_rows(
+#[doc(hidden)]
+#[must_use]
+pub fn bidi_rows(
     text: &str,
     run: &TextRun,
     font_size: Pixels,
@@ -1027,7 +1046,8 @@ fn bidi_row_index_for_point(rows: &[BidiRow], local: Point<Pixels>, line_height:
 /// A shaped line of field text and, when it was reordered for display (right-to-left
 /// text on Windows, see [`crate::bidi`]), the map from logical offsets to positions.
 #[derive(Clone)]
-pub(crate) struct DisplayLine {
+#[doc(hidden)]
+pub struct DisplayLine {
     line: ShapedLine,
     bidi: Option<crate::bidi::VisualLine>,
 }

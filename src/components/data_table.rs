@@ -160,15 +160,20 @@ type RowActions = Rc<dyn Fn(usize) -> Menu>;
 /// hidden columns are kept per id; `on_selection_change` reports the selected
 /// rows (indices into the rows you passed).
 ///
-/// ```ignore
-/// DataTable::new("payments")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # struct Payment { status: &'static str, email: &'static str, amount: &'static str }
+/// # let payments: Vec<Payment> = Vec::new();
+/// let table = DataTable::new("payments")
 ///     .column(DataColumn::new("status", "Status"))
 ///     .column(DataColumn::new("email", "Email").sortable())
 ///     .column(DataColumn::new("amount", "Amount").sortable().align_end())
 ///     .rows(payments.iter().map(|p| vec![p.status.into(), p.email.into(), p.amount.into()]))
-///     .filter_column("email", "Filter emails…")
+///     .filter_column("email", "Filter emails...")
 ///     .selectable(true)
-///     .row_actions(|row| Menu::new().item(MenuItem::new("Copy payment ID")))
+///     .row_actions(|_row| Menu::new().item(MenuItem::new("Copy payment ID")));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct DataTable {

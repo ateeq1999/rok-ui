@@ -13,8 +13,16 @@
 //! | `const [n, setN] = useState(0)`      | `let n = use_state(window, cx, \|\| 0)`              |
 //! | CSS variables (`--primary`)          | `cx.theme().colors.primary`                         |
 //!
-//! ```ignore
+//! ```no_run
 //! use rok_ui::prelude::*;
+//!
+//! struct MyView;
+//!
+//! impl Render for MyView {
+//!     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+//!         AppRoot::new().child(Button::new("hello").label("Hello"))
+//!     }
+//! }
 //!
 //! fn main() {
 //!     Application::new().with_assets(rok_ui::Assets).run(|cx: &mut App| {
@@ -34,10 +42,17 @@ pub mod components;
 pub mod cx;
 #[cfg(feature = "db")]
 pub mod db;
+#[cfg(feature = "devtools")]
+pub mod devtools;
 pub mod fonts;
+#[cfg(feature = "form")]
+pub mod form;
 pub mod hooks;
 pub mod icon;
+pub mod keyed;
 pub mod motion;
+#[cfg(feature = "persist")]
+pub mod persist;
 pub mod prelude;
 #[cfg(feature = "query")]
 pub mod query;
@@ -54,6 +69,7 @@ pub mod theme;
 pub use cx::Cx;
 pub use gpui;
 pub use icon::{Assets, AssetsWithFallback, Icon, IconName};
+pub use keyed::Keyed;
 pub use rok_ui_macros::{children, component, keyframes, style, styles, view};
 #[cfg(feature = "query")]
 pub use rok_ui_macros::{memoize, procedure};
@@ -120,4 +136,6 @@ pub fn init(cx: &mut gpui::App) {
     router::init(cx);
     #[cfg(feature = "state")]
     state::init(cx);
+    #[cfg(feature = "devtools")]
+    devtools::init(cx);
 }

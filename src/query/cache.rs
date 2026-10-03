@@ -378,6 +378,8 @@ impl<T: std::fmt::Debug> std::fmt::Debug for QueryResult<T> {
 struct Observer {
     key: Option<QueryKey>,
     previous: Option<AnyData>,
+    /// Watches window activation for `refetch_on_window_focus`.
+    focus: Option<gpui::Subscription>,
 }
 
 fn downcast<T: 'static>(data: &AnyData) -> Option<Rc<T>> {
@@ -412,6 +414,24 @@ fn downcast<T: 'static>(data: &AnyData) -> Option<Rc<T>> {
 pub fn use_query<T: Send + 'static>(cx: &mut Cx, options: QueryOptions<T>) -> QueryResult<T> {
     let observer = cx.window.use_state(cx.app, |_, _| Observer::default());
     let mounted = observer.read(cx.app).key.as_ref() == Some(&options.key);
+    if options.refetch_on_window_focus && observer.read(cx.app).focus.is_none() {
+        let Cx { window, app } = cx;
+        observer.update(*app, |observer, observer_cx| {
+            observer.focus = Some(observer_cx.observe_window_activation(
+                window,
+                |observer, window, cx| {
+                    let Some(key) = observer.key.clone().filter(|_| window.is_window_active())
+                    else {
+                        return;
+                    };
+                    if let Some(entry) = cache(cx).entries.get_mut(&key) {
+                        entry.version += 1;
+                    }
+                    cx.refresh_windows();
+                },
+            ));
+        });
+    }
     let plan = FetchPlan::from(&options);
     let QueryOptions {
         key,

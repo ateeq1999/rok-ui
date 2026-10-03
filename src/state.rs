@@ -13,6 +13,8 @@ pub use rok_ui_hooks::{
     batch, create_effect, create_memo, create_signal, create_store, untrack, Effect, Memo,
     ReadSignal, Store, WriteSignal,
 };
+/// Derive a fine-grained store with one signal per field (`TodoStore` for `Todo`).
+pub use rok_ui_macros::Store;
 
 /// Something to re-render after signals change.
 #[derive(Clone, Copy, PartialEq)]
@@ -127,7 +129,8 @@ impl<V: 'static> TrackSignals for Context<'_, V> {
 /// created on the first render, kept while the element stays rendered, and
 /// re-rendering the window when it changes.
 ///
-/// ```ignore
+/// ```no_run
+/// # use rok_ui::prelude::*;
 /// #[component]
 /// fn Counter(window: &mut Window, cx: &mut App) -> impl IntoElement {
 ///     let (count, set_count) = use_signal(window, cx, || 0);

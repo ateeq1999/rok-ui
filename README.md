@@ -17,9 +17,10 @@ developer experience.
   works like `useState`.
 - **Overridable styles.** Every visual component implements GPUI's `Styled`, so `.w_full().mt_4()`
   overrides its defaults the way `className` does.
-- **App plumbing.** Reactive state from rok-ui-hooks, a router with params and history (`router`
-  feature), and PostgreSQL through rok-db (`db` feature), all wired into GPUI. See the
-  [guides](docs/guide/README.md).
+- **App plumbing, TanStack style.** Reactive state from rok-ui-hooks; a query cache with
+  mutations, procedures and `Suspense` (`query`); a router with typed routes, search params,
+  guards, loaders and file-based routes (`router`, `rok-ui-build`); headless type-safe forms
+  (`form`); and PostgreSQL through rok-db (`db`). See the [guides](docs/guide/README.md).
 - **Flutter-style app shells and layouts.** `Scaffold`, `AppBar`, `NavigationBar`,
   `NavigationRail`, `NavigationDrawer` and an `AdaptiveScaffold` that follows the window
   width, plus `Row`, `Column`, `Expanded`, `Stack`, `GridView`, `LayoutBuilder` and friends.
@@ -62,8 +63,9 @@ rok-ui = { version = "0.6", default-features = false, features = ["button", "dia
   `textarea`, `kbd`, `native-select` and `toggle-group`.
 - **Groups:** `forms`, `overlays`, `layout`, `data`, `chat` and `shell` (Scaffold, navigation
   and layout widgets) each enable a whole group.
-- **App features:** `state` (rok-ui-hooks) is part of `full`. `router` and `db` (rok-db, sqlx and
-  tokio, plus `db-chrono`, `db-uuid`, `db-json`, `db-migrate`) are opt-in.
+- **App features:** `state` (rok-ui-hooks) and `form` are part of `full`. Opt-in: `query`
+  (data layer, tokio), `router`, `db` (rok-db, sqlx and tokio, plus `db-chrono`, `db-uuid`,
+  `db-json`, `db-migrate`), `persist` (saved stores, serde), `devtools` and `form-garde`.
 - **Always included:** `AppRoot`, `Direction`, `BidiText`, the theme, icons, hooks, styling
   (`styles!`, `view!`) and motion, whatever features you pick.
 - **Fonts:** `font-cairo`, `font-noto-sans-arabic` and `font-inter` bundle Google Fonts (see
@@ -73,6 +75,16 @@ On Linux, GPUI needs the X11/Wayland development packages. On Debian/Ubuntu:
 
 ```sh
 sudo apt install libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libvulkan1
+```
+
+### Starting a new app
+
+`cargo install rok-ui-cli` adds `cargo rok-ui`:
+
+```sh
+cargo rok-ui new my-app --template full   # minimal | full (file routes, queries) | db (plus PostgreSQL)
+cargo rok-ui add button dialog            # copy components' source into src/components/ui/ to change them
+cargo rok-ui routes                       # write src/route_tree.rs from src/routes/ (checked-in route trees)
 ```
 
 ## Quick start
@@ -166,10 +178,14 @@ Counter::new("Clicks").step(5).on_change(|value, _, _| println!("{value}"));
 
 Parameter rules for `#[component]`:
 
-- `window` and `cx` are the GPUI window and app context.
-- Plain parameters are required props. `new(..)` takes them as `impl Into<T>`.
-- `#[prop(optional)]` parameters default to `Default::default()` and get a builder method with
-  the same name. For `Option<T>`, the method takes `impl Into<T>`.
+- `window` and `cx` are the GPUI window and app context; `cx: &mut Cx` gets both in one
+  handle (`cx.window`, and `Cx` derefs to `App`).
+- Plain parameters are required props. `new(..)` takes them as `impl Into<T>`, so a missing
+  one is a compile error that names it.
+- `#[default]` parameters start at `Default::default()`, `#[default(expr)]` ones at `expr`
+  (`#[default(px(32.))] size: Pixels`), and get a builder method with the same name. For
+  `Option<T>`, the method takes `impl Into<T>`. `#[prop(optional)]` is the older spelling of
+  `#[default]`.
 - `EventHandler<E>` props, optional or not, take `Fn(&E, &mut Window, &mut App)` closures.
 - One `#[children]` parameter of type `Vec<AnyElement>` makes the component a `ParentElement`.
 - One `#[style]` parameter of type `StyleRefinement` makes the component `Styled`. Apply it last
@@ -281,6 +297,8 @@ The syntax:
 - **GPUI elements:** lowercase `div`, `img` and `svg` are GPUI's element functions.
 - **Children:** `{ … }` holds children: elements, `"text"`, `{expr}`, `if`, `if let`, `match`
   and `for`.
+- **Keys:** `#[key(item.id)] for item in items { .. }` gives each item a stable identity
+  (`Keyed`), so hook state follows the item when the list is reordered.
 
 ## Right-to-left layouts
 
@@ -719,7 +737,9 @@ Application::new().with_assets(rok_ui::Assets::with_fallback(MyAssets))
 ```text
 rok-ui/
 ├── Cargo.toml              workspace, the rok-ui crate and its feature list
-├── macros/                 rok-ui-macros: #[component], styles!, style!, keyframes!, children!, view!
+├── macros/                 rok-ui-macros: #[component], styles!, view!, #[procedure], derives
+├── rok-ui-build/           rok-ui-build: the file-based route generator for build.rs
+├── rok-ui-cli/             cargo rok-ui: new (templates), add (vendor components), routes
 ├── assets/icons/           built-in SVG icons (embedded at compile time)
 ├── assets/fonts/           bundled Google Fonts (Cairo, Noto Sans Arabic, Inter) and licenses
 ├── src/
@@ -738,9 +758,10 @@ rok-ui/
 │   ├── icon.rs             Icon, IconName, Assets
 │   ├── runtime.rs          the shared tokio runtime for background work
 │   └── components.rs       the component list; components/ holds one file per component
-├── examples/               counter, gallery, app_shell, notes, db_users, arabic, arabic_chat
+├── examples/               counter, gallery, app_shell, notes, db_users, sign_up, arabic, arabic_chat,
+│                           and file_routes/ (a crate with file-based routes)
 ├── tests/                  component renders, sx, motion, macro compile errors
-├── scripts/                check-features.sh, fetch-google-font.sh
+├── scripts/                check-features.sh, check-templates.sh, fetch-google-font.sh
 └── docs/screenshots/
 ```
 

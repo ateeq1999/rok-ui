@@ -1,0 +1,14 @@
+[package]
+name = "{{name}}"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+{{rok_ui}}
+gpui = "0.2.2"
+
+[dev-dependencies]
+gpui = { version = "0.2.2", features = ["test-support"] }
+
+[build-dependencies]
+{{rok_ui_build}}

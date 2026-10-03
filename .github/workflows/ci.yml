@@ -86,6 +86,19 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo hack clippy --lib --each-feature --no-dev-deps --package rok-ui
 
+  templates:
+    name: cargo rok-ui templates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install GPUI's Linux dependencies
+        run: sudo apt-get update && sudo apt-get install -y $GPUI_LINUX_PACKAGES
+      - uses: Swatinem/rust-cache@v2
+      - run: scripts/check-templates.sh
+        env:
+          RUSTFLAGS: ""
+
   udeps:
     name: Unused dependencies
     runs-on: ubuntu-latest

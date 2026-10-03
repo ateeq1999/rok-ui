@@ -15,8 +15,11 @@ styles! {
 /// Fills the available width and sets its height from `ratio` (width / height).
 /// Children are stretched over the whole box.
 ///
-/// ```ignore
-/// AspectRatio::new(16. / 9.).child(img("photo.jpg").size_full().rounded_md())
+/// ```no_run
+/// # use rok_ui::{gpui, prelude::*};
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let photo = AspectRatio::new(16. / 9.).child(gpui::img("photo.jpg").size_full().rounded_md());
+/// # }
 /// ```
 #[component]
 pub fn AspectRatio(

@@ -22,11 +22,14 @@ struct HoverMemory {
 /// Opens after the pointer rests on the trigger for `open_delay`, and stays
 /// open while the pointer is over the trigger or the card.
 ///
-/// ```ignore
-/// HoverCard::new("nextjs")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let card = HoverCard::new("nextjs")
 ///     .trigger(Button::new("handle").link().label("@nextjs"))
 ///     .child(Avatar::new("N"))
-///     .child(div().child("The React Framework – created and maintained by @vercel."))
+///     .child(div().child("The React Framework, created and maintained by @vercel."));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct HoverCard {

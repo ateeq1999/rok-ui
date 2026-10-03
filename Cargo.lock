@@ -867,6 +867,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "castaway"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dec551ab6e7578819132c713a93c022a05d60159dc86e7a7050223577484c55a"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
 name = "cbc"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1070,6 +1079,20 @@ checksum = "1b60b5124979fccd9addd89d8b97a1d6eebb4950694520c75ddd722535ea443f"
 dependencies = [
  "nix 0.31.3",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "compact_str"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9dfdd1c2274d9aa354115b09dc9a901d6c5576818cdf70d14cae2bdb47df00ab"
+dependencies = [
+ "castaway",
+ "cfg-if",
+ "itoa",
+ "rustversion",
+ "ryu",
+ "static_assertions",
 ]
 
 [[package]]
@@ -2185,6 +2208,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "garde"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d7f479d28d1daedf23970890723b8774d120aa627abcb33c1d7c93d0965e6c3"
+dependencies = [
+ "compact_str",
+ "garde_derive",
+ "smallvec",
+]
+
+[[package]]
+name = "garde_derive"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b0252cacdca8e6f30a900e6d436fbf294e23f674b9288ca4a5bd35976bef87c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2863,7 +2908,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.57.0",
+ "windows-core 0.61.2",
 ]
 
 [[package]]
@@ -4897,17 +4942,56 @@ version = "0.6.0"
 dependencies = [
  "env_logger",
  "futures",
+ "garde",
  "gpui",
  "jiff",
  "rok-db",
+ "rok-ui-build",
  "rok-ui-hooks",
  "rok-ui-macros",
+ "serde",
+ "serde_json",
  "tokio",
  "trybuild",
  "ttf-parser 0.25.1",
  "unicode-bidi",
  "unicode-segmentation",
  "windows 0.61.3",
+]
+
+[[package]]
+name = "rok-ui-build"
+version = "0.6.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "rok-ui-cli"
+version = "0.6.0"
+dependencies = [
+ "rok-ui-build",
+ "serde_json",
+]
+
+[[package]]
+name = "rok-ui-example-file-routes"
+version = "0.0.0"
+dependencies = [
+ "gpui",
+ "rok-ui",
+ "rok-ui-build",
+]
+
+[[package]]
+name = "rok-ui-grammar"
+version = "0.6.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -4921,7 +5005,8 @@ name = "rok-ui-macros"
 version = "0.6.0"
 dependencies = [
  "proc-macro2",
- "quote",
+ "rok-ui",
+ "rok-ui-grammar",
  "syn 2.0.119",
 ]
 

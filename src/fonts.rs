@@ -3,7 +3,8 @@
 //! GPUI draws text with fonts the platform knows about plus any you register at
 //! startup. Register a font, then make it the theme's UI font:
 //!
-//! ```ignore
+//! ```no_run
+//! # use rok_ui::prelude::*;
 //! Application::new().with_assets(rok_ui::Assets).run(|cx: &mut App| {
 //!     rok_ui::init(cx);
 //!     rok_ui::fonts::CAIRO.register(cx).expect("Cairo is bundled");
@@ -95,7 +96,8 @@ fn record_presentation_coverage(font: &[u8]) {
 /// registered through this module are known; installed fonts are looked up once
 /// on Windows, the only platform that draws these forms. Unknown families are
 /// assumed to have every form.
-pub(crate) fn lacks_presentation_form(family: &str, form: char) -> bool {
+#[doc(hidden)]
+pub fn lacks_presentation_form(family: &str, form: char) -> bool {
     let mut gaps = presentation_gaps()
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -209,7 +211,10 @@ pub struct FontFamily {
 impl FontFamily {
     /// A family from embedded files, for your own bundled fonts:
     ///
-    /// ```ignore
+    /// ```no_run
+    /// # use rok_ui::fonts::FontFamily;
+    /// # macro_rules! include_bytes { ($path:literal) => { &[] }; }
+    /// # macro_rules! include_str { ($path:literal) => { "" }; }
     /// const BRAND: FontFamily = FontFamily::new(
     ///     "Brand Sans",
     ///     &[include_bytes!("../fonts/BrandSans-400.ttf"), include_bytes!("../fonts/BrandSans-700.ttf")],
@@ -296,7 +301,8 @@ pub const NOTO_SANS_ARABIC: FontFamily = FontFamily::new(
 
 /// Record that `family` lacks `forms`, as if a font missing them had been registered.
 #[cfg(test)]
-pub(crate) fn mark_missing_presentation_forms(family: &str, forms: impl IntoIterator<Item = char>) {
+#[doc(hidden)]
+pub fn mark_missing_presentation_forms(family: &str, forms: impl IntoIterator<Item = char>) {
     presentation_gaps()
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)

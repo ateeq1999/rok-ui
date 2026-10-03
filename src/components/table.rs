@@ -4,17 +4,28 @@
 //! equally by default. Give the head and cells of a column the same width
 //! (`TableCell::new(..).w(px(100.))`) to size it.
 //!
-//! ```ignore
-//! Table::new()
+//! ```no_run
+//! # use rok_ui::prelude::*;
+//! # fn example(window: &mut Window, cx: &mut App) {
+//! let invoices = Table::new()
 //!     .child(TableCaption::new("A list of your recent invoices."))
-//!     .child(TableHeader::new().child(TableRow::new()
-//!         .child(TableHead::new("Invoice").w(px(100.)))
-//!         .child(TableHead::new("Status"))
-//!         .child(TableHead::new("Amount").text_right())))
-//!     .child(TableBody::new().child(TableRow::new()
-//!         .child(TableCell::new().w(px(100.)).child("INV001"))
-//!         .child(TableCell::new().child("Paid"))
-//!         .child(TableCell::new().text_right().child("$250.00"))))
+//!     .child(
+//!         TableHeader::new().child(
+//!             TableRow::new()
+//!                 .child(TableHead::new("Invoice").w(px(100.)))
+//!                 .child(TableHead::new("Status"))
+//!                 .child(TableHead::new("Amount").text_right()),
+//!         ),
+//!     )
+//!     .child(
+//!         TableBody::new().child(
+//!             TableRow::new()
+//!                 .child(TableCell::new().w(px(100.)).child("INV001"))
+//!                 .child(TableCell::new().child("Paid"))
+//!                 .child(TableCell::new().text_right().child("$250.00")),
+//!         ),
+//!     );
+//! # }
 //! ```
 
 use gpui::{div, prelude::*, AnyElement, SharedString, StyleRefinement};

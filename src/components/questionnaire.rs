@@ -158,12 +158,16 @@ struct QuestionnaireMemory {
 
 /// Progress, answers and the current step are kept per id.
 ///
-/// ```ignore
-/// Questionnaire::new("onboarding")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # fn save_answers(_: &[QuestionnaireAnswer], _: &mut App) {}
+/// let onboarding = Questionnaire::new("onboarding")
 ///     .question(Question::single("role", "What best describes you?", ["Engineer", "Designer", "Founder"]))
 ///     .question(Question::multiple("tools", "Which tools do you use?", ["Figma", "VS Code", "Zed"]))
 ///     .question(Question::freeform("goal", "What do you want to build?").skippable())
-///     .on_complete(|answers, _, cx| save_answers(answers, cx))
+///     .on_complete(|answers, _, cx| save_answers(answers, cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Questionnaire {

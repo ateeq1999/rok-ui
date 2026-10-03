@@ -23,11 +23,13 @@ use crate::{
 };
 
 /// A handler that takes no event, shared between several listeners.
-pub(crate) type Callback = Rc<dyn Fn(&mut Window, &mut App)>;
+#[doc(hidden)]
+pub type Callback = Rc<dyn Fn(&mut Window, &mut App)>;
 
 /// Where a modal is in moving focus inside when it opens.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ModalFocus {
+#[doc(hidden)]
+pub enum ModalFocus {
     /// Just opened: focus goes to the panel, so Escape works at once.
     Opening,
     /// The panel is focused; once it has been laid out, focus moves to its first field.
@@ -40,7 +42,8 @@ pub(crate) enum ModalFocus {
 /// Call on every render of a modal. Moves focus to the panel when the modal opens,
 /// then on the following render, when the panel's elements are in the tab order,
 /// to the first focusable element inside it.
-pub(crate) fn focus_modal_on_open(
+#[doc(hidden)]
+pub fn focus_modal_on_open(
     panel: &FocusHandle,
     phase: &Cell<ModalFocus>,
     window: &mut Window,
@@ -68,7 +71,8 @@ pub(crate) fn focus_modal_on_open(
 
 /// Keep Tab and Shift-Tab inside `panel`: leaving past the last element wraps to
 /// the first, and back past the first wraps to the last.
-pub(crate) fn trap_focus<E: InteractiveElement>(element: E, panel: &FocusHandle) -> E {
+#[doc(hidden)]
+pub fn trap_focus<E: InteractiveElement>(element: E, panel: &FocusHandle) -> E {
     let forward_panel = panel.clone();
     let backward_panel = panel.clone();
     element
@@ -120,7 +124,8 @@ fn focus_last_inside(panel: &FocusHandle, window: &mut Window, cx: &App) {
 }
 
 /// Records the bounds of the element it is placed in (absolutely, full size).
-pub(crate) fn measure_bounds(bounds: Rc<Cell<Bounds<Pixels>>>) -> impl IntoElement {
+#[doc(hidden)]
+pub fn measure_bounds(bounds: Rc<Cell<Bounds<Pixels>>>) -> impl IntoElement {
     canvas(move |measured, _, _| bounds.set(measured), |_, (), _, _| {})
         .absolute()
         .top_0()
@@ -129,15 +134,13 @@ pub(crate) fn measure_bounds(bounds: Rc<Cell<Bounds<Pixels>>>) -> impl IntoEleme
 }
 
 /// Receives each pointer position during a drag.
-pub(crate) type PointerHandler = Rc<dyn Fn(Point<Pixels>, &mut Window, &mut App)>;
+#[doc(hidden)]
+pub type PointerHandler = Rc<dyn Fn(Point<Pixels>, &mut Window, &mut App)>;
 
 /// While `active`, follow the pointer anywhere in the window: `on_move` gets
 /// every position and `on_end` runs once on mouse up. Place it anywhere in the tree.
-pub(crate) fn track_drag(
-    active: bool,
-    on_move: PointerHandler,
-    on_end: Callback,
-) -> impl IntoElement {
+#[doc(hidden)]
+pub fn track_drag(active: bool, on_move: PointerHandler, on_end: Callback) -> impl IntoElement {
     canvas(
         |_, _, _| {},
         move |_, (), window, _| {
@@ -162,7 +165,8 @@ pub(crate) fn track_drag(
 
 /// Run `handler` on a mouse click, and on Enter / Space while the element (or a
 /// focusable child, like a [`super::Button`] used as a trigger) has focus.
-pub(crate) fn on_activate(element: Stateful<Div>, handler: Callback) -> Stateful<Div> {
+#[doc(hidden)]
+pub fn on_activate(element: Stateful<Div>, handler: Callback) -> Stateful<Div> {
     let key_handler = handler.clone();
     element
         .on_click(move |event, window, cx| {
@@ -202,7 +206,8 @@ styles! {
 
 /// Where a modal panel sits in the window.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ModalPlacement {
+#[doc(hidden)]
+pub enum ModalPlacement {
     Center,
     Top,
     Bottom,
@@ -214,12 +219,8 @@ pub(crate) enum ModalPlacement {
 /// Escape calls `on_escape`; a press on the scrim calls `on_backdrop` (if any).
 /// Enter / exit progress for a modal: keeps it mounted while it animates out.
 /// Call it on every render, open or not, so the transition has a start value.
-pub(crate) fn modal_presence(
-    id: &ElementId,
-    open: bool,
-    window: &mut Window,
-    cx: &mut App,
-) -> Presence {
+#[doc(hidden)]
+pub fn modal_presence(id: &ElementId, open: bool, window: &mut Window, cx: &mut App) -> Presence {
     use_presence(
         child_id(id, "presence"),
         window,
@@ -231,7 +232,9 @@ pub(crate) fn modal_presence(
 
 /// Offset of a modal panel at `progress`: dialogs rise a little, sheets and
 /// drawers slide in from their edge.
-pub(crate) fn modal_offset(placement: ModalPlacement, progress: f32) -> (Pixels, Pixels) {
+#[doc(hidden)]
+#[must_use]
+pub fn modal_offset(placement: ModalPlacement, progress: f32) -> (Pixels, Pixels) {
     let remaining = 1. - progress;
     match placement {
         ModalPlacement::Center => (px(0.), px(8. * remaining)),
@@ -243,7 +246,8 @@ pub(crate) fn modal_offset(placement: ModalPlacement, progress: f32) -> (Pixels,
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn render_modal(
+#[doc(hidden)]
+pub fn render_modal(
     id: ElementId,
     placement: ModalPlacement,
     progress: f32,

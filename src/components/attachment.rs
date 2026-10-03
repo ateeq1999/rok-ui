@@ -29,13 +29,17 @@ pub enum AttachmentState {
     Failed(SharedString),
 }
 
-/// ```ignore
-/// Attachment::new("report", "Q3 report.pdf")
-///     .meta("PDF · 2.4 MB")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # fn remove_attachment(_: &mut App) {}
+/// let report = Attachment::new("report", "Q3 report.pdf")
+///     .meta("PDF - 2.4 MB")
 ///     .state(AttachmentState::Uploading(Some(40.)))
-///     .on_remove(|_, _, cx| remove_attachment(cx))
+///     .on_remove(|_, _, cx| remove_attachment(cx));
 ///
-/// Attachment::new("photo", "beach.jpg").image("assets/beach.jpg")
+/// let photo = Attachment::new("photo", "beach.jpg").image("assets/beach.jpg");
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Attachment {

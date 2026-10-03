@@ -112,14 +112,17 @@ fn fuzzy_match(text: &str, query: &str) -> bool {
 }
 
 #[derive(Clone)]
-pub(crate) struct CommandGroup {
+#[doc(hidden)]
+pub struct CommandGroup {
     heading: Option<SharedString>,
     items: Vec<CommandItem>,
 }
 
 impl CommandGroup {
     #[cfg_attr(not(feature = "full"), allow(dead_code))]
-    pub(crate) fn without_heading(items: Vec<CommandItem>) -> Self {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn without_heading(items: Vec<CommandItem>) -> Self {
         Self {
             heading: None,
             items,
@@ -195,7 +198,8 @@ styles! {
 
 /// Render the search field and the filtered list. `after_select` runs after an
 /// item's own handler (Combobox uses it to close its popover).
-pub(crate) fn render_command(
+#[doc(hidden)]
+pub fn render_command(
     id: &ElementId,
     search: &Entity<InputState>,
     groups: &[CommandGroup],
@@ -361,14 +365,17 @@ fn select_item(
 /// shadcn/ui's `<Command>`: a search field over grouped items, filtered as you
 /// type. Up / Down move the highlight and Enter runs the highlighted item.
 ///
-/// ```ignore
-/// Command::new("command")
-///     .placeholder("Type a command or search…")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let command = Command::new("command")
+///     .placeholder("Type a command or search...")
 ///     .group("Suggestions", [
 ///         CommandItem::new("Calendar").icon(IconName::Calendar),
 ///         CommandItem::new("Search emoji").icon(IconName::Smile),
 ///     ])
-///     .group("Settings", [CommandItem::new("Profile").shortcut("⌘P")])
+///     .group("Settings", [CommandItem::new("Profile").shortcut("Cmd-P")]);
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Command {
@@ -461,10 +468,18 @@ impl RenderOnce for Command {
 /// A [`Command`] in a modal, the ⌘K palette. Controlled like [`super::Dialog`];
 /// it closes on Escape, on a backdrop click and after an item runs.
 ///
-/// ```ignore
-/// CommandDialog::new("palette", Command::new("palette-command").group(..))
-///     .open(palette_open)
-///     .on_close(move |_, _, cx| set_palette_open(false, cx))
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let palette_open = true;
+/// # fn set_palette_open(_: bool, _: &mut App) {}
+/// let palette = CommandDialog::new(
+///     "palette",
+///     Command::new("palette-command").group("Pages", [CommandItem::new("Home")]),
+/// )
+/// .open(palette_open)
+/// .on_close(move |_, _, cx| set_palette_open(false, cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct CommandDialog {

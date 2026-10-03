@@ -27,13 +27,16 @@ pub enum ItemVariant {
     Muted,
 }
 
-/// ```ignore
-/// Item::new("security")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let item = Item::new("security")
 ///     .variant(ItemVariant::Outline)
 ///     .icon(IconName::Settings)
 ///     .title("Two-factor authentication")
 ///     .description("Verify via email or phone number.")
-///     .action(Button::new("enable").small().label("Enable"))
+///     .action(Button::new("enable").small().label("Enable"));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Item {

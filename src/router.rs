@@ -1,9 +1,10 @@
 #![doc = include_str!("../docs/guide/router.md")]
 
-use std::{collections::HashMap, rc::Rc};
+use std::{cell::Cell, collections::HashMap, rc::Rc};
 
 use gpui::{
-    actions, div, prelude::*, AnyElement, App, ElementId, Global, KeyBinding, SharedString,
+    actions, div, prelude::*, AnyElement, AnyWindowHandle, App, Bounds, ElementId, Global,
+    GlobalElementId, InspectorElementId, KeyBinding, LayoutId, Pixels, SharedString,
     StyleRefinement, Window,
 };
 
@@ -12,6 +13,36 @@ use crate::{
     styles::ApplyStyleOverrides,
     sx::{Sx, SxStyled},
 };
+
+/// Include the route tree that `rok_ui_build::routes(..).generate()` wrote in `build.rs`: a
+/// `routes` module with one typed route per page file and `routes::tree()`.
+///
+/// `routes!("src/route_tree.rs")` includes a checked-in tree written with
+/// `rok_ui_build::routes(..).write_to(..)` instead.
+#[macro_export]
+macro_rules! routes {
+    () => {
+        include!(concat!(env!("OUT_DIR"), "/rok_ui_routes.rs"));
+    };
+    ($path:literal) => {
+        include!($path);
+    };
+}
+
+mod blocker;
+mod search;
+#[doc(hidden)]
+pub mod typed;
+
+pub use blocker::{use_blocker, Blocker, PendingNavigation};
+/// Declare a route file's route; see [`routes!`](crate::routes).
+pub use rok_ui_macros::file_route;
+/// Derive [`Search`] for a struct of query parameters.
+pub use rok_ui_macros::Search;
+#[doc(hidden)]
+pub use search::parse_value;
+pub use search::{replace_search, update_search, use_search, Search};
+pub use typed::{navigate_to, replace_to, use_params, Route};
 
 actions!(
     rok_router,
@@ -26,11 +57,10 @@ actions!(
 /// Called after every navigation with the new location.
 type NavigateListener = Rc<dyn Fn(&Location, &mut App)>;
 
-/// The app's navigation history.
+/// One navigation history: the app's, or one window's.
 struct History {
     entries: Vec<SharedString>,
     index: usize,
-    listeners: Vec<NavigateListener>,
 }
 
 impl Default for History {
@@ -38,12 +68,44 @@ impl Default for History {
         Self {
             entries: vec!["/".into()],
             index: 0,
-            listeners: Vec::new(),
         }
     }
 }
 
-impl Global for History {}
+/// Every history, and the navigation listeners.
+#[derive(Default)]
+struct Histories {
+    per_window: bool,
+    app: History,
+    windows: HashMap<AnyWindowHandle, History>,
+    listeners: Vec<NavigateListener>,
+}
+
+impl Global for Histories {}
+
+thread_local! {
+    /// The window whose router is rendering (or that code runs for), so `&mut App`
+    /// functions find its history in per-window mode.
+    static CURRENT_WINDOW: Cell<Option<AnyWindowHandle>> = const { Cell::new(None) };
+}
+
+/// Give each window its own history (enhance.md E.7), instead of one history for the app.
+/// Off by default. Turn it on at startup, before opening windows.
+///
+/// Inside a window's `Router` (its routes and their components), the router functions use
+/// that window's history; elsewhere they use the active window's. Code that runs for a
+/// specific window can say so with [`with_window`].
+pub fn set_per_window_history(per_window: bool, cx: &mut App) {
+    cx.default_global::<Histories>().per_window = per_window;
+}
+
+/// Run `body` with the router functions targeting `window`'s history (in per-window mode).
+pub fn with_window<R>(window: AnyWindowHandle, body: impl FnOnce() -> R) -> R {
+    let previous = CURRENT_WINDOW.with(|current| current.replace(Some(window)));
+    let result = body();
+    CURRENT_WINDOW.with(|current| current.set(previous));
+    result
+}
 
 /// Register the back / forward key bindings. Called by [`crate::init`].
 pub(crate) fn init(cx: &mut App) {
@@ -56,13 +118,20 @@ pub(crate) fn init(cx: &mut App) {
 }
 
 fn history(cx: &mut App) -> &mut History {
-    cx.default_global::<History>()
+    let window = CURRENT_WINDOW
+        .with(Cell::get)
+        .or_else(|| cx.active_window());
+    let histories = cx.default_global::<Histories>();
+    match window {
+        Some(window) if histories.per_window => histories.windows.entry(window).or_default(),
+        _ => &mut histories.app,
+    }
 }
 
 /// Re-render every window and tell listeners where the app is now.
 fn changed(cx: &mut App) {
     let location = location(cx);
-    let listeners = history(cx).listeners.clone();
+    let listeners = cx.default_global::<Histories>().listeners.clone();
     for listener in listeners {
         listener(&location, cx);
     }
@@ -73,6 +142,9 @@ fn changed(cx: &mut App) {
 /// browser. Navigating to the current location does nothing.
 pub fn navigate(path: impl Into<SharedString>, cx: &mut App) {
     let path = normalize(path.into());
+    if blocker::intercept(blocker::PendingNavigation::Push(path.clone()), cx) {
+        return;
+    }
     let history = history(cx);
     if history.entries[history.index] == path {
         return;
@@ -86,6 +158,153 @@ pub fn navigate(path: impl Into<SharedString>, cx: &mut App) {
 /// Go to `path`, replacing the current history entry.
 pub fn replace(path: impl Into<SharedString>, cx: &mut App) {
     let path = normalize(path.into());
+    if blocker::intercept(blocker::PendingNavigation::Replace(path.clone()), cx) {
+        return;
+    }
+    let history = history(cx);
+    let index = history.index;
+    history.entries[index] = path;
+    changed(cx);
+}
+
+/// Run `loader` unless it already ran for this exact location.
+fn run_loader_once(route: &RouteMatch, loader: &Loader, cx: &mut App) {
+    let href = route.location.href();
+    let last = cx
+        .default_global::<Loaders>()
+        .last_loaded
+        .insert(route.pattern.clone(), href.clone());
+    if last.as_ref() == Some(&href) {
+        return;
+    }
+    #[cfg(feature = "query")]
+    let fetching_before = fetching_keys(cx);
+    loader(route, cx);
+    #[cfg(feature = "query")]
+    {
+        let started: Vec<_> = fetching_keys(cx)
+            .into_iter()
+            .filter(|key| !fetching_before.contains(key))
+            .collect();
+        let window = CURRENT_WINDOW.with(Cell::get);
+        cx.default_global::<Loaders>()
+            .started
+            .entry(window)
+            .or_insert_with(|| (href.clone(), Vec::new()))
+            .1
+            .extend(started);
+    }
+}
+
+#[cfg(feature = "query")]
+fn fetching_keys(cx: &App) -> Vec<crate::query::QueryKey> {
+    crate::query::queries(cx)
+        .into_iter()
+        .filter(|query| query.is_fetching)
+        .map(|query| query.key)
+        .collect()
+}
+
+/// When this window shows a new location, cancel the fetches the previous location's loader
+/// started and that are still running (the user navigated away before they finished).
+#[cfg(feature = "query")]
+fn cancel_stale_loads(location: &Location, cx: &mut App) {
+    let href = location.href();
+    let window = CURRENT_WINDOW.with(Cell::get);
+    let previous = {
+        let loaders = cx.default_global::<Loaders>();
+        match loaders.started.get_mut(&window) {
+            Some((shown, _)) if *shown == href => return,
+            Some((shown, keys)) => {
+                *shown = href;
+                std::mem::take(keys)
+            }
+            None => {
+                loaders.started.insert(window, (href, Vec::new()));
+                return;
+            }
+        }
+    };
+    let still_fetching = fetching_keys(cx);
+    for key in previous {
+        if still_fetching.contains(&key) {
+            crate::query::cancel_queries(cx, &key);
+        }
+    }
+}
+
+/// Renders its child with [`CURRENT_WINDOW`] set, so components inside a router read their
+/// window's history while they lay out and paint.
+struct WindowScope {
+    window: AnyWindowHandle,
+    child: AnyElement,
+}
+
+impl IntoElement for WindowScope {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for WindowScope {
+    type RequestLayoutState = ();
+    type PrepaintState = ();
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static core::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        let child = &mut self.child;
+        (
+            with_window(self.window, || child.request_layout(window, cx)),
+            (),
+        )
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self::PrepaintState {
+        let child = &mut self.child;
+        with_window(self.window, || child.prepaint(window, cx));
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        _prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        let child = &mut self.child;
+        with_window(self.window, || child.paint(window, cx));
+    }
+}
+
+/// `replace` for redirects and guards: blockers do not apply.
+fn replace_unblocked(path: SharedString, cx: &mut App) {
+    let path = normalize(path);
     let history = history(cx);
     let index = history.index;
     history.entries[index] = path;
@@ -94,7 +313,7 @@ pub fn replace(path: impl Into<SharedString>, cx: &mut App) {
 
 /// Go back one entry, if there is one.
 pub fn back(cx: &mut App) {
-    if can_go_back(cx) {
+    if can_go_back(cx) && !blocker::intercept(blocker::PendingNavigation::Back, cx) {
         history(cx).index -= 1;
         changed(cx);
     }
@@ -102,7 +321,7 @@ pub fn back(cx: &mut App) {
 
 /// Go forward one entry, if there is one.
 pub fn forward(cx: &mut App) {
-    if can_go_forward(cx) {
+    if can_go_forward(cx) && !blocker::intercept(blocker::PendingNavigation::Forward, cx) {
         history(cx).index += 1;
         changed(cx);
     }
@@ -119,6 +338,12 @@ pub fn can_go_forward(cx: &mut App) -> bool {
     history.index + 1 < history.entries.len()
 }
 
+/// Every history entry, oldest first, and the index of the current one.
+pub fn history_entries(cx: &mut App) -> (Vec<SharedString>, usize) {
+    let history = history(cx);
+    (history.entries.clone(), history.index)
+}
+
 /// The current location.
 pub fn location(cx: &mut App) -> Location {
     let history = history(cx);
@@ -128,7 +353,30 @@ pub fn location(cx: &mut App) -> Location {
 /// Call `listener` after every navigation (for analytics, saving the last page,
 /// or syncing other state).
 pub fn on_navigate(listener: impl Fn(&Location, &mut App) + 'static, cx: &mut App) {
-    history(cx).listeners.push(Rc::new(listener));
+    cx.default_global::<Histories>()
+        .listeners
+        .push(Rc::new(listener));
+}
+
+/// Save the location under `key` (with the `persist` feature) and restore it now, so the app
+/// reopens where the user left it. Call it once at startup, after `rok_ui::init`.
+///
+/// ```no_run
+/// # fn startup(cx: &mut rok_ui::gpui::App) {
+/// rok_ui::router::persist_location("main-window", cx);
+/// # }
+/// ```
+#[cfg(feature = "persist")]
+pub fn persist_location(key: &str, cx: &mut App) {
+    let store = crate::persist::persisted_store(cx, &format!("location-{key}"), || "/".to_string());
+    let saved = store.peek();
+    if saved != "/" {
+        replace_unblocked(saved.into(), cx);
+    }
+    on_navigate(
+        move |location, _| store.set(location.href().to_string()),
+        cx,
+    );
 }
 
 /// Whether the current path is `path`, or below it unless `exact`. For marking
@@ -166,6 +414,26 @@ pub struct Location {
 }
 
 impl Location {
+    /// A path with query pairs, encoded: `build("/search", &[("q", "a b")])` is
+    /// `/search?q=a%20b`.
+    #[must_use]
+    pub fn build(path: &str, query: &[(impl AsRef<str>, impl AsRef<str>)]) -> String {
+        let mut built = path.to_string();
+        for (index, (key, value)) in query.iter().enumerate() {
+            built.push(if index == 0 { '?' } else { '&' });
+            built.push_str(&typed::encode(key.as_ref()));
+            built.push('=');
+            built.push_str(&typed::encode(value.as_ref()));
+        }
+        built
+    }
+
+    /// The path and query string, encoded.
+    #[must_use]
+    pub fn href(&self) -> SharedString {
+        Self::build(&self.path, &self.query).into()
+    }
+
     /// Split `"/users/42?tab=posts"` into its path and decoded query pairs.
     #[must_use]
     pub fn parse(full_path: &str) -> Self {
@@ -206,6 +474,12 @@ impl Location {
     #[must_use]
     pub fn query_pairs(&self) -> &[(SharedString, SharedString)] {
         &self.query
+    }
+}
+
+impl std::fmt::Display for Location {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.href())
     }
 }
 
@@ -344,14 +618,107 @@ impl RouteMatch {
     }
 }
 
-type RouteBuilder = Rc<dyn Fn(&RouteMatch, &mut Window, &mut App) -> AnyElement>;
+/// Builds a route's element; `None` falls through to the "not found" route (a typed route whose
+/// parameters do not parse).
+type RouteBuilder = Rc<dyn Fn(&RouteMatch, &mut Window, &mut App) -> Option<AnyElement>>;
+type NotFoundBuilder = Rc<dyn Fn(&RouteMatch, &mut Window, &mut App) -> AnyElement>;
+/// A guard: `Ok(())` lets the route render.
+pub type Guard = Rc<dyn Fn(&Location, &mut App) -> Result<(), RouteControl>>;
+
+/// Starts loading a route's data before it renders (prefetching queries).
+pub type Loader = Rc<dyn Fn(&RouteMatch, &mut App)>;
+
+/// One registered route.
+struct RouteEntry {
+    pattern: Pattern,
+    guards: Vec<Guard>,
+    loader: Option<Loader>,
+    build: RouteBuilder,
+}
+
+impl RouteEntry {
+    fn new(pattern: Pattern, build: RouteBuilder) -> Self {
+        Self {
+            pattern,
+            guards: Vec::new(),
+            loader: None,
+            build,
+        }
+    }
+}
+
+/// Loaders seen by routers, for link preloading, and the location each one last loaded.
+#[derive(Default)]
+struct Loaders {
+    registered: Vec<(Pattern, Loader)>,
+    last_loaded: HashMap<SharedString, SharedString>,
+    /// Per window (or for the app): the location shown last, and the query fetches its loader
+    /// started, cancelled when the location changes.
+    #[cfg(feature = "query")]
+    started: HashMap<Option<AnyWindowHandle>, (SharedString, Vec<crate::query::QueryKey>)>,
+}
+
+impl Global for Loaders {}
+
+/// Run the loaders of routes matching `path` (a link the user is about to follow), so its data
+/// starts loading early. `Link::preload(true)` calls this on hover.
+pub fn preload(path: &str, cx: &mut App) {
+    let location = Location::parse(path);
+    let matching: Vec<(RouteMatch, Loader)> = cx
+        .try_global::<Loaders>()
+        .map(|loaders| {
+            loaders
+                .registered
+                .iter()
+                .filter_map(|(pattern, loader)| {
+                    let (params, _) = pattern.matches(location.path())?;
+                    Some((
+                        RouteMatch {
+                            pattern: pattern.source.clone(),
+                            params,
+                            location: location.clone(),
+                        },
+                        loader.clone(),
+                    ))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    for (route, loader) in matching {
+        loader(&route, cx);
+    }
+}
+
+/// What a guard does instead of rendering the route.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RouteControl {
+    /// Go to this path instead, replacing the current history entry.
+    Redirect(SharedString),
+    /// Render the "not found" route.
+    NotFound,
+}
+
+impl RouteControl {
+    /// Redirect to `path`.
+    #[must_use]
+    pub fn redirect(path: impl Into<SharedString>) -> Self {
+        Self::Redirect(path.into())
+    }
+
+    /// Redirect to a typed route.
+    #[must_use]
+    pub fn redirect_to<R: Route>(route: &R) -> Self {
+        Self::Redirect(route.href())
+    }
+}
 
 /// Renders the element of the route that matches the current location.
 #[derive(IntoElement)]
 pub struct Router {
-    routes: Vec<(Pattern, RouteBuilder)>,
+    routes: Vec<RouteEntry>,
     redirects: Vec<(Pattern, SharedString)>,
-    not_found: Option<RouteBuilder>,
+    guards: Vec<(Pattern, Guard)>,
+    not_found: Option<NotFoundBuilder>,
     sx: Sx,
     style_overrides: StyleRefinement,
 }
@@ -365,6 +732,7 @@ impl Router {
         Self {
             routes: Vec::new(),
             redirects: Vec::new(),
+            guards: Vec::new(),
             not_found: None,
             sx: Sx::new(),
             style_overrides: StyleRefinement::default(),
@@ -378,11 +746,129 @@ impl Router {
         pattern: &str,
         build: impl Fn(&RouteMatch, &mut Window, &mut App) -> E + 'static,
     ) -> Self {
-        self.routes.push((
+        self.routes.push(RouteEntry::new(
             Pattern::parse(pattern),
-            Rc::new(move |route, window, cx| build(route, window, cx).into_any_element()),
+            Rc::new(move |route, window, cx| Some(build(route, window, cx).into_any_element())),
         ));
         self
+    }
+
+    /// Show `build`'s element for typed route `R`. If the location matches `R`'s pattern but a
+    /// parameter does not parse (`/notes/abc` for a numeric id), the "not found" route shows.
+    ///
+    /// ```
+    /// # use rok_ui::{prelude::*, router::Router, typed_route};
+    /// typed_route! { pub struct NoteRoute = "/notes/:id" { pub id: u64 } }
+    ///
+    /// let router = Router::new().route_to(|note: NoteRoute, _, _| div().child(format!("Note {}", note.id)));
+    /// # let _ = router;
+    /// ```
+    #[must_use]
+    pub fn route_to<R: Route, E: IntoElement>(
+        mut self,
+        build: impl Fn(R, &mut Window, &mut App) -> E + 'static,
+    ) -> Self {
+        self.routes.push(RouteEntry::new(
+            Pattern::parse(R::PATTERN),
+            Rc::new(move |route, window, cx| {
+                R::from_match(route).map(|typed| build(typed, window, cx).into_any_element())
+            }),
+        ));
+        self
+    }
+
+    /// Run `guard` before rendering any route at or below `prefix` (a pattern such as
+    /// `/settings` or `/teams/:team`). A guard that returns
+    /// [`RouteControl::Redirect`] sends the user elsewhere; the guarded route never renders.
+    ///
+    /// ```
+    /// # use rok_ui::{prelude::*, router::{Router, RouteControl}};
+    /// # fn signed_in(_: &App) -> bool { false }
+    /// let router = Router::new()
+    ///     .route("/login", |_, _, _| div().child("Sign in"))
+    ///     .route("/account", |_, _, _| div().child("Your account"))
+    ///     .guard("/account", |location, cx| {
+    ///         if signed_in(cx) {
+    ///             Ok(())
+    ///         } else {
+    ///             Err(RouteControl::redirect(format!("/login?next={}", location.path())))
+    ///         }
+    ///     });
+    /// # let _ = router;
+    /// ```
+    #[must_use]
+    pub fn guard(
+        mut self,
+        prefix: &str,
+        guard: impl Fn(&Location, &mut App) -> Result<(), RouteControl> + 'static,
+    ) -> Self {
+        let pattern = format!("{}/*__rok_rest", prefix.trim_end_matches('/'));
+        self.guards.push((Pattern::parse(&pattern), Rc::new(guard)));
+        self
+    }
+
+    /// A route generated from a route file: its own guards run before it renders, and `build`
+    /// may return `None` to fall through to "not found". Used by `rok_ui::routes!()`.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __file_route(
+        mut self,
+        pattern: &str,
+        guards: Vec<Guard>,
+        loader: Option<Loader>,
+        build: impl Fn(&RouteMatch, &mut Window, &mut App) -> Option<AnyElement> + 'static,
+    ) -> Self {
+        self.routes.push(RouteEntry {
+            pattern: Pattern::parse(pattern),
+            guards,
+            loader,
+            build: Rc::new(build),
+        });
+        self
+    }
+
+    /// Start loading data for routes matching `pattern` before they render: on navigation
+    /// (once per location) and when a `Link::preload(true)` link to them is hovered. Loaders
+    /// usually prefetch queries that the page then reads:
+    ///
+    /// ```
+    /// # use rok_ui::{prelude::*, query::{self, QueryOptions}, query_key, router::Router};
+    /// # fn note_query(id: u64) -> QueryOptions<String> {
+    /// #     QueryOptions::new(query_key!["notes", id], |_| async { Ok::<_, std::io::Error>(String::new()) })
+    /// # }
+    /// let router = Router::new()
+    ///     .route("/notes/:id", |_, _, _| div())
+    ///     .loader("/notes/:id", |route, cx| {
+    ///         if let Some(id) = route.param_as::<u64>("id") {
+    ///             query::prefetch_query(cx, &note_query(id));
+    ///         }
+    ///     });
+    /// # let _ = router;
+    /// ```
+    #[must_use]
+    pub fn loader(
+        mut self,
+        pattern: &str,
+        loader: impl Fn(&RouteMatch, &mut App) + 'static,
+    ) -> Self {
+        let source = Pattern::parse(pattern).source;
+        let loader: Loader = Rc::new(loader);
+        for route in &mut self.routes {
+            if route.pattern.source == source {
+                route.loader = Some(loader.clone());
+            }
+        }
+        self
+    }
+
+    /// [`Router::loader`] for a typed route.
+    #[must_use]
+    pub fn loader_to<R: Route>(self, loader: impl Fn(&R, &mut App) + 'static) -> Self {
+        self.loader(R::PATTERN, move |route, cx| {
+            if let Some(typed) = R::from_match(route) {
+                loader(&typed, cx);
+            }
+        })
     }
 
     /// Replace the location with `to` when it matches `from`. Parameters in
@@ -406,26 +892,61 @@ impl Router {
     }
 
     /// The best route for `location`, with its parameters.
-    fn resolve(&self, location: &Location) -> Option<(RouteMatch, RouteBuilder)> {
+    fn resolve(&self, location: &Location) -> Option<(RouteMatch, &RouteEntry)> {
         self.routes
             .iter()
             .enumerate()
-            .filter_map(|(index, (pattern, build))| {
-                let (params, score) = pattern.matches(location.path())?;
-                Some((score, index, pattern, params, build))
+            .filter_map(|(index, route)| {
+                let (params, score) = route.pattern.matches(location.path())?;
+                Some((score, index, route, params))
             })
             // Highest score first; earlier declarations win ties.
             .max_by(|a, b| a.0.cmp(&b.0).then(b.1.cmp(&a.1)))
-            .map(|(_, _, pattern, params, build)| {
+            .map(|(_, _, route, params)| {
                 (
                     RouteMatch {
-                        pattern: pattern.source.clone(),
+                        pattern: route.pattern.source.clone(),
                         params,
                         location: location.clone(),
                     },
-                    build.clone(),
+                    route,
                 )
             })
+    }
+
+    /// Make this router's loaders available to [`preload`].
+    fn register_loaders(&self, cx: &mut App) {
+        let loaders = cx.default_global::<Loaders>();
+        for route in &self.routes {
+            let Some(loader) = &route.loader else {
+                continue;
+            };
+            match loaders
+                .registered
+                .iter_mut()
+                .find(|(pattern, _)| pattern.source == route.pattern.source)
+            {
+                Some(registered) => registered.1 = loader.clone(),
+                None => loaders
+                    .registered
+                    .push((route.pattern.clone(), loader.clone())),
+            }
+        }
+    }
+
+    /// The first guard over `location` that refuses it.
+    fn check_guards(&self, location: &Location, cx: &mut App) -> Result<(), RouteControl> {
+        for (pattern, guard) in &self.guards {
+            if pattern.matches(location.path()).is_some() {
+                guard(location, cx)?;
+            }
+        }
+        if let Some((_, route)) = self.resolve(location) {
+            for guard in &route.guards {
+                guard(location, cx)?;
+            }
+        }
+        Ok(())
     }
 
     /// The target of the first redirect matching `location`, parameters filled in.
@@ -451,30 +972,66 @@ impl Default for Router {
 
 impl RenderOnce for Router {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let handle = window.window_handle();
+        let content = with_window(handle, || self.render_content(window, cx));
+        WindowScope {
+            window: handle,
+            child: content.into_any_element(),
+        }
+    }
+}
+
+impl Router {
+    fn render_content(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let mut location = location(cx);
-        // Follow redirects (a few hops at most, so a cycle cannot hang the app).
+        let mut not_found = false;
+        // Follow redirects and guard redirects (a few hops at most, so a cycle cannot hang
+        // the app).
         for _ in 0..8 {
-            let Some(target) = self.redirect_for(&location) else {
+            let target = match self.redirect_for(&location) {
+                Some(target) => Some(target),
+                None => match self.check_guards(&location, cx) {
+                    Ok(()) => None,
+                    Err(RouteControl::Redirect(target)) => Some(target),
+                    Err(RouteControl::NotFound) => {
+                        not_found = true;
+                        None
+                    }
+                },
+            };
+            let Some(target) = target else {
                 break;
             };
-            replace(target, cx);
+            replace_unblocked(target, cx);
             location = self::location(cx);
         }
-        let content = match self.resolve(&location) {
-            Some((route, build)) => build(&route, window, cx),
-            None => match &self.not_found {
-                Some(build) => build(
-                    &RouteMatch {
-                        pattern: SharedString::default(),
-                        params: HashMap::new(),
-                        location,
-                    },
-                    window,
-                    cx,
-                ),
-                None => div().into_any_element(),
-            },
-        };
+        self.register_loaders(cx);
+        #[cfg(feature = "query")]
+        cancel_stale_loads(&location, cx);
+        let content =
+            match self
+                .resolve(&location)
+                .filter(|_| !not_found)
+                .and_then(|(route, entry)| {
+                    if let Some(loader) = &entry.loader {
+                        run_loader_once(&route, loader, cx);
+                    }
+                    (entry.build)(&route, window, cx)
+                }) {
+                Some(content) => content,
+                None => match &self.not_found {
+                    Some(build) => build(
+                        &RouteMatch {
+                            pattern: SharedString::default(),
+                            params: HashMap::new(),
+                            location,
+                        },
+                        window,
+                        cx,
+                    ),
+                    None => div().into_any_element(),
+                },
+            };
         div()
             .flex()
             .flex_col()
@@ -507,6 +1064,7 @@ pub struct Link {
     id: ElementId,
     to: SharedString,
     replace: bool,
+    preload: bool,
     exact: bool,
     children: Vec<AnyElement>,
     sx: Sx,
@@ -522,11 +1080,42 @@ impl Link {
             id: id.into(),
             to: to.into(),
             replace: false,
+            preload: false,
             exact: false,
             children: Vec::new(),
             sx: Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
+    }
+
+    /// A link to a typed route. Its element id is the route's path; use
+    /// [`Link::new`] when two links to the same path are siblings.
+    ///
+    /// ```
+    /// # use rok_ui::{prelude::*, typed_route};
+    /// typed_route! { pub struct NoteRoute = "/notes/:id" { pub id: u64 } }
+    /// let link = Link::to(&NoteRoute { id: 3 }).child("Open note 3");
+    /// # let _ = link;
+    /// ```
+    pub fn to<R: Route>(route: &R) -> Self {
+        let href = route.href();
+        Self::new(ElementId::Name(href.clone()), href)
+    }
+
+    /// Add typed search params to the link's path.
+    #[must_use]
+    pub fn search<S: Search>(mut self, search: &S) -> Self {
+        let location = Location::parse(&self.to);
+        self.to = Location::build(location.path(), &search.to_query()).into();
+        self
+    }
+
+    /// Run the target route's loaders when the pointer enters the link, so its data is
+    /// loading before the click (TanStack Router's `preload: "intent"`). Default: off.
+    #[must_use]
+    pub fn preload(mut self, preload: bool) -> Self {
+        self.preload = preload;
+        self
     }
 
     /// Replace the current history entry instead of adding one.
@@ -554,20 +1143,30 @@ impl RenderOnce for Link {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
         let active = is_active(&self.to, self.exact, cx);
         let (to, replace_entry) = (self.to, self.replace);
+        let preload_target = self.preload.then(|| to.clone());
         let element = div()
             .id(self.id)
             .tab_index(0)
+            .when_some(preload_target, |element, target| {
+                element.on_hover(move |hovered, _, cx| {
+                    if *hovered {
+                        preload(&target, cx);
+                    }
+                })
+            })
             .sx((&LINK.root, active.then_some(&LINK.active), &self.sx))
             .children(self.children)
             .apply_style_overrides(&self.style_overrides);
         crate::components::interaction::on_activate(
             element,
-            Rc::new(move |_, cx| {
-                if replace_entry {
-                    replace(to.clone(), cx);
-                } else {
-                    navigate(to.clone(), cx);
-                }
+            Rc::new(move |window: &mut Window, cx: &mut App| {
+                with_window(window.window_handle(), || {
+                    if replace_entry {
+                        replace(to.clone(), cx);
+                    } else {
+                        navigate(to.clone(), cx);
+                    }
+                });
             }),
         )
     }
@@ -642,6 +1241,32 @@ mod tests {
         );
         assert_eq!(normalize("users/".into()).as_ref(), "/users");
         assert_eq!(normalize("/".into()).as_ref(), "/");
+    }
+
+    #[cfg(feature = "persist")]
+    #[gpui::test]
+    fn the_location_is_saved_and_restored(cx: &mut gpui::TestAppContext) {
+        let key = format!("test-{}", std::process::id());
+        cx.update(|cx| {
+            crate::persist::set_app_name(cx, "rok-ui-tests");
+            persist_location(&key, cx);
+            navigate("/inbox/7?tab=info", cx);
+        });
+        cx.executor()
+            .advance_clock(std::time::Duration::from_secs(1));
+        cx.run_until_parked();
+        // A new app (fresh history) restores it.
+        let restored = cx.update(|cx| {
+            cx.set_global(Histories::default());
+            persist_location(&key, cx);
+            location(cx)
+        });
+        assert_eq!(restored.path(), "/inbox/7");
+        assert_eq!(restored.query("tab"), Some("info"));
+        let file = crate::persist::config_dir()
+            .join("rok-ui-tests")
+            .join(format!("location-{key}.json"));
+        std::fs::remove_file(file).ok();
     }
 
     #[gpui::test]

@@ -73,7 +73,7 @@ How caching works:
 - **Garbage collection.** Data nobody reads for `gc_time` (default five minutes) is dropped.
 - **Retries.** `.retry(n)` retries with exponential backoff starting at `.retry_delay(..)`.
 - **Other options.** `enabled`, `initial_data`, `placeholder_data`, `keep_previous_data`
-  (pagination without flashing) and `refetch_interval`.
+  (pagination without flashing), `refetch_interval` and `refetch_on_window_focus`.
 
 ### Keys and invalidation
 

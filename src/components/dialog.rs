@@ -13,15 +13,22 @@ use crate::{
 /// A controlled modal. Render it anywhere in your view; it draws on top of everything.
 /// It closes on Escape, on backdrop click and on its close button, by calling `on_close`.
 ///
-/// ```ignore
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let name_input = use_input_state("name", window, cx, |state| state);
 /// let dialog_open = use_state(window, cx, || false);
-/// Dialog::new("edit-profile")
+/// let dialog = Dialog::new("edit-profile")
 ///     .open(dialog_open.get(cx))
 ///     .title("Edit profile")
 ///     .description("Make changes to your profile here.")
 ///     .child(Input::new(&name_input))
 ///     .footer(Button::new("save").label("Save changes"))
-///     .on_close({ let dialog_open = dialog_open.clone(); move |_, _, cx| dialog_open.set(false, cx) })
+///     .on_close({
+///         let dialog_open = dialog_open.clone();
+///         move |_, _, cx| dialog_open.set(false, cx)
+///     });
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Dialog {

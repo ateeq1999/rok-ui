@@ -27,9 +27,17 @@ pub enum ToggleVariant {
 
 /// A two-state button. Controlled: pass `pressed`, update it in `on_change`.
 ///
-/// ```ignore
-/// Toggle::new("bold").icon(IconName::Bold).tooltip("Bold")
-///     .pressed(bold).on_change(move |pressed, _, cx| set_bold(*pressed, cx))
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let bold = false;
+/// # fn set_bold(_: bool, _: &mut App) {}
+/// let toggle = Toggle::new("bold")
+///     .icon(IconName::Bold)
+///     .tooltip("Bold")
+///     .pressed(bold)
+///     .on_change(move |pressed, _, cx| set_bold(*pressed, cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Toggle {
@@ -225,14 +233,19 @@ struct ToggleGroupItem {
 /// A row of [`Toggle`]s. With `.multiple(true)` any number can be pressed;
 /// otherwise pressing one releases the others (pressing it again clears it).
 ///
-/// ```ignore
-/// ToggleGroup::new("formatting")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let pressed_values: Vec<SharedString> = Vec::new();
+/// # fn set_pressed_values(_: Vec<SharedString>, _: &mut App) {}
+/// let formatting = ToggleGroup::new("formatting")
 ///     .multiple(true)
 ///     .outline()
 ///     .icon_item("bold", IconName::Bold, "Bold")
 ///     .icon_item("italic", IconName::Italic, "Italic")
 ///     .value(pressed_values.clone())
-///     .on_change(move |values, _, cx| set_pressed_values(values.clone(), cx))
+///     .on_change(move |values, _, cx| set_pressed_values(values.clone(), cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct ToggleGroup {

@@ -30,11 +30,14 @@ pub fn use_textarea_state(
 /// shadcn/ui's `<Textarea>`. Enter adds a line; Ctrl/Cmd-Enter emits
 /// [`super::InputEvent::Submitted`]. It is at least 64px tall and grows with the text.
 ///
-/// ```ignore
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
 /// let message = use_textarea_state("message", window, cx, |state| {
 ///     state.with_placeholder("Type your message here.")
 /// });
-/// Textarea::new(&message)
+/// let field = Textarea::new(&message);
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Textarea {
@@ -79,7 +82,9 @@ impl Textarea {
 
     /// For fields embedded in a larger control that draws its own ring.
     #[cfg_attr(not(feature = "full"), allow(dead_code))]
-    pub(crate) fn without_focus_ring(mut self) -> Self {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn without_focus_ring(mut self) -> Self {
         self.focus_ring = false;
         self
     }

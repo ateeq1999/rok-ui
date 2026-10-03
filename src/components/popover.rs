@@ -13,11 +13,15 @@ use crate::{hooks::EventHandler, styles, styles::ApplyStyleOverrides};
 /// Uncontrolled by default: clicking the trigger opens it, Escape or a click
 /// outside closes it. Pass `.open(..)` with `.on_open_change(..)` to control it.
 ///
-/// ```ignore
-/// Popover::new("dimensions")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let width = use_input_state("width", window, cx, |state| state);
+/// let popover = Popover::new("dimensions")
 ///     .trigger(Button::new("open").outline().label("Open popover"))
 ///     .child(Label::new("Width"))
-///     .child(Input::new(&width))
+///     .child(Input::new(&width));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Popover {

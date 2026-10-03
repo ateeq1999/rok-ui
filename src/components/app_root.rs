@@ -31,7 +31,8 @@ actions!(
     ]
 );
 
-pub(crate) fn bind_focus_navigation_keys(cx: &mut App) {
+#[doc(hidden)]
+pub fn bind_focus_navigation_keys(cx: &mut App) {
     cx.bind_keys([
         KeyBinding::new("tab", FocusNextElement, None),
         KeyBinding::new("shift-tab", FocusPreviousElement, None),
@@ -41,7 +42,10 @@ pub(crate) fn bind_focus_navigation_keys(cx: &mut App) {
 /// Wrap each window's content in `AppRoot` so components inherit the theme.
 /// With the `toast` feature it also draws the toasts shown with `toast(cx, ..)`.
 ///
-/// ```ignore
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// struct MyView;
+///
 /// impl Render for MyView {
 ///     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
 ///         AppRoot::new().child(Button::new("hello").label("Hello"))

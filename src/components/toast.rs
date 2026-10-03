@@ -1,11 +1,18 @@
 //! Toast: short messages that appear in a corner and dismiss themselves
 //! (shadcn/ui's Sonner).
 //!
-//! ```ignore
-//! toast(cx, Toast::new("Event has been created")
-//!     .description("Sunday, December 03, 2023 at 9:00 AM")
-//!     .action("Undo", |_, cx| undo(cx)));
+//! ```no_run
+//! # use rok_ui::prelude::*;
+//! # fn example(window: &mut Window, cx: &mut App) {
+//! # fn undo(_: &mut App) {}
+//! toast(
+//!     cx,
+//!     Toast::new("Event has been created")
+//!         .description("Sunday, December 03, 2023 at 9:00 AM")
+//!         .action("Undo", |_, cx| undo(cx)),
+//! );
 //! toast(cx, Toast::success("Profile saved"));
+//! # }
 //! ```
 //!
 //! [`super::AppRoot`] draws the toasts; without it, render a [`Toaster`] yourself.

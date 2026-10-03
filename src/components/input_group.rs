@@ -14,18 +14,22 @@ use crate::{
     theme::ActiveTheme,
 };
 
-/// ```ignore
-/// InputGroup::new(&url)
-///     .leading_text("https://")
-///     .trailing_text(".com")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let url = use_input_state("url", window, cx, |state| state);
+/// # let query = use_input_state("query", window, cx, |state| state);
+/// # let prompt = use_textarea_state("prompt", window, cx, |state| state);
+/// let site = InputGroup::new(&url).leading_text("https://").trailing_text(".com");
 ///
-/// InputGroup::new(&query)
+/// let search = InputGroup::new(&query)
 ///     .leading_icon(IconName::Search)
-///     .trailing(Kbd::new("⌘K"))
+///     .trailing(Kbd::new("Cmd-K"));
 ///
 /// // A multi-line state renders a textarea; `block_end` adds a toolbar under it.
-/// InputGroup::new(&prompt)
-///     .block_end(Button::new("send").small().icon_only(IconName::Send).ml_auto())
+/// let composer = InputGroup::new(&prompt)
+///     .block_end(Button::new("send").small().icon_only(IconName::Send).ml_auto());
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct InputGroup {

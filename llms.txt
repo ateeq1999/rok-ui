@@ -7,7 +7,8 @@
 
 This file is a dense digest for coding agents. Read `AGENTS.md` for the task skills, and the
 guides in `docs/guide/` for detail. Crates: `rok-ui` (facade, `src/`), `rok-ui-macros`
-(`macros/`). MSRV: `rust-version` in `Cargo.toml`. License: MIT.
+(`macros/`, proc-macro entry points only), `rok-ui-grammar` (macro parsing and codegen, tested in
+`rok-ui-grammar/tests`), `rok-ui-build` (the file-route generator), `rok-ui-cli` (`cargo rok-ui`). MSRV: `rust-version` in `Cargo.toml`. License: MIT.
 
 ## Setup
 
@@ -15,10 +16,14 @@ guides in `docs/guide/` for detail. Crates: `rok-ui` (facade, `src/`), `rok-ui-m
   hooks, motion, `Sx` and the macros.
 - Call `rok_ui::init(cx)` once at startup (installs the theme and keyboard focus tracking) and
   pass `rok_ui::Assets` to `Application::with_assets`.
-- Features: `default = ["full"]`; `full` = groups `forms`, `overlays`, `layout`, `data`,
-  `chat`, `shell`, `state`. Opt-in: `router`, `query`, `runtime`, `db` (+ `db-chrono`,
-  `db-uuid`, `db-json`, `db-migrate`), fonts (`font-cairo`, `font-inter`,
+- Features: `default = ["full"]`; `full` = groups `forms` (which includes `form`), `overlays`,
+  `layout`, `data`, `chat`, `shell`, `state`. Opt-in: `router`, `query`, `runtime`, `persist`,
+  `devtools`, `form-garde`, `db` (+ `db-chrono`, `db-uuid`, `db-json`, `db-migrate`), fonts (`font-cairo`, `font-inter`,
   `font-noto-sans-arabic`, group `fonts`). Each component is its own kebab-case feature.
+
+- New app: `cargo install rok-ui-cli`, then `cargo rok-ui new my-app --template full`
+  (`minimal` | `full` | `db`); `cargo rok-ui add button` copies a component's source into
+  `src/components/ui/`; `cargo rok-ui routes` writes a checked-in route tree.
 
 ## Components
 
@@ -58,7 +63,8 @@ API conventions every component follows:
 #[component]
 pub fn Counter(
     title: SharedString,                         // required prop -> Counter::new(title)
-    #[prop(optional)] step: Option<i32>,         // optional prop -> .step(5)
+    #[default] step: Option<i32>,                // optional prop -> .step(5)
+    #[default(px(32.))] size: Pixels,            // optional with a custom default
     #[prop(optional)] on_change: Option<EventHandler<i32>>,
     #[children] children: Vec<AnyElement>,       // makes it a ParentElement
     #[sx] sx: Sx,                                // caller styles, apply last
@@ -96,6 +102,8 @@ pub fn Counter(
 - `view! { Card(sx = [CARD.base]) { CardTitle("Hi") Button("go", label = "Go").outline() } }`:
   `Name(a, key = v)` is `Name::new(a).key(v)`; lowercase `div`, `img`, `svg` are GPUI
   elements; children support `"text"`, `{expr}`, `if`, `if let`, `match`, `for`.
+- `#[key(item.id)] for item in items { .. }` keeps hook state with reordered items
+  (`Keyed::new(&key, child)` by hand).
 - Strings in markup become `BidiText` automatically (correct RTL shaping on Windows). Strings
   passed to GPUI's `.child(..)` directly need `BidiText::new(..)`.
 
@@ -128,13 +136,33 @@ rok-ui-hooks signals re-exported as `rok_ui::state`: `create_signal`, `create_me
 `create_store`, `use_signal(window, cx, ..)` for a component's own signal, `cx.track(..)` /
 `use_tracked` to re-render when signals read change.
 
+- `#[derive(Store)] struct Todo { title: String }` generates `TodoStore` with a signal per
+  field (`todo.title()`, `set_title`, `update_title`, `get`, `set`).
+- `persist::persisted_store(cx, "settings", Settings::default)` saves a store as versioned
+  JSON in the config directory (feature `persist`; `PersistOptions` for migrations).
+- Devtools (feature `devtools`): add `devtools::Devtools::new()` to the root; Ctrl-Shift-D.
+
 ## Router (`router` feature)
 
-`Router::new().route("/notes/:id", |route, window, cx| ..).redirect(from, to).not_found(..)`;
-patterns support `:param` and `*wildcard`, ranked by specificity. `route.param_as::<u64>("id")`,
-`route.query("tab")`. Navigation: `router::navigate(path, cx)`, `replace`, `back`, `forward`,
-`location`, `is_active(path, exact, cx)`, `on_navigate`. `Link::new(id, "/notes/3")`.
-History is app-wide.
+- Code-based: `Router::new().route("/notes/:id", |route, window, cx| ..).redirect(from, to)
+  .not_found(..).guard("/admin", |location, cx| Ok(()) or Err(RouteControl::redirect(path)))
+  .loader("/notes/:id", |route, cx| ..)`.
+- Typed: `typed_route! { pub struct NoteRoute = "/notes/:id" { pub id: u64 } }` (checked at
+  compile time); `Link::to(&NoteRoute { id })`, `router::navigate_to(&route, cx)`,
+  `router::use_params::<NoteRoute>(cx)`, `.route_to(|note: NoteRoute, w, cx| ..)`,
+  `.loader_to(|note: &NoteRoute, cx| ..)`, `Link::preload(true)`.
+- Search params: `#[derive(Search)] struct S { #[search(default = 1)] page: u32, q: Option<String> }`;
+  `router::use_search::<S>(cx)`, `router::update_search::<S>(cx, |s| ..)`, `Link::search(&s)`.
+- `router::use_blocker(cx, dirty)` holds navigation; `blocker.proceed(cx)` / `reset(cx)`.
+- `router::set_per_window_history(true, cx)` gives each window its own history;
+  `router::with_window(handle, || ..)`; `router::persist_location("main", cx)` (with `persist`).
+- File-based: `rok-ui-build` in build-dependencies, `rok_ui_build::routes("src/routes").generate()`
+  in build.rs, `rok_ui::routes!();` in the crate, `routes::tree()` renders. Files: `__root.rs`,
+  `__not_found.rs`, `index.rs`, `$id.rs`, `$.rs`, `a.b.rs`, `_pathless.rs`, `(group)/`,
+  `-ignored/`, `[escaped].rs`. Each file: `file_route! { params: { id: u64 }, search: S,
+  component: Page | layout: Layout, before_load: |loc, cx| .., loader: |route, cx| .. }`; in the
+  file, `Route` is its generated type and `params(cx)` / `search(cx)` read it.
+
 
 ## Data (`query` feature)
 
@@ -144,7 +172,7 @@ block_on}`):
 - Keys: `query_key!["notes", id]` (hierarchical; invalidation matches by prefix).
 - `QueryOptions::new(key, |cx| async move { .. })` with `.stale_time`, `.gc_time`, `.retry`,
   `.enabled`, `.initial_data`, `.placeholder_data`, `.keep_previous_data`,
-  `.refetch_interval`. Define options in a function and reuse them.
+  `.refetch_interval`, `.refetch_on_window_focus`. Define options in a function and reuse them.
 - Read: `query::use_query(cx, options)` -> `.state()` is `QueryState::{Pending, Error,
   Success}`; `use_suspense_query` inside `Suspense`; `ErrorBoundary` catches errors.
 - Cache: `invalidate(cx, &key)`, `fetch_query`, `prefetch_query`, `ensure_query_data`,
@@ -153,6 +181,22 @@ block_on}`):
   `use_mutation`; `#[procedure(invalidates = [..])]` typed commands with `use_procedure` and
   `.call(cx, input)`; `#[memoize]` shares one future between concurrent callers.
 - Background code reads app values through `query::provide(cx, value)` and `TaskCx::get`.
+
+## Forms (`form` feature)
+
+- `#[derive(FormValues)] struct SignUp { email: String, team: Vec<Invite> }` adds
+  `SignUp::EMAIL: Field<SignUp, String>`; paths compose: `SignUp::TEAM.at(0).then(Invite::EMAIL)`.
+- `FormOptions::new(defaults).field(SignUp::EMAIL, Validators::new().on_change(..).on_blur(..)
+  .on_change_async_debounce(d, |v| async ..).listen_to(&SignUp::PASSWORD))
+  .validators(FormValidators::new().on_submit(|v| Some(FormError::field(&SignUp::CONFIRM, ".."))))
+  .on_submit(|values, cx| Task<Result<(), FormError>>)`.
+- `let form = form::use_form(cx, opts); let email = form.field(cx, SignUp::EMAIL);`
+  `TextField::new(&email, "Email")`, `CheckboxField`, `SwitchField`, `BoundInput`,
+  `SubmitButton::new(&form, "Save")`, `FormErrors::new(&form)`.
+- `form.array_field(cx, SignUp::TEAM)`: `push_value`, `remove_value`, `swap_values`,
+  `move_value`, `insert_value`, `replace_value`, `push_handler`, `remove_handler`.
+- Errors are kept per `ValidationEvent` (`Mount`, `Change`, `Blur`, `Submit`, `Server`).
+  `GardeSchema` (feature `form-garde`) validates with `garde::Validate`.
 
 ## Database (`db` feature)
 
@@ -183,5 +227,6 @@ PostgreSQL through rok-db (a type-safe async ORM on sqlx), run on the shared run
 
 ## Docs
 
-- Guides: `docs/guide/{app-shells,state,router,query,database}.md` (also the module docs).
+- Guides: `docs/guide/{app-shells,state,router,query,forms,database}.md` (also the module
+  docs). Every doc example compiles (no `ignore` blocks). Upgrading: `docs/migration/0.6.md`.
 - Plan: `enhance.md`; progress: `roadmap.md`; changes: `CHANGELOG.md`.

@@ -28,12 +28,16 @@ enum BreadcrumbEntry {
     Ellipsis(Option<Menu>),
 }
 
-/// ```ignore
-/// Breadcrumb::new("path")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # fn navigate(_: &str, _: &mut App) {}
+/// let trail = Breadcrumb::new("path")
 ///     .link("Home", |_, _, cx| navigate("/", cx))
 ///     .ellipsis_menu(Menu::new().item(MenuItem::new("Documentation")))
 ///     .link("Components", |_, _, cx| navigate("/components", cx))
-///     .page("Breadcrumb")
+///     .page("Breadcrumb");
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Breadcrumb {

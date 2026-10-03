@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "macros"]
+members = [".", "macros", "rok-ui-grammar", "rok-ui-build", "rok-ui-cli", "examples/file_routes"]
 resolver = "2"
 
 [workspace.lints.rust]
@@ -68,6 +68,9 @@ rok-ui-hooks = { version = "0.3", optional = true }
 rok-db = { version = "0.1", optional = true }
 tokio = { version = "1", features = ["rt-multi-thread", "time"], optional = true }
 futures = { version = "0.3", optional = true }
+garde = { version = "0.23", optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
 
 # Reads which Arabic letter forms installed fonts have (the same crate GPUI uses).
 [target.'cfg(windows)'.dependencies]
@@ -89,7 +92,7 @@ full = ["forms", "overlays", "layout", "data", "chat", "shell", "state"]
 
 # Groups.
 forms = [
-    "button", "calendar", "checkbox", "combobox", "date-picker", "field", "input",
+    "form", "button", "calendar", "checkbox", "combobox", "date-picker", "field", "input",
     "input-group", "input-otp", "label", "radio-group", "select", "slider", "switch", "toggle",
 ]
 overlays = [
@@ -119,8 +122,16 @@ font-noto-sans-arabic = []
 state = ["dep:rok-ui-hooks"]
 # Queries, mutations, procedures, Suspense (`rok_ui::query`), on the shared runtime.
 query = ["runtime", "dep:futures"]
+# Headless, type-safe forms (`rok_ui::form`) with bound fields. Part of the `forms` group.
+form = ["button", "checkbox", "field", "input", "spinner", "switch"]
+# Form validation with garde: `FormValidators::schema(GardeSchema)`.
+form-garde = ["form", "dep:garde"]
 # The shared tokio runtime for background work (`rok_ui::runtime`).
 runtime = ["dep:tokio"]
+# Stores saved to the config directory (`rok_ui::persist`).
+persist = ["state", "dep:serde", "dep:serde_json"]
+# An overlay showing the router and the query cache (Ctrl-Shift-D). Not part of `full`.
+devtools = []
 # Routes with params, back / forward history and links (not part of `full`).
 router = []
 # PostgreSQL through rok-db, on a background tokio runtime (not part of `full`).
@@ -207,6 +218,10 @@ toggle-group = ["toggle"]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+# Used only by doctests (the file-based routing guide), which cargo-udeps cannot see.
+[package.metadata.cargo-udeps.ignore]
+development = ["rok-ui-build"]
+
 [[example]]
 name = "gallery"
 required-features = ["full"]
@@ -232,6 +247,10 @@ name = "notes"
 required-features = ["full", "router"]
 
 [[example]]
+name = "sign_up"
+required-features = ["full"]
+
+[[example]]
 name = "db_users"
 required-features = ["full", "db"]
 
@@ -252,9 +271,24 @@ name = "query"
 required-features = ["full", "query"]
 
 [[test]]
+name = "router"
+required-features = ["full", "router", "query"]
+
+[[test]]
+name = "form"
+required-features = ["full"]
+
+[[test]]
+name = "store"
+required-features = ["full"]
+
+[[test]]
 name = "compile_errors"
 
 [dev-dependencies]
 gpui = { version = "0.2.2", features = ["test-support"] }
 env_logger = "0.11"
 trybuild = "1"
+# The router guide's build-script example.
+rok-ui-build = { path = "rok-ui-build" }
+garde = { version = "0.23", features = ["derive"] }

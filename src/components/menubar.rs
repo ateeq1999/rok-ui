@@ -94,12 +94,18 @@ struct MenubarMemory {
 /// A desktop-style menu bar. Click a title to open its menu; while one is open,
 /// hovering another title switches to it.
 ///
-/// ```ignore
-/// Menubar::new("app-menu")
-///     .menu("File", Menu::new()
-///         .item(MenuItem::new("New Tab").shortcut("⌘T"))
-///         .item(MenuItem::new("Print…").shortcut("⌘P")))
-///     .menu("Edit", Menu::new().item(MenuItem::new("Undo").shortcut("⌘Z")))
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let menubar = Menubar::new("app-menu")
+///     .menu(
+///         "File",
+///         Menu::new()
+///             .item(MenuItem::new("New Tab").shortcut("Cmd-T"))
+///             .item(MenuItem::new("Print...").shortcut("Cmd-P")),
+///     )
+///     .menu("Edit", Menu::new().item(MenuItem::new("Undo").shortcut("Cmd-Z")));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Menubar {
@@ -240,11 +246,17 @@ enum NavigationEntry {
 /// A website-style navigation bar: plain links plus titles that reveal a content
 /// panel on hover (shadcn/ui's `<NavigationMenu>`).
 ///
-/// ```ignore
-/// NavigationMenu::new("site-nav")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let getting_started_grid = div();
+/// # let component_grid = div();
+/// # fn open_docs(_: &mut App) {}
+/// let site_nav = NavigationMenu::new("site-nav")
 ///     .panel("Getting started", getting_started_grid)
 ///     .panel("Components", component_grid)
-///     .link("Docs", |_, _, cx| open_docs(cx))
+///     .link("Docs", |_, _, cx| open_docs(cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct NavigationMenu {

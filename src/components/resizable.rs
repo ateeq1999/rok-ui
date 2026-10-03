@@ -137,7 +137,9 @@ impl ParentElement for ResizablePanel {
 }
 
 /// Starting sizes: explicit defaults, with the remainder split between the rest.
-pub(crate) fn initial_sizes(defaults: &[Option<f32>]) -> Vec<f32> {
+#[doc(hidden)]
+#[must_use]
+pub fn initial_sizes(defaults: &[Option<f32>]) -> Vec<f32> {
     let assigned: f32 = defaults.iter().flatten().sum();
     let unassigned = defaults.iter().filter(|size| size.is_none()).count();
     let share = if unassigned > 0 {
@@ -150,7 +152,9 @@ pub(crate) fn initial_sizes(defaults: &[Option<f32>]) -> Vec<f32> {
 
 /// Move the boundary after panel `handle` by `delta` percent, within the limits
 /// of both neighbours. Returns the new sizes.
-pub(crate) fn resize(sizes: &[f32], limits: &[(f32, f32)], handle: usize, delta: f32) -> Vec<f32> {
+#[doc(hidden)]
+#[must_use]
+pub fn resize(sizes: &[f32], limits: &[(f32, f32)], handle: usize, delta: f32) -> Vec<f32> {
     let mut next = sizes.to_vec();
     let (before, after) = (handle, handle + 1);
     if after >= sizes.len() {
@@ -172,11 +176,16 @@ struct ResizableMemory {
     bounds: Rc<Cell<Bounds<Pixels>>>,
 }
 
-/// ```ignore
-/// ResizablePanelGroup::new("layout")
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let sidebar = div();
+/// # let editor = div();
+/// let layout = ResizablePanelGroup::new("layout")
 ///     .with_handle(true)
 ///     .panel(ResizablePanel::new().default_size(25.).min_size(15.).child(sidebar))
-///     .panel(ResizablePanel::new().child(editor))
+///     .panel(ResizablePanel::new().child(editor));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct ResizablePanelGroup {

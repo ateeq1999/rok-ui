@@ -1,6 +1,7 @@
 //! StyleX-style styling: style objects defined once, merged at use, last wins.
 //!
-//! ```ignore
+//! ```no_run
+//! # use rok_ui::{prelude::*, sx};
 //! styles! {
 //!     pub CARD = {
 //!         base: { display: flex, direction: column, gap: 6, padding: 6, radius: xl,
@@ -10,8 +11,10 @@
 //!     }
 //! }
 //!
-//! div().sx((&CARD.base, compact.then_some(&CARD.compact)))
-//! div().sx(sx![CARD.base, compact => CARD.compact])
+//! # fn example(compact: bool) {
+//! let card = div().sx((&CARD.base, compact.then_some(&CARD.compact)));
+//! let same = div().sx(sx![CARD.base, compact => CARD.compact]);
+//! # }
 //! ```
 //!
 //! An [`Sx`] is an ordered list of declarations per state (base, hover, focus,
@@ -50,7 +53,8 @@ thread_local! {
 
 /// Record the theme that `.sx()` resolves tokens against. Called by
 /// [`Theme::set_global`] and [`crate::init`]; GPUI renders on one thread.
-pub(crate) fn set_theme_snapshot(theme: &Theme) {
+#[doc(hidden)]
+pub fn set_theme_snapshot(theme: &Theme) {
     THEME_SNAPSHOT.with(|snapshot| *snapshot.borrow_mut() = Some(Rc::new(theme.clone())));
 }
 
@@ -98,7 +102,9 @@ pub fn focus_visible() -> bool {
 
 /// Record whether the latest input came from the keyboard. Returns whether that
 /// changed, in which case the window needs a redraw.
-pub(crate) fn set_keyboard_modality(keyboard: bool) -> bool {
+#[doc(hidden)]
+#[must_use]
+pub fn set_keyboard_modality(keyboard: bool) -> bool {
     KEYBOARD_MODALITY.with(|current| current.replace(keyboard) != keyboard)
 }
 
@@ -299,7 +305,9 @@ pub enum SxRadius {
 }
 
 impl SxRadius {
-    pub(crate) fn resolve(self, theme: &Theme) -> AbsoluteLength {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn resolve(self, theme: &Theme) -> AbsoluteLength {
         match self {
             SxRadius::None => px(0.).into(),
             SxRadius::Sm => theme.radius_small().into(),

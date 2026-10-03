@@ -4,11 +4,13 @@
 //! position (`Window::use_state`). These helpers wrap it in a small [`State`]
 //! handle with `get` / `set` / `update`, so component code reads like React:
 //!
-//! ```ignore
+//! ```no_run
+//! # use rok_ui::prelude::*;
 //! #[component]
 //! fn Counter(window: &mut Window, cx: &mut App) -> impl IntoElement {
 //!     let count = use_state(window, cx, || 0);
-//!     Button::new("increment", format!("Clicked {} times", count.get(cx)))
+//!     Button::new("increment")
+//!         .label(format!("Clicked {} times", count.get(cx)))
 //!         .on_click(move |_, _, cx| count.update(cx, |value| *value += 1))
 //! }
 //! ```

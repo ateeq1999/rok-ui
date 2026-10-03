@@ -15,12 +15,15 @@ use crate::{
 
 /// Controlled like a React input: pass `checked`, update it in `on_change`.
 ///
-/// ```ignore
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
 /// let accepted = use_state(window, cx, || false);
-/// Checkbox::new("terms")
+/// let terms = Checkbox::new("terms")
 ///     .checked(accepted.get(cx))
 ///     .label("Accept terms and conditions")
-///     .on_change(move |checked, _, cx| accepted.set(*checked, cx))
+///     .on_change(move |checked, _, cx| accepted.set(*checked, cx));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Checkbox {

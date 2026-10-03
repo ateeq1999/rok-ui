@@ -17,8 +17,11 @@ use crate::components::direction::{is_rtl, TextDirection};
 /// Text that renders correctly whatever mix of scripts it holds. Inherits font,
 /// size, color and alignment from its parent like a plain string child.
 ///
-/// ```ignore
-/// div().text_right().child(BidiText::new("مرحبا بك في rok-ui"))
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let greeting = div().text_right().child(BidiText::new("مرحبا بك في rok-ui"));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct BidiText {
@@ -57,7 +60,8 @@ impl RenderOnce for BidiText {
 /// Text for the label slot of a component: a [`BidiText`] when it needs
 /// reordering, the plain string otherwise.
 #[cfg_attr(not(feature = "full"), allow(dead_code))]
-pub(crate) fn text(text: impl Into<SharedString>) -> AnyElement {
+#[doc(hidden)]
+pub fn text(text: impl Into<SharedString>) -> AnyElement {
     BidiText::new(text).into_any_element()
 }
 

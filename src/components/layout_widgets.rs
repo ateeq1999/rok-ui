@@ -1,11 +1,15 @@
 //! Flutter-style layout widgets: `Row`, `Column`, `Expanded`, `Stack`, `Padding` and
 //! friends, as typed wrappers over flexbox and grid.
 //!
-//! ```ignore
-//! Column::new()
+//! ```no_run
+//! # use rok_ui::prelude::*;
+//! # fn example(window: &mut Window, cx: &mut App) {
+//! # let search_field = div();
+//! # let results = div();
+//! let page = Column::new()
 //!     .cross_axis_alignment(CrossAxisAlignment::Stretch)
 //!     .spacing(px(12.))
-//!     .child(AppTitle::new())
+//!     .child(H3::new("Results"))
 //!     .child(
 //!         Row::new()
 //!             .main_axis_alignment(MainAxisAlignment::SpaceBetween)
@@ -13,7 +17,8 @@
 //!             .child(SizedBox::width(px(8.)))
 //!             .child(Button::new("filter").label("Filter")),
 //!     )
-//!     .child(Expanded::new().child(results))
+//!     .child(Expanded::new().child(results));
+//! # }
 //! ```
 //!
 //! "Start" and "end" follow the reading direction like Flutter's
@@ -752,10 +757,14 @@ pub enum StackFit {
 /// with `.child(..)` are placed at the stack's [`Alignment`] and size it;
 /// [`Positioned`] children added with `.positioned(..)` are pinned to its edges.
 ///
-/// ```ignore
-/// Stack::new()
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let online_dot = div();
+/// let avatar = Stack::new()
 ///     .child(Avatar::new("LA"))
-///     .positioned(Positioned::new().bottom(px(0.)).end(px(0.)).child(online_dot))
+///     .positioned(Positioned::new().bottom(px(0.)).end(px(0.)).child(online_dot));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Stack {
@@ -1057,9 +1066,14 @@ enum GridColumns {
 /// Children in a grid of equal-width columns, filled in reading order (right to
 /// left in RTL). Wrap it in a scroll container for long grids.
 ///
-/// ```ignore
-/// GridView::count(3).spacing(px(12.)).children(photos)
-/// GridView::extent("products", px(220.)).spacing(px(16.)).children(cards)
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # let photos: Vec<AnyElement> = Vec::new();
+/// # let cards: Vec<AnyElement> = Vec::new();
+/// let fixed_columns = GridView::count(3).spacing(px(12.)).children(photos);
+/// let fitted_columns = GridView::extent("products", px(220.)).spacing(px(16.)).children(cards);
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct GridView {
@@ -1251,10 +1265,15 @@ type LayoutBuilderFn = Box<dyn FnOnce(BoxConstraints, &mut Window, &mut App) -> 
 /// it a definite height (`.h_full()`, `.size_full()`) in that case. The first frame
 /// uses the window's size.
 ///
-/// ```ignore
-/// LayoutBuilder::new("products", |constraints, _, _| {
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// # fn two_panes() -> AnyElement { div().into_any_element() }
+/// # fn one_pane() -> AnyElement { div().into_any_element() }
+/// let products = LayoutBuilder::new("products", |constraints, _, _| {
 ///     if constraints.max_width > px(720.) { two_panes() } else { one_pane() }
-/// })
+/// });
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct LayoutBuilder {

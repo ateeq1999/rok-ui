@@ -10,12 +10,15 @@ use crate::{
     theme::ActiveTheme,
 };
 
-/// ```ignore
-/// Empty::new()
+/// ```no_run
+/// # use rok_ui::prelude::*;
+/// # fn example(window: &mut Window, cx: &mut App) {
+/// let empty = Empty::new()
 ///     .icon(IconName::Folder)
 ///     .title("No projects yet")
 ///     .description("You haven't created any projects yet.")
-///     .child(Button::new("create").label("Create project"))
+///     .child(Button::new("create").label("Create project"));
+/// # }
 /// ```
 #[derive(IntoElement)]
 pub struct Empty {
