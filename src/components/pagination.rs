@@ -228,6 +228,6 @@ mod tests {
             vec![Page(1), Ellipsis, Page(4), Ellipsis, Page(7)]
         );
         assert_eq!(page_slots(2, 3, 0), vec![Page(1), Page(2), Page(3)]);
-        assert!(page_slots(1, 0, 1).is_empty());
+        assert_eq!(page_slots(1, 0, 1), []);
     }
 }
