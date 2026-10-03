@@ -9,6 +9,7 @@ finishes.
 |---|---|
 | `queryOptions({ queryKey, queryFn, staleTime })` | `QueryOptions::new(query_key![..], fetch).stale_time(..)` |
 | `useQuery(options)` | `query::use_query(cx, options)` |
+| `useQuery({ ...options, select })` | `query::use_query_select(cx, options, \|data\| ..)` |
 | `useSuspenseQuery` + `<Suspense>` | `use_suspense_query(cx, options)?` inside `Suspense::new(..)` |
 | `queryClient.invalidateQueries({ queryKey })` | `query::invalidate(cx, &query_key![..])` (prefix match) |
 | `setQueryData`, `ensureQueryData`, `prefetchQuery` | `set_query_data`, `ensure_query_data`, `prefetch_query` |
@@ -74,6 +75,25 @@ How caching works:
 - **Retries.** `.retry(n)` retries with exponential backoff starting at `.retry_delay(..)`.
 - **Other options.** `enabled`, `initial_data`, `placeholder_data`, `keep_previous_data`
   (pagination without flashing), `refetch_interval` and `refetch_on_window_focus`.
+
+### Reading part of the data
+
+[`use_query_select`] derives a value from the cached data, like TanStack's `select` option. The
+cache keeps the data as fetched, so other readers of the key see all of it, and each call site
+derives again only when the data changes, not on every render:
+
+```no_run
+# use rok_ui::{prelude::*, query::{self, QueryOptions}, query_key};
+# #[derive(Clone)] struct Note { pinned: bool }
+# fn notes_query() -> QueryOptions<Vec<Note>> { QueryOptions::new(query_key!["notes"], |_| async { Ok::<_, std::io::Error>(Vec::new()) }) }
+#[component]
+fn PinnedCount(cx: &mut Cx) -> impl IntoElement {
+    let pinned = query::use_query_select(cx, notes_query(), |notes| {
+        notes.iter().filter(|note| note.pinned).count()
+    });
+    div().child(format!("{} pinned", pinned.data().copied().unwrap_or(0)))
+}
+```
 
 ### Keys and invalidation
 

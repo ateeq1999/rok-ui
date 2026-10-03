@@ -516,6 +516,83 @@ pub fn use_suspense_query<T: Send + 'static>(
     use_query(cx, options).suspend()
 }
 
+/// The derived value one call site keeps, and the data it was derived from.
+struct Selection<T, U> {
+    source: Rc<T>,
+    selected: Rc<U>,
+}
+
+/// [`use_query`] that reads part of the data, like TanStack Query's `select` option: `select`
+/// derives a value from the cached data, and the cache keeps the data as fetched, so other
+/// readers of the key see all of it.
+///
+/// The derived value is remembered per call site and derived again only when the cached data
+/// changes (a fetch, `set_query_data`), not on every render, so `select` can sort, filter or
+/// count large lists.
+///
+/// ```no_run
+/// # use rok_ui::{prelude::*, query::{self, QueryOptions}, query_key};
+/// # #[derive(Clone)] struct Todo { done: bool }
+/// fn todos_query() -> QueryOptions<Vec<Todo>> {
+///     QueryOptions::new(query_key!["todos"], |_| async { Ok::<_, std::io::Error>(Vec::new()) })
+/// }
+///
+/// #[component]
+/// fn Remaining(cx: &mut Cx) -> impl IntoElement {
+///     let remaining = query::use_query_select(cx, todos_query(), |todos| {
+///         todos.iter().filter(|todo| !todo.done).count()
+///     });
+///     div().child(format!("{} left", remaining.data().copied().unwrap_or(0)))
+/// }
+/// ```
+#[track_caller]
+pub fn use_query_select<T, U, Select>(
+    cx: &mut Cx,
+    options: QueryOptions<T>,
+    select: Select,
+) -> QueryResult<U>
+where
+    T: Send + 'static,
+    U: 'static,
+    Select: FnOnce(&T) -> U,
+{
+    let key = gpui::ElementId::NamedChild(
+        Box::new(gpui::ElementId::CodeLocation(
+            *std::panic::Location::caller(),
+        )),
+        "rok-ui-query-select".into(),
+    );
+    let result = use_query(cx, options);
+    let memo = cx
+        .window
+        .use_keyed_state(key, cx.app, |_, _| None::<Selection<T, U>>);
+    let data = result.data.as_ref().map(|source| {
+        let remembered = memo
+            .read(cx.app)
+            .as_ref()
+            .filter(|memo| Rc::ptr_eq(&memo.source, source))
+            .map(|memo| memo.selected.clone());
+        remembered.unwrap_or_else(|| {
+            let selected = Rc::new(select(source));
+            memo.update(cx.app, |memo, _| {
+                *memo = Some(Selection {
+                    source: source.clone(),
+                    selected: selected.clone(),
+                });
+            });
+            selected
+        })
+    });
+    QueryResult {
+        data,
+        error: result.error,
+        is_fetching: result.is_fetching,
+        is_placeholder: result.is_placeholder,
+        is_stale: result.is_stale,
+        updated_at: result.updated_at,
+    }
+}
+
 /// Mark every query whose key starts with `prefix` stale. Readers on screen refetch; others
 /// refetch when next read. A fetch already running for a matching key does not count as fresh.
 pub fn invalidate(cx: &mut App, prefix: &QueryKey) {

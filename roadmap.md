@@ -58,8 +58,9 @@ What exists now, by crate:
 |---|---|---|
 | C.1 `Cx` | Partial | `rok_ui::Cx` (window and app, derefs to `App`, `get` / `try_get` / `use_state`); `#[component]` accepts `cx: &mut Cx`. Scoped values (`cx.with`, `cx.keyed`) are not implemented; `Keyed` (G.2) covers stable identity. |
 | Shared runtime | Done | `rok_ui::runtime` (feature `runtime`); `db` and `query` use it. |
-| C.2 Query cache | Partial | `QueryOptions`, `query_key!`, shared in-flight fetches, stale and gc times, retries with backoff, `enabled`, initial / placeholder / previous data, refetch interval, refetch on window focus, prefix invalidation, the imperative API, `queries(cx)`. Not done: `select`. |
+| C.2 Query cache | Done | `QueryOptions`, `query_key!`, shared in-flight fetches, stale and gc times, retries with backoff, `enabled`, initial / placeholder / previous data, refetch interval, refetch on window focus, prefix invalidation, the imperative API, `queries(cx)`, and `use_query_select` (TanStack's `select`, derived once per data change). |
 | C.2 `db::use_query` migration | Done | `db::db_query` / `db_mutation`; the 0.5 hook is deprecated and `db::invalidate` forwards. |
+| rok-db 0.3 | Done | The `db` feature depends on rok-db 0.3. `db::watch_changes::<M>(cx)` uses its change feeds to invalidate `M::TABLE` when rows change in any process (`tests/db.rs`, against PostgreSQL). |
 | C.3 `Suspense`, `ErrorBoundary` | Done | Content returns `Result` and uses `?` on `use_suspense_query`. |
 | C.3 `#[shard]` | Deferred | An `async fn` that returns elements needs a macro that splits the body into a `Send` data phase and a UI phase; `Suspense` plus queries cover the use case. |
 | C.4 Procedures and mutations | Done | `use_mutation` (pending / success / error, optimistic updates with rollback, supersession), `#[procedure]` with typed input, output and error, `Procedure::call`, `provide` / `TaskCx`. |
@@ -154,13 +155,13 @@ The plan left these open. The work so far assumed the following; each can still 
 | K.5 Form validation adapters | `garde` only. |
 | K.6 Remote procedures | Local only for now. |
 | K.7 Signal primitives in rok-ui-hooks | Nothing moved; queries and forms did not need new primitives. |
-| K.8 rok-db helpers | rok-db stays one data source (`db_query`, `db_mutation`). |
+| K.8 rok-db helpers | rok-db stays one data source (`db_query`, `db_mutation`, `watch_changes`). |
 | K.9 Formatting | Stable rustfmt. |
 
 ## Still open
 
 - The workspace split (F.2, decision K.2) and remote procedures (C.4, decision K.6).
-- `#[shard]` (C.3); scoped `Cx` values (C.1); query `select` (C.2); memoize scopes (C.5).
+- `#[shard]` (C.3); scoped `Cx` values (C.1); memoize scopes (C.5).
 - Router: async guards, pending timing (`pending_ms`), viewport preloading, scroll
   restoration, transitions.
 - Forms: more dedicated bound controls, scroll-into-view on a failed submit, persisted drafts.

@@ -11,6 +11,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ### Added
 
+- `query::use_query_select`, TanStack Query's `select`: read a value derived from a query's
+  data, derived again only when the data changes.
 - `db::watch_changes::<M>(cx)`: queries on `M`'s table refetch when its rows change in the
   database, from this app or any other (rok-db change feeds).
 - `llms.txt`, a digest of the API and conventions for coding agents, and `roadmap.md`, which

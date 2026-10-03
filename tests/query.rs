@@ -393,3 +393,57 @@ fn refocusing_a_window_refetches_marked_queries(cx: &mut TestAppContext) {
     window.update(|window, _| window.activate_window());
     settle(window, |_| fetches.load(Ordering::SeqCst) == 2);
 }
+
+/// Reads the length of a query's text through `use_query_select`.
+struct LengthReader {
+    options: QueryOptions<String>,
+    selects: Rc<RefCell<usize>>,
+    seen: Rc<RefCell<Vec<usize>>>,
+}
+
+impl Render for LengthReader {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let selects = self.selects.clone();
+        let mut hooks = Cx::new(window, cx);
+        let length = query::use_query_select(&mut hooks, self.options.clone(), |text| {
+            *selects.borrow_mut() += 1;
+            text.len()
+        });
+        let full = query::use_query(&mut hooks, self.options.clone());
+        if let (Some(length), Some(text)) = (length.data(), full.data()) {
+            assert_eq!(*length, text.len(), "the cache keeps the whole value");
+            self.seen.borrow_mut().push(*length);
+        }
+        div()
+    }
+}
+
+#[gpui::test]
+fn selected_values_are_derived_once_per_change(cx: &mut TestAppContext) {
+    cx.update(rok_ui::init);
+    let fetches = Arc::new(AtomicUsize::new(0));
+    let options = counting_query(query_key!["selected"], fetches, "hello")
+        .stale_time(Duration::from_secs(60));
+    let selects = Rc::new(RefCell::new(0));
+    let seen = Rc::new(RefCell::new(Vec::new()));
+    let (view_selects, view_seen) = (selects.clone(), seen.clone());
+    let (_, window) = cx.add_window_view(move |_, _| LengthReader {
+        options,
+        selects: view_selects,
+        seen: view_seen,
+    });
+    settle(window, |_| !seen.borrow().is_empty());
+    assert_eq!(seen.borrow().last(), Some(&5));
+
+    for _ in 0..3 {
+        window.update(|window, _| window.refresh());
+        window.run_until_parked();
+    }
+    assert_eq!(*selects.borrow(), 1, "re-renders reuse the derived value");
+
+    window.update(|_, cx| {
+        query::set_query_data(cx, &query_key!["selected"], "hello, world".to_string());
+    });
+    settle(window, |_| seen.borrow().last() == Some(&12));
+    assert_eq!(*selects.borrow(), 2);
+}

@@ -175,6 +175,8 @@ block_on}`):
   `.refetch_interval`, `.refetch_on_window_focus`. Define options in a function and reuse them.
 - Read: `query::use_query(cx, options)` -> `.state()` is `QueryState::{Pending, Error,
   Success}`; `use_suspense_query` inside `Suspense`; `ErrorBoundary` catches errors.
+- Part of the data: `query::use_query_select(cx, options, |data| derived)`; derived again only
+  when the cached data changes, and the cache keeps the full value.
 - Cache: `invalidate(cx, &key)`, `fetch_query`, `prefetch_query`, `ensure_query_data`,
   `set_query_data`, `update_query_data`, `cancel_queries`, `reset_queries`.
 - Writes: `MutationOptions::new(..).invalidates(key).optimistic(..).on_success(..)` with
