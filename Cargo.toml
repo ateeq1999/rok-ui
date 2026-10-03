@@ -218,6 +218,10 @@ toggle-group = ["toggle"]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+# Used only by doctests (the file-based routing guide), which cargo-udeps cannot see.
+[package.metadata.cargo-udeps.ignore]
+development = ["rok-ui-build"]
+
 [[example]]
 name = "gallery"
 required-features = ["full"]
