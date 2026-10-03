@@ -51,6 +51,7 @@ categories = ["gui"]
 exclude = [
     "docs/screenshots", ".github", ".agents", ".claude", "scripts", ".gitattributes", ".gitignore",
     "AGENTS.md", "CLAUDE.md", "enhance.md", "roadmap.md", "release-plz.toml", "cliff.toml",
+    "llms.txt", "deny.toml", ".editorconfig", "SUPPORT.md",
 ]
 
 [lints]
