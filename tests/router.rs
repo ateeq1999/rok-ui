@@ -320,3 +320,61 @@ fn loaders_run_once_per_location_and_on_preload(cx: &mut TestAppContext) {
     window.update(|_, cx| router::preload(&NoteRoute { id: 3 }.href(), cx));
     assert_eq!(*loads.borrow(), [1, 2, 3]);
 }
+
+struct PerWindow {
+    seen: Rc<RefCell<Vec<String>>>,
+}
+
+impl Render for PerWindow {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let seen = self.seen.clone();
+        Router::new().route("/*path", move |_, _, cx| {
+            // Components inside a window's router read that window's history.
+            seen.borrow_mut()
+                .push(router::location(cx).path().to_string());
+            div()
+        })
+    }
+}
+
+#[gpui::test]
+fn windows_keep_their_own_histories(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+        rok_ui::init(cx);
+        router::set_per_window_history(true, cx);
+    });
+    let (seen_a, seen_b) = (
+        Rc::new(RefCell::new(Vec::new())),
+        Rc::new(RefCell::new(Vec::new())),
+    );
+    let (view_a, view_b) = (seen_a.clone(), seen_b.clone());
+    let (_, window_a) = cx.add_window_view(move |_, _| PerWindow { seen: view_a });
+    let window_a = window_a.window_handle();
+    let (_, window_b) = cx.add_window_view(move |_, _| PerWindow { seen: view_b });
+    let window_b = window_b.window_handle();
+
+    cx.update(|cx| {
+        router::with_window(window_a, || router::navigate("/inbox", cx));
+        router::with_window(window_b, || {
+            router::navigate("/settings", cx);
+            router::navigate("/settings/profile", cx);
+        });
+        router::with_window(window_a, || {
+            assert_eq!(router::location(cx).path(), "/inbox")
+        });
+        router::with_window(window_b, || {
+            assert_eq!(router::location(cx).path(), "/settings/profile");
+            router::back(cx);
+            assert_eq!(router::location(cx).path(), "/settings");
+        });
+        router::with_window(window_a, || assert!(router::can_go_back(cx)));
+    });
+    cx.run_until_parked();
+    cx.update(|cx| cx.refresh_windows());
+    cx.run_until_parked();
+    assert_eq!(seen_a.borrow().last().map(String::as_str), Some("/inbox"));
+    assert_eq!(
+        seen_b.borrow().last().map(String::as_str),
+        Some("/settings")
+    );
+}

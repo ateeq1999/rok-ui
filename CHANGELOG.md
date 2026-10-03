@@ -54,7 +54,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
   `update_search` and `Link::search`; guards with `Router::guard` and `RouteControl`;
   `use_blocker` to hold navigation away from unsaved work; loaders (`Router::loader`,
   `loader_to`, `file_route! { loader }`) that run once per location and on
-  `Link::preload(true)` hover.
+  `Link::preload(true)` hover; per-window histories (`set_per_window_history`,
+  `with_window`).
 - **File-based routes:** the new `rok-ui-build` crate generates a typed route tree from
   `src/routes/` (TanStack Router's conventions: `$param`, `$` splats, `index`, flat
   `a.b.rs` files, `_pathless` and `layout:` layouts, `(group)` folders, `-ignored` entries,

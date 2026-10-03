@@ -447,9 +447,11 @@ if let Ok(path) = std::fs::read_to_string(last_page_file()) {
 
 ## How it works, and limits
 
-- **One history per app**, like a single browser tab. Every `Router` in every window shows the
-  current location. For separate navigation per window, keep a page enum in each view and
-  skip the router.
+- **One history per app** by default, like a single browser tab: every `Router` in every
+  window shows the current location. `router::set_per_window_history(true, cx)` at startup
+  gives each window its own history instead. Inside a window's `Router` the router functions
+  use that window's history; elsewhere (an event handler) they use the active window's, and
+  `router::with_window(handle, || ..)` picks a window explicitly.
 - Builders run during render, inside the router's element, so they can use hooks
   (`use_state`, `use_signal`, `query::use_query`) like any component.
 - Nothing is persisted. The history starts at `/` on every launch; restore it yourself with
@@ -494,5 +496,6 @@ together in an `AdaptiveScaffold`.
 | `#[derive(Search)]`, `use_search`, `update_search`, `replace_search` | Typed search params |
 | `.loader(pattern, ..)`, `.loader_to(..)`, `preload(path, cx)`, `Link::preload` | Load data before a route renders |
 | `use_blocker(cx, when)`, `Blocker` | Hold navigation until the user confirms |
+| `set_per_window_history`, `with_window`, `history_entries` | Per-window histories and inspection |
 | `file_route!`, `routes!()`, `rok_ui_build::routes` | File-based routes |
 | `GoBack`, `GoForward` | Actions bound to Alt+Left and Alt+Right |

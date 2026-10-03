@@ -1,9 +1,10 @@
 #![doc = include_str!("../docs/guide/router.md")]
 
-use std::{collections::HashMap, rc::Rc};
+use std::{cell::Cell, collections::HashMap, rc::Rc};
 
 use gpui::{
-    actions, div, prelude::*, AnyElement, App, ElementId, Global, KeyBinding, SharedString,
+    actions, div, prelude::*, AnyElement, AnyWindowHandle, App, Bounds, ElementId, Global,
+    GlobalElementId, InspectorElementId, KeyBinding, LayoutId, Pixels, SharedString,
     StyleRefinement, Window,
 };
 
@@ -56,11 +57,10 @@ actions!(
 /// Called after every navigation with the new location.
 type NavigateListener = Rc<dyn Fn(&Location, &mut App)>;
 
-/// The app's navigation history.
+/// One navigation history: the app's, or one window's.
 struct History {
     entries: Vec<SharedString>,
     index: usize,
-    listeners: Vec<NavigateListener>,
 }
 
 impl Default for History {
@@ -68,12 +68,44 @@ impl Default for History {
         Self {
             entries: vec!["/".into()],
             index: 0,
-            listeners: Vec::new(),
         }
     }
 }
 
-impl Global for History {}
+/// Every history, and the navigation listeners.
+#[derive(Default)]
+struct Histories {
+    per_window: bool,
+    app: History,
+    windows: HashMap<AnyWindowHandle, History>,
+    listeners: Vec<NavigateListener>,
+}
+
+impl Global for Histories {}
+
+thread_local! {
+    /// The window whose router is rendering (or that code runs for), so `&mut App`
+    /// functions find its history in per-window mode.
+    static CURRENT_WINDOW: Cell<Option<AnyWindowHandle>> = const { Cell::new(None) };
+}
+
+/// Give each window its own history (enhance.md E.7), instead of one history for the app.
+/// Off by default. Turn it on at startup, before opening windows.
+///
+/// Inside a window's `Router` (its routes and their components), the router functions use
+/// that window's history; elsewhere they use the active window's. Code that runs for a
+/// specific window can say so with [`with_window`].
+pub fn set_per_window_history(per_window: bool, cx: &mut App) {
+    cx.default_global::<Histories>().per_window = per_window;
+}
+
+/// Run `body` with the router functions targeting `window`'s history (in per-window mode).
+pub fn with_window<R>(window: AnyWindowHandle, body: impl FnOnce() -> R) -> R {
+    let previous = CURRENT_WINDOW.with(|current| current.replace(Some(window)));
+    let result = body();
+    CURRENT_WINDOW.with(|current| current.set(previous));
+    result
+}
 
 /// Register the back / forward key bindings. Called by [`crate::init`].
 pub(crate) fn init(cx: &mut App) {
@@ -86,13 +118,20 @@ pub(crate) fn init(cx: &mut App) {
 }
 
 fn history(cx: &mut App) -> &mut History {
-    cx.default_global::<History>()
+    let window = CURRENT_WINDOW
+        .with(Cell::get)
+        .or_else(|| cx.active_window());
+    let histories = cx.default_global::<Histories>();
+    match window {
+        Some(window) if histories.per_window => histories.windows.entry(window).or_default(),
+        _ => &mut histories.app,
+    }
 }
 
 /// Re-render every window and tell listeners where the app is now.
 fn changed(cx: &mut App) {
     let location = location(cx);
-    let listeners = history(cx).listeners.clone();
+    let listeners = cx.default_global::<Histories>().listeners.clone();
     for listener in listeners {
         listener(&location, cx);
     }
@@ -137,6 +176,75 @@ fn run_loader_once(route: &RouteMatch, loader: &Loader, cx: &mut App) {
         .insert(route.pattern.clone(), href.clone());
     if last.as_ref() != Some(&href) {
         loader(route, cx);
+    }
+}
+
+/// Renders its child with [`CURRENT_WINDOW`] set, so components inside a router read their
+/// window's history while they lay out and paint.
+struct WindowScope {
+    window: AnyWindowHandle,
+    child: AnyElement,
+}
+
+impl IntoElement for WindowScope {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for WindowScope {
+    type RequestLayoutState = ();
+    type PrepaintState = ();
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static core::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        let child = &mut self.child;
+        (
+            with_window(self.window, || child.request_layout(window, cx)),
+            (),
+        )
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self::PrepaintState {
+        let child = &mut self.child;
+        with_window(self.window, || child.prepaint(window, cx));
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        _prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        let child = &mut self.child;
+        with_window(self.window, || child.paint(window, cx));
     }
 }
 
@@ -191,7 +299,9 @@ pub fn location(cx: &mut App) -> Location {
 /// Call `listener` after every navigation (for analytics, saving the last page,
 /// or syncing other state).
 pub fn on_navigate(listener: impl Fn(&Location, &mut App) + 'static, cx: &mut App) {
-    history(cx).listeners.push(Rc::new(listener));
+    cx.default_global::<Histories>()
+        .listeners
+        .push(Rc::new(listener));
 }
 
 /// Whether the current path is `path`, or below it unless `exact`. For marking
@@ -783,6 +893,17 @@ impl Default for Router {
 
 impl RenderOnce for Router {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let handle = window.window_handle();
+        let content = with_window(handle, || self.render_content(window, cx));
+        WindowScope {
+            window: handle,
+            child: content.into_any_element(),
+        }
+    }
+}
+
+impl Router {
+    fn render_content(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let mut location = location(cx);
         let mut not_found = false;
         // Follow redirects and guard redirects (a few hops at most, so a cycle cannot hang
@@ -957,12 +1078,14 @@ impl RenderOnce for Link {
             .apply_style_overrides(&self.style_overrides);
         crate::components::interaction::on_activate(
             element,
-            Rc::new(move |_, cx| {
-                if replace_entry {
-                    replace(to.clone(), cx);
-                } else {
-                    navigate(to.clone(), cx);
-                }
+            Rc::new(move |window: &mut Window, cx: &mut App| {
+                with_window(window.window_handle(), || {
+                    if replace_entry {
+                        replace(to.clone(), cx);
+                    } else {
+                        navigate(to.clone(), cx);
+                    }
+                });
             }),
         )
     }
