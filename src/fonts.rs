@@ -111,50 +111,61 @@ pub(crate) fn lacks_presentation_form(family: &str, form: char) -> bool {
 /// DirectWrite. `None` when no such family is installed.
 #[cfg(windows)]
 fn installed_presentation_gaps(family: &str) -> Option<HashSet<char>> {
+    directwrite::presentation_gaps(family)
+}
+
+/// The one place rok-ui calls a raw OS API: DirectWrite has no safe wrapper, and
+/// the `windows` crate marks every COM call `unsafe`.
+#[cfg(windows)]
+#[allow(unsafe_code)]
+mod directwrite {
+    use std::collections::HashSet;
+
     use windows::{
-        core::HSTRING,
+        core::{BOOL, HSTRING},
         Win32::Graphics::DirectWrite::{
             DWriteCreateFactory, IDWriteFactory, DWRITE_FACTORY_TYPE_SHARED,
             DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_WEIGHT_NORMAL,
         },
     };
 
-    // SAFETY: plain DirectWrite queries on interfaces this function owns; every
-    // out-pointer is a live local.
-    unsafe {
-        let factory: IDWriteFactory = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).ok()?;
-        let mut collection = None;
-        factory
-            .GetSystemFontCollection(&mut collection, false)
-            .ok()?;
-        let collection = collection?;
-        let (mut index, mut exists) = (0, Default::default());
-        collection
-            .FindFamilyName(&HSTRING::from(family), &mut index, &mut exists)
-            .ok()?;
-        if !exists.as_bool() {
-            return None;
-        }
-        let font = collection
-            .GetFontFamily(index)
-            .ok()?
-            .GetFirstMatchingFont(
-                DWRITE_FONT_WEIGHT_NORMAL,
-                DWRITE_FONT_STRETCH_NORMAL,
-                DWRITE_FONT_STYLE_NORMAL,
+    pub(super) fn presentation_gaps(family: &str) -> Option<HashSet<char>> {
+        // SAFETY: plain DirectWrite queries on COM interfaces this function owns.
+        // Every out-pointer points at a live local that outlives the call.
+        unsafe {
+            let factory: IDWriteFactory = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).ok()?;
+            let mut collection = None;
+            factory
+                .GetSystemFontCollection(&raw mut collection, false)
+                .ok()?;
+            let collection = collection?;
+            let mut index = 0;
+            let mut exists = BOOL::default();
+            collection
+                .FindFamilyName(&HSTRING::from(family), &raw mut index, &raw mut exists)
+                .ok()?;
+            if !exists.as_bool() {
+                return None;
+            }
+            let font = collection
+                .GetFontFamily(index)
+                .ok()?
+                .GetFirstMatchingFont(
+                    DWRITE_FONT_WEIGHT_NORMAL,
+                    DWRITE_FONT_STRETCH_NORMAL,
+                    DWRITE_FONT_STYLE_NORMAL,
+                )
+                .ok()?;
+            Some(
+                crate::bidi::presentation_forms()
+                    .into_iter()
+                    // A failed lookup counts as present, so the form is still used.
+                    .filter(|form| {
+                        matches!(font.HasCharacter(u32::from(*form)), Ok(has) if !has.as_bool())
+                    })
+                    .collect(),
             )
-            .ok()?;
-        Some(
-            crate::bidi::presentation_forms()
-                .into_iter()
-                .filter(|form| {
-                    !font
-                        .HasCharacter(*form as u32)
-                        .map(|has| has.as_bool())
-                        .unwrap_or(true)
-                })
-                .collect(),
-        )
+        }
     }
 }
 
