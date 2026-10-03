@@ -1,6 +1,6 @@
 # Database
 
-The `db` feature gives rok-ui apps PostgreSQL out of the box through
+The `db` feature gives rok-ui apps `PostgreSQL` out of the box through
 [rok-db](https://crates.io/crates/rok-db), a type-safe async ORM built on sqlx. rok-ui runs
 rok-db on a small background tokio runtime and brings results back to the UI thread, so your
 components can show live data with a single hook.
@@ -27,13 +27,14 @@ rok-ui = { version = "0.5", features = ["db", "db-chrono", "db-uuid", "db-json",
 ```text
  UI thread (GPUI)                         background (tokio, 2 threads)
  ─────────────────                        ─────────────────────────────
- db::use_query("users", …) ──── query ──▶ User::query().all(&db).await
+ query::use_query(cx, users) ── query ──▶ User::query().all(&db).await
         ▲                                         │
         └──── rows, window re-renders ◀───────────┘
 ```
 
 - `rok_ui::db::Db` is rok-db's connection handle: a cheap, cloneable pool.
-- Futures you pass to `db::run` and `db::use_query` run on the tokio runtime, so they must be
+- Futures you pass to `db::run`, `db::db_query` and `db::db_mutation` run on the shared tokio
+  runtime ([`crate::runtime`]), so they must be
   `Send + 'static`. Clone what they need into them, and don't capture UI handles.
 - Results come back as GPUI tasks, so the UI thread never blocks on the database.
 
@@ -102,34 +103,39 @@ db::set_connection(db, cx);
 `set_connection` can be called again at any time, for example to switch accounts. Every query
 re-runs with the new connection.
 
-## Reading data: `use_query`
+## Reading data: `db_query`
 
-`db::use_query(key, window, cx, |db| async move { … })` works like React Query's `useQuery`:
+[`db::db_query`](crate::db::db_query) builds [query options](crate::query) that read the
+database with the app's connection. Read them with `query::use_query`, which works like
+TanStack Query's `useQuery`:
 
-1. The first render starts the query and returns a loading state.
+1. The first render starts the query and returns a pending state.
 2. When the result arrives, the window re-renders and the hook returns the data (or the error).
-3. Later renders return the cached result without touching the database.
-4. `db::invalidate(key, cx)` (or a new connection) marks it stale. The next render fetches
-   again and keeps showing the old data until the new data arrives, so lists don't flash
-   empty.
+3. Readers of the same key share the cached data and one fetch.
+4. `query::invalidate(cx, &query_key!["users"])` (or a new connection) marks every key starting
+   with `["users"]` stale. Readers refetch and keep showing the old data until the new data
+   arrives, so lists don't flash empty.
 
 ```rust,ignore
-#[component]
-fn UserList(window: &mut Window, cx: &mut App) -> impl IntoElement {
-    let users = db::use_query("users", window, cx, |db| async move {
+fn users_query() -> QueryOptions<Vec<User>> {
+    db::db_query(query_key!["users"], |db| async move {
         User::query().order_by(User::EMAIL.asc()).all(&db).await
-    });
+    })
+}
 
-    match (users.data(), users.error()) {
-        (_, Some(error)) => Alert::new("Could not load users")
+#[component]
+fn UserList(cx: &mut Cx) -> impl IntoElement {
+    let users = query::use_query(cx, users_query());
+    match users.state() {
+        QueryState::Error(error) => Alert::new("Could not load users")
             .destructive()
             .description(error.to_string())
             .into_any_element(),
-        (Some(users), None) if users.is_empty() => Empty::new()
+        QueryState::Success(users) if users.is_empty() => Empty::new()
             .icon(IconName::User)
             .title("No users yet")
             .into_any_element(),
-        (Some(users), None) => div()
+        QueryState::Success(users) => div()
             .flex()
             .flex_col()
             .children(users.iter().map(|user| {
@@ -138,47 +144,65 @@ fn UserList(window: &mut Window, cx: &mut App) -> impl IntoElement {
                     .description(user.name.clone().unwrap_or_default())
             }))
             .into_any_element(),
-        (None, None) => Spinner::new().into_any_element(),
+        QueryState::Pending => Spinner::new().into_any_element(),
     }
 }
 ```
 
-`Query<T>` has `data()`, `error()` and `is_loading()`. `T` must be `Clone + Send`, and rok-db
-rows usually are.
+The 0.5 hook, `db::use_query(key, window, cx, ..)`, still works but is deprecated and goes away
+in 0.8. `db::invalidate("users", cx)` invalidates both kinds of queries.
 
 ### Keys
 
-The key names the data for invalidation. Include every input the query depends on, so
-different inputs are cached separately:
+Include every input the query depends on in the key, so different inputs are cached
+separately. Keys are hierarchical, so one invalidation covers every page:
 
 ```rust,ignore
-let page = use_state(window, cx, || 1u64);
+let page = cx.use_state(|| 1u64);
 let current = page.get(cx);
-let users = db::use_query(format!("users:page:{current}"), window, cx, move |db| async move {
-    User::query().order_by(User::ID.asc()).paginate(&db, current, 20).await
-});
-// users.data() is a rok-db `Page<User>`: `items`, `total`, `total_pages()`, `has_next()`.
+let users = query::use_query(
+    cx,
+    db::db_query(query_key!["users", "page", current], move |db| async move {
+        User::query().order_by(User::ID.asc()).paginate(&db, current, 20).await
+    })
+    .keep_previous_data(true),
+);
+// After an insert: query::invalidate(cx, &query_key!["users"]) refetches every page.
 ```
-
-Each element caches its own result. Two components using the same key fetch separately but
-are invalidated together. Invalidation matches the whole key, so after inserting a user, call
-`db::invalidate` for the keys you know are affected, or `db::invalidate_all(cx)`.
 
 ### Filtering from input
 
-Pass the filter into the key and the closure. Each new value gets its own cache entry:
+Put the filter in the key and the closure. Each new value gets its own cache entry:
 
 ```rust,ignore
-let search = use_input_state("search", window, cx, |state| state.with_placeholder("Search"));
+let search = use_input_state("search", cx.window, cx.app, |state| state.with_placeholder("Search"));
 let term = search.read(cx).text().to_string();
 let pattern = format!("%{term}%");
-let matches = db::use_query(format!("users:search:{term}"), window, cx, move |db| async move {
-    User::filter(User::EMAIL.ilike(pattern)).limit(50).all(&db).await
-});
+let matches = query::use_query(
+    cx,
+    db::db_query(query_key!["users", "search", term], move |db| {
+        let pattern = pattern.clone();
+        async move { User::filter(User::EMAIL.ilike(pattern)).limit(50).all(&db).await }
+    }),
+);
 ```
 
 Every keystroke starts a query for the new term. To query less often, debounce the term with
 the `state` feature's `use_debounced` and key on the debounced value.
+
+## Writing data with mutations
+
+`db::db_mutation(|db, input| async move { .. })` gives mutation options for
+`query::use_mutation`, with pending and error state, invalidation and optimistic updates:
+
+```rust,ignore
+let add = query::use_mutation(
+    cx,
+    db::db_mutation(|db, user: User| async move { user.insert(&db).await })
+        .invalidates(query_key!["users"]),
+);
+Button::new("add").loading(add.is_pending()).on_click(add.mutate_handler(new_user));
+```
 
 ## Writing data: `run`
 
@@ -242,7 +266,7 @@ Every call returns `DbError`:
 | Variant | When |
 |---|---|
 | `NotConnected` | No connection yet (`connect` is still running, failed, or was never called) |
-| `Failed(message)` | rok-db or PostgreSQL reported an error; `message` is its text |
+| `Failed(message)` | rok-db or `PostgreSQL` reported an error; `message` is its text |
 | `Cancelled` | The task stopped before finishing (the runtime shut down or the future panicked) |
 
 `DbError` implements `Display` and `std::error::Error`. To act on a specific database error,
@@ -293,7 +317,7 @@ fn loads_users(cx: &mut gpui::TestAppContext) {
 ## Full example
 
 `examples/db_users.rs` is a complete user list: it connects, creates its table, lists rows
-with `use_query`, and inserts and deletes with `run` and `invalidate`.
+with `query::use_query` and `db_query`, and inserts and deletes with `run` and `invalidate`.
 
 ```sh
 DATABASE_URL=postgres://user:password@localhost/app cargo run --example db_users --features db
@@ -306,8 +330,10 @@ DATABASE_URL=postgres://user:password@localhost/app cargo run --example db_users
 | `connect(url, cx)` | Connect in the background and make it the app's connection |
 | `set_connection(db, cx)`, `connection(cx)` | Set or get the `Db` |
 | `run(cx, \|db\| async { … })` | Any database work, as a `Task<Result<T, DbError>>` |
-| `use_query(key, window, cx, \|db\| async { … })` | Cached `Query<T>` for a component |
+| `db_query(query_key![..], \|db\| async { … })` | Query options for `query::use_query`, loaders and `fetch_query` |
+| `db_mutation(\|db, input\| async { … })` | Mutation options for `query::use_mutation` |
+| `use_query(key, window, cx, \|db\| async { … })` | Deprecated 0.5 hook; use `db_query` |
 | `invalidate(key, cx)`, `invalidate_all(cx)` | Make queries fetch again |
-| `runtime()` | The tokio runtime rok-db runs on |
+| `runtime()` | The shared tokio runtime rok-db runs on |
 | `DbError` | `NotConnected`, `Failed(message)`, `Cancelled` |
 | `rok_db` | The rok-db crate: models, queries, transactions, raw SQL |

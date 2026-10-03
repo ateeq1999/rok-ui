@@ -21,7 +21,15 @@ styles! {
     }
 }
 
-actions!(rok_ui, [FocusNextElement, FocusPreviousElement]);
+actions!(
+    rok_ui,
+    [
+        /// Move keyboard focus to the next focusable element (Tab).
+        FocusNextElement,
+        /// Move keyboard focus to the previous focusable element (Shift-Tab).
+        FocusPreviousElement,
+    ]
+);
 
 pub(crate) fn bind_focus_navigation_keys(cx: &mut App) {
     cx.bind_keys([
@@ -50,6 +58,8 @@ pub struct AppRoot {
 crate::implement_style_overrides!(AppRoot);
 
 impl AppRoot {
+    /// The root of a window's content.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             children: Vec::new(),
@@ -99,6 +109,7 @@ impl RenderOnce for AppRoot {
 }
 
 #[cfg(feature = "toast")]
+#[allow(clippy::unnecessary_wraps)] // `None` without the `toast` feature.
 fn toaster() -> Option<gpui::AnyElement> {
     Some(super::toast::Toaster.into_any_element())
 }
@@ -114,7 +125,7 @@ fn toaster() -> Option<gpui::AnyElement> {
 fn pointer_modality_listener() -> impl IntoElement {
     gpui::canvas(
         |_, _, _| {},
-        |_, _, window, _| {
+        |_, (), window, _| {
             window.on_mouse_event(|_: &gpui::MouseDownEvent, phase, window, _| {
                 if phase == gpui::DispatchPhase::Capture && crate::sx::set_keyboard_modality(false)
                 {

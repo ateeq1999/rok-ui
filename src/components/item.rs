@@ -54,6 +54,7 @@ pub struct Item {
 crate::implement_style_overrides!(Item);
 
 impl Item {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -71,56 +72,69 @@ impl Item {
         }
     }
 
+    /// The visual variant.
+    #[must_use]
     pub fn variant(mut self, variant: ItemVariant) -> Self {
         self.variant = variant;
         self
     }
 
     /// Shorthand for `.variant(ItemVariant::Outline)`.
+    #[must_use]
     pub fn outline(self) -> Self {
         self.variant(ItemVariant::Outline)
     }
 
     /// Shorthand for `.variant(ItemVariant::Muted)`.
+    #[must_use]
     pub fn muted(self) -> Self {
         self.variant(ItemVariant::Muted)
     }
 
     /// Tighter padding.
+    #[must_use]
     pub fn small(mut self) -> Self {
         self.small = true;
         self
     }
 
     /// An icon in a bordered tile on the left.
+    #[must_use]
     pub fn icon(mut self, icon: IconName) -> Self {
         self.icon = Some(icon);
         self
     }
 
     /// Any element on the left, such as an [`super::Avatar`] or an image.
+    #[must_use]
     pub fn media(mut self, media: impl IntoElement) -> Self {
         self.media = Some(media.into_any_element());
         self
     }
 
+    /// The title.
+    #[must_use]
     pub fn title(mut self, title: impl Into<SharedString>) -> Self {
         self.title = Some(title.into());
         self
     }
 
+    /// Secondary text below the title.
+    #[must_use]
     pub fn description(mut self, description: impl Into<SharedString>) -> Self {
         self.description = Some(description.into());
         self
     }
 
     /// An element on the right, such as a button or a badge.
+    #[must_use]
     pub fn action(mut self, action: impl IntoElement) -> Self {
         self.actions.push(action.into_any_element());
         self
     }
 
     /// Make the whole row clickable.
+    #[must_use]
     pub fn on_click(
         mut self,
         handler: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
@@ -237,6 +251,8 @@ pub struct ItemGroup {
 crate::implement_style_overrides!(ItemGroup);
 
 impl ItemGroup {
+    /// A list of items.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             items: Vec::new(),

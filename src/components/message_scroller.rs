@@ -1,4 +1,4 @@
-//! MessageScroller: the scrolling column of a chat.
+//! `MessageScroller`: the scrolling column of a chat.
 //!
 //! Built on GPUI's virtualized `list`, anchored to the bottom like a chat log:
 //! - it follows new and streamed messages while the reader is at the bottom,
@@ -42,12 +42,15 @@ pub struct MessageScrollerState {
 
 impl MessageScrollerState {
     /// A scroller showing `message_count` messages, scrolled to the latest.
+    #[must_use]
     pub fn new(message_count: usize) -> Self {
         Self {
             list: ListState::new(message_count, ListAlignment::Bottom, px(800.)),
         }
     }
 
+    /// The number of messages shown.
+    #[must_use]
     pub fn message_count(&self) -> usize {
         self.list.item_count()
     }
@@ -89,6 +92,7 @@ impl MessageScrollerState {
         self.list.scroll_to_reveal_item(index);
     }
 
+    /// Scroll to the newest message.
     pub fn scroll_to_bottom(&self) {
         self.list.scroll_to(ListOffset {
             item_ix: self.list.item_count(),
@@ -97,6 +101,7 @@ impl MessageScrollerState {
     }
 
     /// Whether the newest message is in view (the scroller is following).
+    #[must_use]
     pub fn is_at_bottom(&self) -> bool {
         if self.list.logical_scroll_top().item_ix >= self.list.item_count() {
             return true;
@@ -131,6 +136,7 @@ pub struct MessageScroller {
 crate::implement_style_overrides!(MessageScroller);
 
 impl MessageScroller {
+    /// A scroller for messages; keep its state with `use_message_scroller_state`.
     pub fn new(
         state: &MessageScrollerState,
         render_message: impl Fn(usize, &mut Window, &mut App) -> AnyElement + 'static,
@@ -147,12 +153,14 @@ impl MessageScroller {
 
     /// Called when the oldest loaded message scrolls into view; load history here
     /// and call [`MessageScrollerState::prepend`].
+    #[must_use]
     pub fn on_reach_top(mut self, handler: impl Fn(&(), &mut Window, &mut App) + 'static) -> Self {
         self.on_reach_top = Some(Rc::new(handler));
         self
     }
 
     /// Text of the button shown when scrolled away from the latest message.
+    #[must_use]
     pub fn jump_label(mut self, label: impl Into<gpui::SharedString>) -> Self {
         self.jump_label = label.into();
         self

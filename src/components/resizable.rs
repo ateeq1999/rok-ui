@@ -75,8 +75,10 @@ styles! {
 /// Which way the panels are laid out.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum ResizableDirection {
+    /// Panels side by side, resized with vertical handles.
     #[default]
     Horizontal,
+    /// Panels stacked, resized with horizontal handles.
     Vertical,
 }
 
@@ -89,6 +91,8 @@ pub struct ResizablePanel {
 }
 
 impl ResizablePanel {
+    /// A panel that shares space with its siblings.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             default_size: None,
@@ -99,16 +103,21 @@ impl ResizablePanel {
     }
 
     /// Starting size in percent. Panels without one share what is left.
+    #[must_use]
     pub fn default_size(mut self, percent: f32) -> Self {
         self.default_size = Some(percent);
         self
     }
 
+    /// The smallest size, as a percentage of the group.
+    #[must_use]
     pub fn min_size(mut self, percent: f32) -> Self {
         self.min_size = percent;
         self
     }
 
+    /// The largest size, as a percentage of the group.
+    #[must_use]
     pub fn max_size(mut self, percent: f32) -> Self {
         self.max_size = percent;
         self
@@ -182,6 +191,7 @@ pub struct ResizablePanelGroup {
 crate::implement_style_overrides!(ResizablePanelGroup);
 
 impl ResizablePanelGroup {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -193,22 +203,28 @@ impl ResizablePanelGroup {
         }
     }
 
+    /// The direction.
+    #[must_use]
     pub fn direction(mut self, direction: ResizableDirection) -> Self {
         self.direction = direction;
         self
     }
 
     /// Stack panels top to bottom.
+    #[must_use]
     pub fn vertical(self) -> Self {
         self.direction(ResizableDirection::Vertical)
     }
 
+    /// Add a panel.
+    #[must_use]
     pub fn panel(mut self, panel: ResizablePanel) -> Self {
         self.panels.push(panel);
         self
     }
 
     /// Draw a grip on each handle.
+    #[must_use]
     pub fn with_handle(mut self, with_handle: bool) -> Self {
         self.with_handle = with_handle;
         self
@@ -298,7 +314,7 @@ impl RenderOnce for ResizablePanelGroup {
                         };
                         cx.stop_propagation();
                         key_memory.update(cx, |memory| {
-                            memory.sizes = resize(&memory.sizes, &key_limits, index, delta)
+                            memory.sizes = resize(&memory.sizes, &key_limits, index, delta);
                         });
                     })
                     .into_any_element(),

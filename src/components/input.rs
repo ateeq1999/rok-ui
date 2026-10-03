@@ -35,22 +35,39 @@ use crate::{
 actions!(
     rok_ui_input,
     [
+        /// Delete the selection, or the grapheme before the cursor.
         DeleteBackward,
+        /// Delete the selection, or the grapheme after the cursor.
         DeleteForward,
+        /// Move the cursor one grapheme left.
         MoveLeft,
+        /// Move the cursor one grapheme right.
         MoveRight,
+        /// Extend the selection one grapheme left.
         SelectLeft,
+        /// Extend the selection one grapheme right.
         SelectRight,
+        /// Select all text.
         SelectAll,
+        /// Move the cursor to the start of the text.
         MoveToStart,
+        /// Move the cursor to the end of the text.
         MoveToEnd,
+        /// Paste from the clipboard.
         Paste,
+        /// Cut the selection to the clipboard.
         Cut,
+        /// Copy the selection to the clipboard.
         Copy,
+        /// Submit the input (Enter).
         Submit,
+        /// Move the cursor up one line (textareas).
         MoveUp,
+        /// Move the cursor down one line (textareas).
         MoveDown,
+        /// Extend the selection up one line (textareas).
         SelectUp,
+        /// Extend the selection down one line (textareas).
         SelectDown,
     ]
 );
@@ -148,12 +165,14 @@ impl InputState {
     }
 
     /// Text shown while the field is empty.
+    #[must_use]
     pub fn with_placeholder(mut self, placeholder: impl Into<SharedString>) -> Self {
         self.placeholder = placeholder.into();
         self
     }
 
     /// Show bullets instead of the text (password fields).
+    #[must_use]
     pub fn with_masked_text(mut self, masked: bool) -> Self {
         self.masked = masked;
         self
@@ -161,12 +180,14 @@ impl InputState {
 
     /// Allow line breaks: Enter inserts a newline, Up / Down move between lines.
     /// Use it for the state behind a [`super::Textarea`].
+    #[must_use]
     pub fn with_multiline(mut self, multiline: bool) -> Self {
         self.multiline = multiline;
         self
     }
 
     /// Start with some text.
+    #[must_use]
     pub fn with_text(mut self, text: impl Into<SharedString>) -> Self {
         self.content = text.into();
         self.selected_range = self.content.len()..self.content.len();
@@ -174,6 +195,7 @@ impl InputState {
     }
 
     /// Whether the field accepts line breaks (see [`InputState::with_multiline`]).
+    #[must_use]
     pub fn is_multiline(&self) -> bool {
         self.multiline
     }
@@ -184,6 +206,7 @@ impl InputState {
     }
 
     /// Current text.
+    #[must_use]
     pub fn text(&self) -> &SharedString {
         &self.content
     }
@@ -197,6 +220,7 @@ impl InputState {
         cx.notify();
     }
 
+    /// Text shown while the input is empty.
     pub fn set_placeholder(
         &mut self,
         placeholder: impl Into<SharedString>,
@@ -210,7 +234,7 @@ impl InputState {
         if self.selected_range.is_empty() {
             self.move_cursor_to(self.previous_grapheme_boundary(self.cursor_offset()), cx);
         } else {
-            self.move_cursor_to(self.selected_range.start, cx)
+            self.move_cursor_to(self.selected_range.start, cx);
         }
     }
 
@@ -218,7 +242,7 @@ impl InputState {
         if self.selected_range.is_empty() {
             self.move_cursor_to(self.next_grapheme_boundary(self.selected_range.end), cx);
         } else {
-            self.move_cursor_to(self.selected_range.end, cx)
+            self.move_cursor_to(self.selected_range.end, cx);
         }
     }
 
@@ -232,7 +256,7 @@ impl InputState {
 
     fn select_all(&mut self, _: &SelectAll, _: &mut Window, cx: &mut Context<Self>) {
         self.move_cursor_to(0, cx);
-        self.select_to(self.content.len(), cx)
+        self.select_to(self.content.len(), cx);
     }
 
     fn move_to_start(&mut self, _: &MoveToStart, _: &mut Window, cx: &mut Context<Self>) {
@@ -245,16 +269,16 @@ impl InputState {
 
     fn delete_backward(&mut self, _: &DeleteBackward, window: &mut Window, cx: &mut Context<Self>) {
         if self.selected_range.is_empty() {
-            self.select_to(self.previous_grapheme_boundary(self.cursor_offset()), cx)
+            self.select_to(self.previous_grapheme_boundary(self.cursor_offset()), cx);
         }
-        self.replace_text_in_range(None, "", window, cx)
+        self.replace_text_in_range(None, "", window, cx);
     }
 
     fn delete_forward(&mut self, _: &DeleteForward, window: &mut Window, cx: &mut Context<Self>) {
         if self.selected_range.is_empty() {
-            self.select_to(self.next_grapheme_boundary(self.cursor_offset()), cx)
+            self.select_to(self.next_grapheme_boundary(self.cursor_offset()), cx);
         }
-        self.replace_text_in_range(None, "", window, cx)
+        self.replace_text_in_range(None, "", window, cx);
     }
 
     fn submit(&mut self, _: &Submit, window: &mut Window, cx: &mut Context<Self>) {
@@ -292,7 +316,7 @@ impl InputState {
             cx.write_to_clipboard(ClipboardItem::new_string(
                 self.content[self.selected_range.clone()].to_string(),
             ));
-            self.replace_text_in_range(None, "", window, cx)
+            self.replace_text_in_range(None, "", window, cx);
         }
     }
 
@@ -307,7 +331,7 @@ impl InputState {
         if event.modifiers.shift {
             self.select_to(self.index_for_mouse_position(event.position), cx);
         } else {
-            self.move_cursor_to(self.index_for_mouse_position(event.position), cx)
+            self.move_cursor_to(self.index_for_mouse_position(event.position), cx);
         }
     }
 
@@ -323,7 +347,7 @@ impl InputState {
 
     fn move_cursor_to(&mut self, offset: usize, cx: &mut Context<Self>) {
         self.selected_range = offset..offset;
-        cx.notify()
+        cx.notify();
     }
 
     fn cursor_offset(&self) -> usize {
@@ -360,8 +384,7 @@ impl InputState {
             self.content
                 .char_indices()
                 .nth(character_count)
-                .map(|(byte_offset, _)| byte_offset)
-                .unwrap_or(self.content.len())
+                .map_or(self.content.len(), |(byte_offset, _)| byte_offset)
         } else {
             displayed_offset
         }
@@ -506,15 +529,15 @@ impl InputState {
 
     fn select_to(&mut self, offset: usize, cx: &mut Context<Self>) {
         if self.selection_reversed {
-            self.selected_range.start = offset
+            self.selected_range.start = offset;
         } else {
-            self.selected_range.end = offset
-        };
+            self.selected_range.end = offset;
+        }
         if self.selected_range.end < self.selected_range.start {
             self.selection_reversed = !self.selection_reversed;
             self.selected_range = self.selected_range.end..self.selected_range.start;
         }
-        cx.notify()
+        cx.notify();
     }
 
     fn offset_from_utf16(&self, utf16_offset: usize) -> usize {
@@ -650,8 +673,10 @@ impl EntityInputHandler for InputState {
         self.selected_range = new_selected_utf16_range
             .as_ref()
             .map(|utf16_range| self.range_from_utf16(utf16_range))
-            .map(|new_range| new_range.start + range.start..new_range.end + range.end)
-            .unwrap_or_else(|| range.start + new_text.len()..range.start + new_text.len());
+            .map_or_else(
+                || range.start + new_text.len()..range.start + new_text.len(),
+                |new_range| new_range.start + range.start..new_range.end + range.end,
+            );
         cx.emit(InputEvent::Changed(self.content.clone()));
         cx.notify();
     }
@@ -735,6 +760,8 @@ pub struct Input {
 crate::implement_style_overrides!(Input);
 
 impl Input {
+    /// An input for `state` (create it with `use_input_state` or `cx.new(InputState::new)`).
+    #[must_use]
     pub fn new(state: &Entity<InputState>) -> Self {
         Self {
             state: state.clone(),
@@ -748,17 +775,21 @@ impl Input {
     }
 
     /// Icon drawn inside the field, before the text.
+    #[must_use]
     pub fn leading_icon(mut self, icon: IconName) -> Self {
         self.leading_icon = Some(icon);
         self
     }
 
+    /// Disable it: it ignores input and renders muted.
+    #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
     /// Red border and ring, shadcn/ui's `aria-invalid` styling.
+    #[must_use]
     pub fn invalid(mut self, invalid: bool) -> Self {
         self.invalid = invalid;
         self
@@ -1304,7 +1335,7 @@ impl Element for InputTextElement {
             cx,
         );
         for selection in prepaint.selection.drain(..) {
-            window.paint_quad(selection)
+            window.paint_quad(selection);
         }
         let Some(line) = prepaint.line.take() else {
             return;

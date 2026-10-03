@@ -14,10 +14,14 @@ use crate::{hooks::EventHandler, icon::IconName, styles};
 /// The edge a [`Sheet`] is attached to.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum SheetSide {
+    /// Slides down from the top edge.
     Top,
+    /// Slides in from the right edge.
     #[default]
     Right,
+    /// Slides up from the bottom edge.
     Bottom,
+    /// Slides in from the left edge.
     Left,
 }
 
@@ -156,6 +160,7 @@ pub struct Sheet {
 }
 
 impl Sheet {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -166,33 +171,43 @@ impl Sheet {
         }
     }
 
+    /// Whether it is open (controlled).
+    #[must_use]
     pub fn open(mut self, open: bool) -> Self {
         self.open = open;
         self
     }
 
+    /// Which window edge the sheet slides in from.
+    #[must_use]
     pub fn side(mut self, side: SheetSide) -> Self {
         self.side = side;
         self
     }
 
+    /// The title.
+    #[must_use]
     pub fn title(mut self, title: impl Into<SharedString>) -> Self {
         self.content.title = Some(title.into());
         self
     }
 
+    /// Secondary text below the title.
+    #[must_use]
     pub fn description(mut self, description: impl Into<SharedString>) -> Self {
         self.content.description = Some(description.into());
         self
     }
 
     /// Add an element to the bottom actions area.
+    #[must_use]
     pub fn footer(mut self, element: impl IntoElement) -> Self {
         self.content.footer.push(element.into_any_element());
         self
     }
 
     /// Called on Escape, on a backdrop click and on the close button.
+    #[must_use]
     pub fn on_close(mut self, handler: impl Fn(&(), &mut Window, &mut App) + 'static) -> Self {
         self.on_close = Some(Rc::new(handler));
         self
@@ -277,6 +292,7 @@ pub struct Drawer {
 }
 
 impl Drawer {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -286,27 +302,36 @@ impl Drawer {
         }
     }
 
+    /// Whether it is open (controlled).
+    #[must_use]
     pub fn open(mut self, open: bool) -> Self {
         self.open = open;
         self
     }
 
+    /// The title.
+    #[must_use]
     pub fn title(mut self, title: impl Into<SharedString>) -> Self {
         self.content.title = Some(title.into());
         self
     }
 
+    /// Secondary text below the title.
+    #[must_use]
     pub fn description(mut self, description: impl Into<SharedString>) -> Self {
         self.content.description = Some(description.into());
         self
     }
 
+    /// Content pinned to the bottom of the drawer.
+    #[must_use]
     pub fn footer(mut self, element: impl IntoElement) -> Self {
         self.content.footer.push(element.into_any_element());
         self
     }
 
     /// Called on Escape and on a backdrop click.
+    #[must_use]
     pub fn on_close(mut self, handler: impl Fn(&(), &mut Window, &mut App) + 'static) -> Self {
         self.on_close = Some(Rc::new(handler));
         self

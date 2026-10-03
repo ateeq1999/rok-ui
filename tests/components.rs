@@ -17,7 +17,7 @@ fn Greeting(
     let punctuation = if excited { "!" } else { "." };
     div()
         .text_color(cx.theme().colors.foreground)
-        .when_some(title, |greeting, title| greeting.child(title))
+        .when_some(title, gpui::ParentElement::child)
         .child(format!("Hello, {name}{punctuation}"))
         .when(on_wave.is_some(), |greeting| greeting.child("(waves)"))
         .children(children)
@@ -36,7 +36,7 @@ fn component_macro_generates_a_builder_api() {
     assert_eq!(greeting.name.as_ref(), "Ada");
     assert!(greeting.excited);
     assert_eq!(
-        greeting.title.as_ref().map(|title| title.as_ref()),
+        greeting.title.as_ref().map(std::convert::AsRef::as_ref),
         Some("Welcome")
     );
     assert!(greeting.on_wave.is_some());
@@ -182,16 +182,16 @@ impl Render for ShadcnParityView {
                 Attachment::new("attachment", "report.pdf")
                     .meta("PDF, 2.4 MB")
                     .state(AttachmentState::Uploading(Some(40.)))
-                    .on_remove(|_, _, _| {}),
+                    .on_remove(|(), _, _| {}),
             )
             .child(
                 Attachment::new("failed-attachment", "photo.png")
                     .state(AttachmentState::Failed("Upload failed".into()))
-                    .on_retry(|_, _, _| {}),
+                    .on_retry(|(), _, _| {}),
             )
             .child(
                 Breadcrumb::new("breadcrumb")
-                    .link("Home", |_, _, _| {})
+                    .link("Home", |(), _, _| {})
                     .ellipsis_menu(Menu::new().item(MenuItem::new("Docs")))
                     .page("Breadcrumb"),
             )
@@ -397,7 +397,7 @@ impl Render for ShadcnParityView {
                         NavigationMenuLink::new("intro", "Introduction")
                             .description("Re-usable components."),
                     )
-                    .link("Docs", |_, _, _| {}),
+                    .link("Docs", |(), _, _| {}),
             )
             .child(Pagination::new("pagination", 10).current_page(5))
             .child(
@@ -709,7 +709,7 @@ impl Render for ButtonGroupWidthView {
                         (group, width)
                     });
                 },
-                |_, _, _, _| {},
+                |_, (), _, _| {},
             )
             .absolute()
             .size_full()
@@ -718,8 +718,8 @@ impl Render for ButtonGroupWidthView {
             ["Archive", "Report", "Snooze"]
                 .map(|label| Button::new((prefix, label.len())).outline().label(label))
         };
-        let [a, b, c] = buttons("group");
-        let [d, e, f] = buttons("plain");
+        let [archive, report, snooze] = buttons("group");
+        let [plain_archive, plain_report, plain_snooze] = buttons("plain");
         div()
             .w(px(600.))
             .flex()
@@ -729,13 +729,16 @@ impl Render for ButtonGroupWidthView {
                 div()
                     .relative()
                     .child(probe(0))
-                    .child(ButtonGroup::new().item(a).item(b).item(c)),
+                    .child(ButtonGroup::new().item(archive).item(report).item(snooze)),
             )
             .child(
-                div()
-                    .relative()
-                    .child(probe(1))
-                    .child(div().flex().child(d).child(e).child(f)),
+                div().relative().child(probe(1)).child(
+                    div()
+                        .flex()
+                        .child(plain_archive)
+                        .child(plain_report)
+                        .child(plain_snooze),
+                ),
             )
     }
 }

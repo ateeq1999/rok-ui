@@ -77,6 +77,7 @@ impl Marker {
     }
 
     /// Show a spinner instead of the dot (status markers).
+    #[must_use]
     pub fn busy(mut self, busy: bool) -> Self {
         if let MarkerKind::Status { dot, .. } = self.kind {
             self.kind = MarkerKind::Status { dot, busy };
@@ -85,6 +86,7 @@ impl Marker {
     }
 
     /// Color of the status dot. Defaults to the muted text color.
+    #[must_use]
     pub fn dot_color(mut self, color: Hsla) -> Self {
         if let MarkerKind::Status { busy, .. } = self.kind {
             self.kind = MarkerKind::Status {
@@ -95,12 +97,15 @@ impl Marker {
         self
     }
 
+    /// An icon before the text.
+    #[must_use]
     pub fn icon(mut self, icon: IconName) -> Self {
         self.icon = Some(icon);
         self
     }
 
     /// Trailing muted text (row markers).
+    #[must_use]
     pub fn detail(mut self, detail: impl Into<SharedString>) -> Self {
         self.detail = Some(detail.into());
         self
@@ -148,11 +153,7 @@ impl RenderOnce for Marker {
                     if busy {
                         row.child(Spinner::new().size(px(12.)))
                     } else {
-                        row.child(
-                            div()
-                                .sx(&MARKER.dot)
-                                .when_some(dot, |dot, color| dot.bg(color)),
-                        )
+                        row.child(div().sx(&MARKER.dot).when_some(dot, gpui::Styled::bg))
                     }
                 })
                 .children(icon)

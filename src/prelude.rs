@@ -9,6 +9,7 @@ pub use gpui::{
 };
 
 pub use crate::components::*;
+pub use crate::cx::Cx;
 pub use crate::hooks::{use_keyed_state, use_state, EventHandler, State};
 pub use crate::icon::{Assets, Icon, IconName};
 pub use crate::motion::{

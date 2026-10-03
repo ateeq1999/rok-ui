@@ -42,6 +42,10 @@ use gpui::{App, SharedString};
 ///
 /// Afterwards their family names work anywhere a font family is accepted:
 /// `Theme::set_font_family`, `.font_family(..)` or `font_family: "Cairo"` in `styles!`.
+///
+/// # Errors
+///
+/// Fails when GPUI's text system rejects a font (not TrueType or OpenType data).
 pub fn register_fonts(
     cx: &App,
     fonts: impl IntoIterator<Item = Cow<'static, [u8]>>,
@@ -83,7 +87,7 @@ fn record_presentation_coverage(font: &[u8]) {
         .collect();
     let mut gaps = presentation_gaps()
         .lock()
-        .unwrap_or_else(|error| error.into_inner());
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     gaps.entry(family).or_default().extend(missing);
 }
 
@@ -94,7 +98,7 @@ fn record_presentation_coverage(font: &[u8]) {
 pub(crate) fn lacks_presentation_form(family: &str, form: char) -> bool {
     let mut gaps = presentation_gaps()
         .lock()
-        .unwrap_or_else(|error| error.into_inner());
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if !gaps.contains_key(family) {
         let missing = installed_presentation_gaps(family).unwrap_or_default();
         gaps.insert(family.to_string(), missing);
@@ -160,7 +164,11 @@ fn installed_presentation_gaps(_family: &str) -> Option<HashSet<char>> {
 }
 
 /// Read font files from disk and register them, for example fonts downloaded next to
-/// your app. Fails on the first file that cannot be read.
+/// your app.
+///
+/// # Errors
+///
+/// Fails on the first file that cannot be read, or as [`register_fonts`] does.
 pub fn register_font_files(
     cx: &App,
     paths: impl IntoIterator<Item = impl AsRef<Path>>,
@@ -197,6 +205,7 @@ impl FontFamily {
     ///     include_str!("../fonts/LICENSE.txt"),
     /// );
     /// ```
+    #[must_use]
     pub const fn new(
         family: &'static str,
         files: &'static [&'static [u8]],
@@ -210,16 +219,22 @@ impl FontFamily {
     }
 
     /// The family name to pass to `Theme::set_font_family` or `.font_family(..)`.
+    #[must_use]
     pub fn family(&self) -> SharedString {
         SharedString::new_static(self.family)
     }
 
     /// The font license text, to show in an about or licenses screen.
+    #[must_use]
     pub fn license(&self) -> &'static str {
         self.license
     }
 
     /// Register every weight of this family. Registering twice is harmless.
+    ///
+    /// # Errors
+    ///
+    /// As [`register_fonts`].
     pub fn register(&self, cx: &App) -> gpui::Result<()> {
         register_fonts(cx, self.files.iter().map(|file| Cow::Borrowed(*file)))
     }
@@ -273,7 +288,7 @@ pub const NOTO_SANS_ARABIC: FontFamily = FontFamily::new(
 pub(crate) fn mark_missing_presentation_forms(family: &str, forms: impl IntoIterator<Item = char>) {
     presentation_gaps()
         .lock()
-        .unwrap_or_else(|error| error.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .entry(family.to_string())
         .or_default()
         .extend(forms);

@@ -1,4 +1,4 @@
-//! ScrollArea: a scrolling box with a thin themed scrollbar.
+//! `ScrollArea`: a scrolling box with a thin themed scrollbar.
 
 use std::rc::Rc;
 
@@ -37,9 +37,12 @@ styles! {
 /// Which way a [`ScrollArea`] scrolls.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum ScrollAxis {
+    /// Scroll up and down.
     #[default]
     Vertical,
+    /// Scroll left and right.
     Horizontal,
+    /// Scroll in both directions.
     Both,
 }
 
@@ -84,6 +87,7 @@ pub struct ScrollArea {
 crate::implement_style_overrides!(ScrollArea);
 
 impl ScrollArea {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -94,12 +98,15 @@ impl ScrollArea {
         }
     }
 
+    /// Which directions scroll.
+    #[must_use]
     pub fn axis(mut self, axis: ScrollAxis) -> Self {
         self.axis = axis;
         self
     }
 
     /// Shorthand for `.axis(ScrollAxis::Horizontal)`.
+    #[must_use]
     pub fn horizontal(self) -> Self {
         self.axis(ScrollAxis::Horizontal)
     }
@@ -161,7 +168,7 @@ impl RenderOnce for ScrollArea {
                         event.position.x
                     };
                     press_memory.update(cx, |memory| {
-                        memory.drag = Some((vertical, pointer, scrolled))
+                        memory.drag = Some((vertical, pointer, scrolled));
                     });
                 });
             Some(

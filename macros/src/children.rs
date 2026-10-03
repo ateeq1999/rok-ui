@@ -244,16 +244,12 @@ fn parse_markup_element(input: ParseStream) -> syn::Result<Node> {
 
     // Lowercase single-segment names are GPUI element functions: `div()`, `img(src)`.
     let is_element_function = path.segments.len() == 1
-        && path
-            .segments
-            .first()
-            .map(|segment| {
-                segment
-                    .ident
-                    .to_string()
-                    .starts_with(|character: char| character.is_ascii_lowercase())
-            })
-            .unwrap_or(false);
+        && path.segments.first().is_some_and(|segment| {
+            segment
+                .ident
+                .to_string()
+                .starts_with(|character: char| character.is_ascii_lowercase())
+        });
     let positional = &arguments.positional;
     let mut expression = if is_element_function {
         let function = &path.segments[0].ident;
@@ -269,9 +265,10 @@ fn parse_markup_element(input: ParseStream) -> syn::Result<Node> {
         quote!(#path::new(#(#positional),*))
     };
     for (name, value) in &arguments.named {
-        expression = match name.to_string().as_str() {
-            "sx" => quote!(::rok_ui::sx::SxStyled::sx(#expression, &(#value))),
-            _ => quote!(#expression.#name(#value)),
+        expression = if name.to_string().as_str() == "sx" {
+            quote!(::rok_ui::sx::SxStyled::sx(#expression, &(#value)))
+        } else {
+            quote!(#expression.#name(#value))
         };
     }
     expression = quote!(#expression #methods);

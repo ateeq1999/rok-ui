@@ -24,6 +24,7 @@ pub struct AccordionItem {
 }
 
 impl AccordionItem {
+    /// Create it with its title.
     pub fn new(title: impl Into<SharedString>) -> Self {
         Self {
             title: title.into(),
@@ -32,6 +33,8 @@ impl AccordionItem {
         }
     }
 
+    /// Disable it: it ignores input and renders muted.
+    #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
@@ -69,6 +72,7 @@ pub struct Accordion {
 crate::implement_style_overrides!(Accordion);
 
 impl Accordion {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -82,30 +86,36 @@ impl Accordion {
         }
     }
 
+    /// Add a section.
+    #[must_use]
     pub fn item(mut self, item: AccordionItem) -> Self {
         self.items.push(item);
         self
     }
 
     /// Allow several items open at once.
+    #[must_use]
     pub fn multiple(mut self, multiple: bool) -> Self {
         self.multiple = multiple;
         self
     }
 
     /// Items open on first render (uncontrolled mode).
+    #[must_use]
     pub fn default_open(mut self, indices: impl IntoIterator<Item = usize>) -> Self {
         self.default_open = indices.into_iter().collect();
         self
     }
 
     /// Indices of the open items (controlled mode).
+    #[must_use]
     pub fn open_items(mut self, indices: impl IntoIterator<Item = usize>) -> Self {
         self.open_items = Some(indices.into_iter().collect());
         self
     }
 
     /// Receives the indices of the open items after a toggle.
+    #[must_use]
     pub fn on_change(
         mut self,
         handler: impl Fn(&Vec<usize>, &mut Window, &mut App) + 'static,

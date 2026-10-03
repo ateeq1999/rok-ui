@@ -30,6 +30,8 @@ pub struct Spinner {
 crate::implement_style_overrides!(Spinner);
 
 impl Spinner {
+    /// A spinning loading indicator.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             size: px(16.),
@@ -39,11 +41,15 @@ impl Spinner {
         }
     }
 
+    /// The diameter. Default: 16px.
+    #[must_use]
     pub fn size(mut self, size: impl Into<Pixels>) -> Self {
         self.size = size.into();
         self
     }
 
+    /// The stroke color. Default: the current text color.
+    #[must_use]
     pub fn color(mut self, color: impl Into<Hsla>) -> Self {
         self.color = Some(color.into());
         self

@@ -55,6 +55,7 @@ pub(crate) fn set_theme_snapshot(theme: &Theme) {
 }
 
 /// The theme `.sx()` resolves against (the default theme before `init`).
+#[must_use]
 pub fn current_theme() -> Rc<Theme> {
     THEME_SNAPSHOT.with(|snapshot| {
         snapshot
@@ -115,6 +116,7 @@ pub enum SxLength {
     Relative(f32),
     /// 100% of the parent.
     Full,
+    /// Sized by content (`auto`).
     Auto,
 }
 
@@ -181,10 +183,14 @@ macro_rules! color_tokens {
         /// A color from the active theme, one per [`ThemeColors`] field.
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
         pub enum ColorToken {
-            $($variant,)*
+            $(
+                #[doc = concat!("The theme's `", stringify!($field), "` color.")]
+                $variant,
+            )*
         }
 
         impl ColorToken {
+            /// The color this token stands for in `colors`.
             pub fn resolve(self, colors: &ThemeColors) -> Hsla {
                 match self {
                     $(ColorToken::$variant => colors.$field,)*
@@ -220,6 +226,7 @@ color_tokens! {
 
 impl ColorToken {
     /// The token at `alpha` opacity (Tailwind's `bg-primary/90` is `alpha(0.9)`).
+    #[must_use]
     pub fn alpha(self, alpha: f32) -> SxColor {
         SxColor::Token(self, alpha)
     }
@@ -228,11 +235,14 @@ impl ColorToken {
 /// A theme token (with opacity) or a fixed color.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SxColor {
+    /// A theme color at an opacity from 0 to 1.
     Token(ColorToken, f32),
+    /// A fixed color.
     Value(Hsla),
 }
 
 impl SxColor {
+    /// Fully transparent.
     pub const TRANSPARENT: SxColor = SxColor::Value(Hsla {
         h: 0.,
         s: 0.,
@@ -272,6 +282,7 @@ impl From<Rgba> for SxColor {
 /// A corner radius from the theme, or an exact length.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SxRadius {
+    /// Square corners.
     None,
     /// `rounded-sm`: radius − 4px.
     Sm,
@@ -281,7 +292,9 @@ pub enum SxRadius {
     Lg,
     /// `rounded-xl`: radius + 4px.
     Xl,
+    /// Fully round (pills and circles).
     Full,
+    /// An exact radius.
     Length(SxLength),
 }
 
@@ -308,11 +321,17 @@ impl<T: Into<SxLength>> From<T> for SxRadius {
 /// Box shadows matching shadcn/ui's scale.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SxShadow {
+    /// No shadow.
     None,
+    /// `shadow-xs`.
     Xs,
+    /// `shadow-sm`.
     Sm,
+    /// `shadow-md`.
     Md,
+    /// `shadow-lg`.
     Lg,
+    /// `shadow-xl`.
     Xl,
     /// The 3px focus ring in the theme's ring color.
     Ring,
@@ -323,13 +342,21 @@ pub enum SxShadow {
 pub enum SxText {
     /// The theme's base size (`theme.font_size`).
     Theme,
+    /// 12px.
     Xs,
+    /// 14px.
     Sm,
+    /// 16px.
     Base,
+    /// 18px.
     Lg,
+    /// 20px.
     Xl,
+    /// 24px.
     Xl2,
+    /// 30px.
     Xl3,
+    /// An exact size.
     Px(Pixels),
 }
 
@@ -340,18 +367,26 @@ pub enum SxFont {
     Sans,
     /// `theme.monospace_font_family`.
     Mono,
+    /// A family by name, such as `"Cairo"`.
     Named(SharedString),
 }
 
 /// Which edges a padding, margin, inset or border applies to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Edges {
+    /// Every side.
     All,
+    /// Left and right.
     X,
+    /// Top and bottom.
     Y,
+    /// The top.
     Top,
+    /// The right side.
     Right,
+    /// The bottom.
     Bottom,
+    /// The left side.
     Left,
     /// Left in LTR, right in RTL.
     Start,
@@ -374,21 +409,35 @@ impl Edges {
 /// Which corners a radius applies to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Corners {
+    /// Every corner.
     All,
+    /// Both top corners.
     Top,
+    /// Both bottom corners.
     Bottom,
+    /// Both left corners.
     Left,
+    /// Both right corners.
     Right,
+    /// The top-left corner.
     TopLeft,
+    /// The top-right corner.
     TopRight,
+    /// The bottom-left corner.
     BottomLeft,
+    /// The bottom-right corner.
     BottomRight,
     /// The starting side's corners (left in LTR).
     Start,
+    /// The ending side's corners (right in LTR).
     End,
+    /// The top corner at the start.
     TopStart,
+    /// The top corner at the end.
     TopEnd,
+    /// The bottom corner at the start.
     BottomStart,
+    /// The bottom corner at the end.
     BottomEnd,
 }
 
@@ -428,43 +477,65 @@ impl Corners {
     }
 }
 
+/// How an element is displayed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SxDisplay {
+    /// A flex container.
     Flex,
+    /// A block.
     Block,
+    /// Not displayed and takes no space.
     Hidden,
 }
 
+/// The direction flex children are laid out in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SxDirection {
     /// A row in the reading direction: right to left in RTL.
     Row,
+    /// Top to bottom.
     Column,
+    /// A row against the reading direction.
     RowReverse,
+    /// Bottom to top.
     ColumnReverse,
     /// A row that runs left to right in every direction (charts, codes, numbers).
     RowLtr,
 }
 
+/// Cross-axis alignment (`align-items`, `align-self`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SxAlign {
+    /// At the start.
     Start,
+    /// Centered.
     Center,
+    /// At the end.
     End,
+    /// Filling the cross axis.
     Stretch,
+    /// Text baselines lined up.
     Baseline,
 }
 
+/// Main-axis distribution (`justify-content`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SxJustify {
+    /// Packed at the start.
     Start,
+    /// Packed in the center.
     Center,
+    /// Packed at the end.
     End,
+    /// Space between children only.
     Between,
+    /// Equal space around each child.
     Around,
+    /// Equal space between children and at the ends.
     Evenly,
 }
 
+/// The `flex` shorthand.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SxFlex {
     /// `flex: 1 1 0%`.
@@ -477,12 +548,18 @@ pub enum SxFlex {
     None,
 }
 
+/// Horizontal text alignment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SxTextAlign {
+    /// Left, in every direction.
     Left,
+    /// Centered.
     Center,
+    /// Right, in every direction.
     Right,
+    /// At the reading-direction start.
     Start,
+    /// At the reading-direction end.
     End,
 }
 
@@ -493,50 +570,95 @@ pub enum SxTextAlign {
 /// builder methods or the `styles!` / `style!` macros.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Decl {
+    /// Display mode ([`Sx::flex`], [`Sx::hidden`]).
     Display(SxDisplay),
+    /// Flex direction ([`Sx::direction`]).
     Direction(SxDirection),
+    /// Flex wrapping ([`Sx::wrap`]).
     Wrap(bool),
+    /// The `flex` shorthand ([`Sx::flex_1`]).
     Flex(SxFlex),
+    /// Flex grow ([`Sx::grow`]).
     Grow(f32),
+    /// Flex shrink ([`Sx::shrink`]).
     Shrink(f32),
+    /// Flex basis ([`Sx::basis`]).
     Basis(SxLength),
+    /// `align-items` ([`Sx::align`]).
     Align(SxAlign),
+    /// `align-self` ([`Sx::align_self`]).
     AlignSelf(SxAlign),
+    /// `justify-content` ([`Sx::justify`]).
     Justify(SxJustify),
+    /// Gap on both axes ([`Sx::gap`]).
     Gap(SxLength),
+    /// Column gap ([`Sx::gap_x`]).
     GapX(SxLength),
+    /// Row gap ([`Sx::gap_y`]).
     GapY(SxLength),
+    /// Absolute (`true`) or relative positioning ([`Sx::absolute`]).
     Absolute(bool),
+    /// Offsets of a positioned element ([`Sx::inset`]).
     Inset(Edges, SxLength),
+    /// Clip overflow ([`Sx::overflow_hidden`]).
     OverflowHidden(Edges),
+    /// Width ([`Sx::w`]).
     Width(SxLength),
+    /// Height ([`Sx::h`]).
     Height(SxLength),
+    /// Minimum width ([`Sx::min_w`]).
     MinWidth(SxLength),
+    /// Maximum width ([`Sx::max_w`]).
     MaxWidth(SxLength),
+    /// Minimum height ([`Sx::min_h`]).
     MinHeight(SxLength),
+    /// Maximum height ([`Sx::max_h`]).
     MaxHeight(SxLength),
+    /// Aspect ratio ([`Sx::aspect_ratio`]).
     AspectRatio(f32),
+    /// Padding ([`Sx::padding`]).
     Padding(Edges, SxLength),
+    /// Margin ([`Sx::margin`]).
     Margin(Edges, SxLength),
+    /// Background color ([`Sx::bg`]).
     Background(SxColor),
+    /// Text color ([`Sx::text_color`]).
     TextColor(SxColor),
+    /// Border color ([`Sx::border_color`]).
     BorderColor(SxColor),
+    /// Border width ([`Sx::border_on`]).
     BorderWidth(Edges, Pixels),
+    /// Corner radius ([`Sx::rounded_on`]).
     Radius(Corners, SxRadius),
+    /// Box shadow ([`Sx::shadow`]).
     Shadow(SxShadow),
+    /// Opacity ([`Sx::opacity`]).
     Opacity(f32),
+    /// Mouse cursor ([`Sx::cursor`]).
     Cursor(CursorStyle),
+    /// Font size ([`Sx::text`]).
     Text(SxText),
+    /// Font weight ([`Sx::font_weight`]).
     FontWeight(FontWeight),
+    /// Font family ([`Sx::font`]).
     Font(SxFont),
+    /// Line height ([`Sx::line_height`]).
     LineHeight(SxLength),
+    /// Text alignment ([`Sx::text_align`]).
     TextAlign(SxTextAlign),
+    /// Keep text on one line ([`Sx::nowrap`]).
     NoWrap(bool),
+    /// One line with an ellipsis ([`Sx::truncate`]).
     Truncate,
+    /// Clamp to lines ([`Sx::line_clamp`]).
     LineClamp(usize),
+    /// Italic ([`Sx::italic`]).
     Italic,
+    /// Underline ([`Sx::underline`]).
     Underline,
+    /// Strike-through ([`Sx::line_through`]).
     LineThrough,
+    /// Border style ([`Sx::border_style`]).
     BorderStyle(gpui::BorderStyle),
 }
 
@@ -679,7 +801,7 @@ impl Decl {
                 layer,
                 *edges,
                 length.definite(),
-                |layer, value| layer.p(value),
+                gpui::Styled::p,
                 |layer, edge, value| match edge {
                     Edges::Top => layer.pt(value),
                     Edges::Right => layer.pr(value),
@@ -691,7 +813,7 @@ impl Decl {
                 layer,
                 *edges,
                 length.length(),
-                |layer, value| layer.m(value),
+                gpui::Styled::m,
                 |layer, edge, value| match edge {
                     Edges::Top => layer.mt(value),
                     Edges::Right => layer.mr(value),
@@ -826,6 +948,7 @@ macro_rules! decl_methods {
     ($($(#[$doc:meta])* $name:ident($($arg:ident: $ty:ty),*) => $decl:expr;)*) => {
         $(
             $(#[$doc])*
+            #[must_use]
             pub fn $name(mut self, $($arg: $ty),*) -> Self {
                 self.base.push($decl);
                 self
@@ -835,17 +958,21 @@ macro_rules! decl_methods {
 }
 
 impl Sx {
+    /// An empty style.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Append a declaration (later declarations win).
+    #[must_use]
     pub fn decl(mut self, decl: Decl) -> Self {
         self.base.push(decl);
         self
     }
 
     /// Styles while the pointer is over the element.
+    #[must_use]
     pub fn hover(mut self, styles: impl FnOnce(Sx) -> Sx) -> Self {
         let state = styles(Sx::new());
         self.hover.extend(state.base);
@@ -853,6 +980,7 @@ impl Sx {
     }
 
     /// Styles while the element has keyboard focus (focusable elements only).
+    #[must_use]
     pub fn focus(mut self, styles: impl FnOnce(Sx) -> Sx) -> Self {
         let state = styles(Sx::new());
         self.focus.extend(state.base);
@@ -860,6 +988,7 @@ impl Sx {
     }
 
     /// Styles while the element is pressed (elements with an id only).
+    #[must_use]
     pub fn active(mut self, styles: impl FnOnce(Sx) -> Sx) -> Self {
         let state = styles(Sx::new());
         self.active.extend(state.base);
@@ -874,6 +1003,8 @@ impl Sx {
         self.active.extend(other.active.iter().cloned());
     }
 
+    /// Whether the style has no declarations.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.base.is_empty()
             && self.hover.is_empty()
@@ -882,75 +1013,134 @@ impl Sx {
     }
 
     /// The resting-state declarations resolved against `theme`.
+    #[must_use]
     pub fn resolve_base(&self, theme: &Theme) -> StyleRefinement {
         resolve(&self.base, theme)
     }
 
     decl_methods! {
+        /// `display: flex`.
         flex() => Decl::Display(SxDisplay::Flex);
+        /// `display: block`.
         block() => Decl::Display(SxDisplay::Block);
+        /// `display: none`: the element takes no space.
         hidden() => Decl::Display(SxDisplay::Hidden);
+        /// The flex direction.
         direction(direction: SxDirection) => Decl::Direction(direction);
+        /// Lay children out in a row.
         flex_row() => Decl::Direction(SxDirection::Row);
+        /// Lay children out in a column.
         flex_col() => Decl::Direction(SxDirection::Column);
+        /// Whether flex children wrap onto new lines.
         wrap(wrap: bool) => Decl::Wrap(wrap);
+        /// Grow and shrink from a zero basis (`flex: 1 1 0%`).
         flex_1() => Decl::Flex(SxFlex::One);
+        /// Grow and shrink from the content size (`flex: 1 1 auto`).
         flex_auto() => Decl::Flex(SxFlex::Auto);
+        /// Neither grow nor shrink (`flex: none`).
         flex_none() => Decl::Flex(SxFlex::None);
+        /// The flex grow factor.
         grow(grow: f32) => Decl::Grow(grow);
+        /// The flex shrink factor.
         shrink(shrink: f32) => Decl::Shrink(shrink);
+        /// The flex basis.
         basis(length: impl Into<SxLength>) => Decl::Basis(length.into());
+        /// Cross-axis alignment of the children (`align-items`).
         align(align: SxAlign) => Decl::Align(align);
+        /// This element's cross-axis alignment in its parent (`align-self`).
         align_self(align: SxAlign) => Decl::AlignSelf(align);
+        /// Main-axis distribution of the children (`justify-content`).
         justify(justify: SxJustify) => Decl::Justify(justify);
+        /// Space between children on both axes.
         gap(length: impl Into<SxLength>) => Decl::Gap(length.into());
+        /// Space between columns.
         gap_x(length: impl Into<SxLength>) => Decl::GapX(length.into());
+        /// Space between rows.
         gap_y(length: impl Into<SxLength>) => Decl::GapY(length.into());
+        /// Position in normal flow (`position: relative`).
         relative() => Decl::Absolute(false);
+        /// Position relative to the parent, out of flow (`position: absolute`).
         absolute() => Decl::Absolute(true);
+        /// Offset an absolutely positioned element from `edges`.
         inset(edges: Edges, length: impl Into<SxLength>) => Decl::Inset(edges, length.into());
+        /// Clip content that overflows the element.
         overflow_hidden() => Decl::OverflowHidden(Edges::All);
+        /// Width.
         w(length: impl Into<SxLength>) => Decl::Width(length.into());
+        /// Height.
         h(length: impl Into<SxLength>) => Decl::Height(length.into());
+        /// Minimum width.
         min_w(length: impl Into<SxLength>) => Decl::MinWidth(length.into());
+        /// Maximum width.
         max_w(length: impl Into<SxLength>) => Decl::MaxWidth(length.into());
+        /// Minimum height.
         min_h(length: impl Into<SxLength>) => Decl::MinHeight(length.into());
+        /// Maximum height.
         max_h(length: impl Into<SxLength>) => Decl::MaxHeight(length.into());
+        /// Width divided by height.
         aspect_ratio(ratio: f32) => Decl::AspectRatio(ratio);
+        /// Padding on every side.
         p(length: impl Into<SxLength>) => Decl::Padding(Edges::All, length.into());
+        /// Horizontal padding.
         px(length: impl Into<SxLength>) => Decl::Padding(Edges::X, length.into());
+        /// Vertical padding.
         py(length: impl Into<SxLength>) => Decl::Padding(Edges::Y, length.into());
+        /// Padding on `edges`.
         padding(edges: Edges, length: impl Into<SxLength>) => Decl::Padding(edges, length.into());
+        /// Margin on every side.
         m(length: impl Into<SxLength>) => Decl::Margin(Edges::All, length.into());
+        /// Margin on `edges`.
         margin(edges: Edges, length: impl Into<SxLength>) => Decl::Margin(edges, length.into());
+        /// Background color.
         bg(color: impl Into<SxColor>) => Decl::Background(color.into());
+        /// Text color.
         text_color(color: impl Into<SxColor>) => Decl::TextColor(color.into());
+        /// Border color.
         border_color(color: impl Into<SxColor>) => Decl::BorderColor(color.into());
         /// Border width on every side, in pixels.
         border(width: f32) => Decl::BorderWidth(Edges::All, gpui::px(width));
+        /// Border width on `edges`, in pixels.
         border_on(edges: Edges, width: f32) => Decl::BorderWidth(edges, gpui::px(width));
+        /// Corner radius on every corner.
         rounded(radius: impl Into<SxRadius>) => Decl::Radius(Corners::All, radius.into());
+        /// Corner radius on `corners`.
         rounded_on(corners: Corners, radius: impl Into<SxRadius>) => Decl::Radius(corners, radius.into());
+        /// Box shadow.
         shadow(shadow: SxShadow) => Decl::Shadow(shadow);
+        /// Opacity from 0 (invisible) to 1.
         opacity(opacity: f32) => Decl::Opacity(opacity);
+        /// Mouse cursor over the element.
         cursor(cursor: CursorStyle) => Decl::Cursor(cursor);
+        /// Font size.
         text(size: SxText) => Decl::Text(size);
+        /// Font weight.
         font_weight(weight: FontWeight) => Decl::FontWeight(weight);
+        /// Font family.
         font(font: SxFont) => Decl::Font(font);
+        /// Line height.
         line_height(length: impl Into<SxLength>) => Decl::LineHeight(length.into());
+        /// Horizontal text alignment.
         text_align(align: SxTextAlign) => Decl::TextAlign(align);
+        /// Keep text on one line.
         nowrap() => Decl::NoWrap(true);
+        /// One line, cut off with an ellipsis.
         truncate() => Decl::Truncate;
+        /// At most `lines` lines, then an ellipsis.
         line_clamp(lines: usize) => Decl::LineClamp(lines);
+        /// Italic text.
         italic() => Decl::Italic;
+        /// Underlined text.
         underline() => Decl::Underline;
+        /// Struck-through text.
         line_through() => Decl::LineThrough;
+        /// Border style (solid or dashed).
         border_style(border_style: gpui::BorderStyle) => Decl::BorderStyle(border_style);
     }
 }
 
 impl Sx {
     /// `rounded(SxRadius::Full)`.
+    #[must_use]
     pub fn rounded_full(self) -> Self {
         self.rounded(SxRadius::Full)
     }
@@ -962,6 +1152,7 @@ impl Sx {
 /// Anything `.sx()` accepts: a style, an optional style, an owned style,
 /// arrays and tuples of those (merged left to right).
 pub trait SxArg {
+    /// Merge this style into `target` (later declarations win).
     fn merge_into(self, target: &mut Sx);
 }
 
@@ -1039,12 +1230,14 @@ pub fn merge(styles: impl SxArg) -> Sx {
 
 /// Apply StyleX-style styles. On GPUI elements the styles are applied at once;
 /// on rok-ui components they are stored and applied last, over the
-/// component's own styles (StyleX's `xstyle` prop).
+/// component's own styles (`StyleX`'s `xstyle` prop).
 pub trait SxStyled: Sized {
     /// Receive a merged style.
+    #[must_use]
     fn apply_sx(self, sx: Sx) -> Self;
 
     /// Merge `styles` left to right (last wins) and apply them.
+    #[must_use]
     fn sx(self, styles: impl SxArg) -> Self {
         self.apply_sx(merge(styles))
     }

@@ -1,4 +1,4 @@
-//! Toggle and ToggleGroup: buttons that stay pressed.
+//! Toggle and `ToggleGroup`: buttons that stay pressed.
 
 use std::rc::Rc;
 
@@ -49,6 +49,7 @@ pub struct Toggle {
 crate::implement_style_overrides!(Toggle);
 
 impl Toggle {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -65,47 +66,63 @@ impl Toggle {
         }
     }
 
+    /// Whether the toggle is on.
+    #[must_use]
     pub fn pressed(mut self, pressed: bool) -> Self {
         self.pressed = pressed;
         self
     }
 
+    /// An icon shown with the label.
+    #[must_use]
     pub fn icon(mut self, icon: IconName) -> Self {
         self.icon = Some(icon);
         self
     }
 
+    /// The text label.
+    #[must_use]
     pub fn label(mut self, label: impl Into<SharedString>) -> Self {
         self.label = Some(label.into());
         self
     }
 
+    /// Plain or outlined.
+    #[must_use]
     pub fn variant(mut self, variant: ToggleVariant) -> Self {
         self.variant = variant;
         self
     }
 
     /// Shorthand for `.variant(ToggleVariant::Outline)`.
+    #[must_use]
     pub fn outline(self) -> Self {
         self.variant(ToggleVariant::Outline)
     }
 
+    /// The size.
+    #[must_use]
     pub fn size(mut self, size: ComponentSize) -> Self {
         self.size = size;
         self
     }
 
+    /// Disable it: it ignores input and renders muted.
+    #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
+    /// A tooltip shown on hover.
+    #[must_use]
     pub fn tooltip(mut self, text: impl Into<SharedString>) -> Self {
         self.tooltip_text = Some(text.into());
         self
     }
 
     /// Receives the new pressed value.
+    #[must_use]
     pub fn on_change(mut self, handler: impl Fn(&bool, &mut Window, &mut App) + 'static) -> Self {
         self.on_change = Some(Rc::new(handler));
         self
@@ -234,6 +251,7 @@ pub struct ToggleGroup {
 crate::implement_style_overrides!(ToggleGroup);
 
 impl ToggleGroup {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -250,6 +268,7 @@ impl ToggleGroup {
     }
 
     /// A text item.
+    #[must_use]
     pub fn item(mut self, value: impl Into<SharedString>, label: impl Into<SharedString>) -> Self {
         self.items.push(ToggleGroupItem {
             value: value.into(),
@@ -262,6 +281,7 @@ impl ToggleGroup {
     }
 
     /// An icon-only item; `tooltip` doubles as its name.
+    #[must_use]
     pub fn icon_item(
         mut self,
         value: impl Into<SharedString>,
@@ -279,6 +299,7 @@ impl ToggleGroup {
     }
 
     /// Disable the item added last.
+    #[must_use]
     pub fn disable_last(mut self) -> Self {
         if let Some(item) = self.items.last_mut() {
             item.disabled = true;
@@ -287,32 +308,42 @@ impl ToggleGroup {
     }
 
     /// The pressed items' values.
+    #[must_use]
     pub fn value(mut self, value: impl IntoIterator<Item = impl Into<SharedString>>) -> Self {
         self.value = value.into_iter().map(Into::into).collect();
         self
     }
 
+    /// Allow more than one pressed item.
+    #[must_use]
     pub fn multiple(mut self, multiple: bool) -> Self {
         self.multiple = multiple;
         self
     }
 
+    /// Bordered items.
+    #[must_use]
     pub fn outline(mut self) -> Self {
         self.variant = ToggleVariant::Outline;
         self
     }
 
+    /// The size.
+    #[must_use]
     pub fn size(mut self, size: ComponentSize) -> Self {
         self.size = size;
         self
     }
 
+    /// Disable it: it ignores input and renders muted.
+    #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
     /// Receives the pressed values after a change.
+    #[must_use]
     pub fn on_change(
         mut self,
         handler: impl Fn(&Vec<SharedString>, &mut Window, &mut App) + 'static,
@@ -366,9 +397,9 @@ impl RenderOnce for ToggleGroup {
                     .variant(self.variant)
                     .size(self.size)
                     .disabled(self.disabled || item.disabled)
-                    .when_some(item.icon, |toggle, icon| toggle.icon(icon))
-                    .when_some(item.label, |toggle, label| toggle.label(label))
-                    .when_some(item.tooltip, |toggle, tooltip| toggle.tooltip(tooltip))
+                    .when_some(item.icon, Toggle::icon)
+                    .when_some(item.label, Toggle::label)
+                    .when_some(item.tooltip, Toggle::tooltip)
                     .sx(joined)
                     .on_change(move |pressed, window, cx| {
                         let next: Vec<SharedString> = match (multiple, *pressed) {

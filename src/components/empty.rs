@@ -32,6 +32,8 @@ pub struct Empty {
 crate::implement_style_overrides!(Empty);
 
 impl Empty {
+    /// An empty state.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             icon: None,
@@ -46,28 +48,35 @@ impl Empty {
     }
 
     /// An icon in a muted tile above the title.
+    #[must_use]
     pub fn icon(mut self, icon: IconName) -> Self {
         self.icon = Some(icon);
         self
     }
 
     /// Any element above the title instead of an icon, such as an avatar.
+    #[must_use]
     pub fn media(mut self, media: impl IntoElement) -> Self {
         self.media = Some(media.into_any_element());
         self
     }
 
+    /// The title.
+    #[must_use]
     pub fn title(mut self, title: impl Into<SharedString>) -> Self {
         self.title = Some(title.into());
         self
     }
 
+    /// Secondary text below the title.
+    #[must_use]
     pub fn description(mut self, description: impl Into<SharedString>) -> Self {
         self.description = Some(description.into());
         self
     }
 
     /// Dashed outline around the whole area.
+    #[must_use]
     pub fn bordered(mut self, bordered: bool) -> Self {
         self.bordered = bordered;
         self

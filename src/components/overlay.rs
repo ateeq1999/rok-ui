@@ -28,10 +28,14 @@ use crate::{
 /// swap in RTL.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Side {
+    /// Above the trigger.
     Top,
+    /// Below the trigger.
     #[default]
     Bottom,
+    /// Left of the trigger.
     Left,
+    /// Right of the trigger.
     Right,
 }
 
@@ -171,10 +175,10 @@ pub(crate) fn floating(side: Side, align: Align, content: impl IntoElement, cx: 
     };
     let gap = px(4.);
     let anchor = match (side, align) {
-        (Side::Bottom, Align::Start) | (Side::Right, Align::Start) => Corner::TopLeft,
+        (Side::Bottom | Side::Right, Align::Start) => Corner::TopLeft,
         (Side::Bottom, Align::End) | (Side::Left, Align::Start) => Corner::TopRight,
         (Side::Top, Align::Start) | (Side::Right, Align::End) => Corner::BottomLeft,
-        (Side::Top, Align::End) | (Side::Left, Align::End) => Corner::BottomRight,
+        (Side::Top | Side::Left, Align::End) => Corner::BottomRight,
     };
     let content = div()
         .map(|spacer| match side {
@@ -234,7 +238,7 @@ pub(crate) fn popover_surface() -> Div {
 pub(crate) fn measure_width(width: Rc<Cell<Pixels>>) -> impl IntoElement {
     gpui::canvas(
         move |bounds, _, _| width.set(bounds.size.width),
-        |_, _, _, _| {},
+        |_, (), _, _| {},
     )
     .absolute()
     .size_full()
@@ -258,7 +262,7 @@ pub(crate) fn trigger_wrapper(
     div().id(id).relative().when(!disabled, |wrapper| {
         wrapper
             .on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
-                mouse_state.set_open(!was_open, window, cx)
+                mouse_state.set_open(!was_open, window, cx);
             })
             .on_key_down(move |event, window, cx| {
                 if key_state.focus_handle(cx).contains_focused(window, cx) {

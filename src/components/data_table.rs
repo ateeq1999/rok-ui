@@ -1,5 +1,5 @@
-//! DataTable: a [`super::Table`] with filtering, sorting, row selection,
-//! column visibility and pagination (shadcn/ui's TanStack Table example).
+//! `DataTable`: a [`super::Table`] with filtering, sorting, row selection,
+//! column visibility and pagination (shadcn/ui's `TanStack` Table example).
 
 use std::{cmp::Ordering, collections::BTreeSet, rc::Rc};
 
@@ -23,8 +23,10 @@ use crate::{
 /// Horizontal alignment of a column's cells.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum ColumnAlign {
+    /// Aligned to the reading-direction start (text).
     #[default]
     Start,
+    /// Aligned to the reading-direction end (numbers).
     End,
 }
 
@@ -53,22 +55,28 @@ impl DataColumn {
     }
 
     /// Clicking the header sorts by this column (numbers numerically, `$1,200` included).
+    #[must_use]
     pub fn sortable(mut self) -> Self {
         self.sortable = true;
         self
     }
 
     /// Keep the column out of the "Columns" menu.
+    #[must_use]
     pub fn always_visible(mut self) -> Self {
         self.hideable = false;
         self
     }
 
+    /// Align cells to the reading-direction end (for numbers).
+    #[must_use]
     pub fn align_end(mut self) -> Self {
         self.align = ColumnAlign::End;
         self
     }
 
+    /// A fixed column width.
+    #[must_use]
     pub fn width(mut self, width: impl Into<gpui::Pixels>) -> Self {
         self.width = Some(width.into());
         self
@@ -78,12 +86,15 @@ impl DataColumn {
 /// Sort direction.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SortDirection {
+    /// Smallest first.
     Ascending,
+    /// Largest first.
     Descending,
 }
 
 /// Compare two cells: as numbers when both parse (ignoring `$`, `,`, `%` and
 /// spaces), otherwise as case-insensitive text.
+#[must_use]
 pub fn compare_cells(a: &str, b: &str) -> Ordering {
     let as_number = |text: &str| -> Option<f64> {
         let cleaned: String = text
@@ -100,6 +111,7 @@ pub fn compare_cells(a: &str, b: &str) -> Ordering {
 
 /// Indices of `rows` that contain `query` in column `filter_column`, sorted by
 /// `sort`. Shared by rendering and tests.
+#[must_use]
 pub fn visible_rows(
     rows: &[Vec<SharedString>],
     filter_column: Option<usize>,
@@ -175,6 +187,7 @@ pub struct DataTable {
 crate::implement_style_overrides!(DataTable);
 
 impl DataTable {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -190,17 +203,22 @@ impl DataTable {
         }
     }
 
+    /// Add a column.
+    #[must_use]
     pub fn column(mut self, column: DataColumn) -> Self {
         self.columns.push(column);
         self
     }
 
+    /// The rows, one cell per column.
+    #[must_use]
     pub fn rows(mut self, rows: impl IntoIterator<Item = Vec<SharedString>>) -> Self {
         self.rows = rows.into_iter().collect();
         self
     }
 
     /// Show a search field that filters rows by the column with `key`.
+    #[must_use]
     pub fn filter_column(
         mut self,
         key: impl Into<SharedString>,
@@ -211,23 +229,28 @@ impl DataTable {
     }
 
     /// Add a checkbox column with select-all.
+    #[must_use]
     pub fn selectable(mut self, selectable: bool) -> Self {
         self.selectable = selectable;
         self
     }
 
     /// Rows per page. Defaults to 10.
+    #[must_use]
     pub fn page_size(mut self, page_size: usize) -> Self {
         self.page_size = page_size.max(1);
         self
     }
 
     /// A "…" menu at the end of each row; receives the row's index.
+    #[must_use]
     pub fn row_actions(mut self, menu: impl Fn(usize) -> Menu + 'static) -> Self {
         self.row_actions = Some(Rc::new(menu));
         self
     }
 
+    /// Called with the selected row indices.
+    #[must_use]
     pub fn on_selection_change(
         mut self,
         handler: impl Fn(&Vec<usize>, &mut Window, &mut App) + 'static,
@@ -431,7 +454,7 @@ impl RenderOnce for DataTable {
                                 }
                                 _ => Some((column_index, SortDirection::Ascending)),
                             };
-                        })
+                        });
                     })
                     .into_any_element()
             } else {
@@ -538,12 +561,12 @@ impl RenderOnce for DataTable {
                     let memory = memory.clone();
                     let is_visible = !hidden_columns.contains(&column_index);
                     menu.item(MenuItem::new(column.title).checked(is_visible).on_select(
-                        move |_, _, cx| {
+                        move |(), _, cx| {
                             memory.update(cx, |memory| {
                                 if !memory.hidden_columns.remove(&column_index) {
                                     memory.hidden_columns.insert(column_index);
                                 }
-                            })
+                            });
                         },
                     ))
                 });
@@ -583,7 +606,7 @@ impl RenderOnce for DataTable {
                     .label("Previous")
                     .disabled(page == 0)
                     .on_click(move |_, _, cx| {
-                        previous_memory.update(cx, |memory| memory.page = page.saturating_sub(1))
+                        previous_memory.update(cx, |memory| memory.page = page.saturating_sub(1));
                     }),
             )
             .child(
@@ -593,7 +616,7 @@ impl RenderOnce for DataTable {
                     .label("Next")
                     .disabled(page + 1 >= page_count)
                     .on_click(move |_, _, cx| {
-                        next_memory.update(cx, |memory| memory.page = page + 1)
+                        next_memory.update(cx, |memory| memory.page = page + 1);
                     }),
             );
 

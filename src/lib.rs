@@ -24,11 +24,14 @@
 //! }
 //! ```
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 // Lets `#[component]` expand to `::rok_ui::…` paths inside this crate too.
 extern crate self as rok_ui;
 
 pub mod bidi;
 pub mod components;
+pub mod cx;
 #[cfg(feature = "db")]
 pub mod db;
 pub mod fonts;
@@ -36,17 +39,24 @@ pub mod hooks;
 pub mod icon;
 pub mod motion;
 pub mod prelude;
+#[cfg(feature = "query")]
+pub mod query;
 #[cfg(feature = "router")]
 pub mod router;
+#[cfg(feature = "runtime")]
+pub mod runtime;
 #[cfg(feature = "state")]
 pub mod state;
 pub mod styles;
 pub mod sx;
 pub mod theme;
 
+pub use cx::Cx;
 pub use gpui;
 pub use icon::{Assets, AssetsWithFallback, Icon, IconName};
 pub use rok_ui_macros::{children, component, keyframes, style, styles, view};
+#[cfg(feature = "query")]
+pub use rok_ui_macros::{memoize, procedure};
 
 /// Support code for the `view!` and `children!` macros. Not public API.
 #[doc(hidden)]

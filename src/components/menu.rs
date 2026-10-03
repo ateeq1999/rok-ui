@@ -61,6 +61,7 @@ pub struct MenuItem {
 }
 
 impl MenuItem {
+    /// Create it with its label.
     pub fn new(label: impl Into<SharedString>) -> Self {
         Self {
             label: label.into(),
@@ -74,41 +75,50 @@ impl MenuItem {
         }
     }
 
+    /// An icon shown with the label.
+    #[must_use]
     pub fn icon(mut self, icon: IconName) -> Self {
         self.icon = Some(icon);
         self
     }
 
     /// Keyboard shortcut hint shown on the right, like `"⌘K"`.
+    #[must_use]
     pub fn shortcut(mut self, shortcut: impl Into<SharedString>) -> Self {
         self.shortcut = Some(shortcut.into());
         self
     }
 
+    /// Disable it: it ignores input and renders muted.
+    #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
     /// Red text, for destructive actions.
+    #[must_use]
     pub fn destructive(mut self) -> Self {
         self.destructive = true;
         self
     }
 
     /// Indent the label to line up with checkbox and radio items.
+    #[must_use]
     pub fn inset(mut self) -> Self {
         self.inset = true;
         self
     }
 
     /// Make this a checkbox item showing a check when `checked`.
+    #[must_use]
     pub fn checked(mut self, checked: bool) -> Self {
         self.kind = MenuItemKind::Checkbox(checked);
         self
     }
 
     /// Make this a radio item showing a dot when `selected`.
+    #[must_use]
     pub fn radio(mut self, selected: bool) -> Self {
         self.kind = MenuItemKind::Radio(selected);
         self
@@ -121,12 +131,14 @@ impl MenuItem {
     }
 
     /// Open `menu` to the side when this item is hovered.
+    #[must_use]
     pub fn submenu(mut self, menu: Menu) -> Self {
         self.kind = MenuItemKind::Submenu(menu);
         self
     }
 
     /// Called when the item is chosen. The menu closes afterwards.
+    #[must_use]
     pub fn on_select(mut self, handler: impl Fn(&(), &mut Window, &mut App) + 'static) -> Self {
         self.on_select = Some(Rc::new(handler));
         self
@@ -151,26 +163,35 @@ pub struct Menu {
 }
 
 impl Menu {
+    /// An empty `Menu`; add content with the builder methods.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Add an item.
+    #[must_use]
     pub fn item(mut self, item: MenuItem) -> Self {
         self.entries.push(MenuEntry::Item(item));
         self
     }
 
     /// A non-interactive group heading.
+    #[must_use]
     pub fn label(mut self, label: impl Into<SharedString>) -> Self {
         self.entries.push(MenuEntry::Label(label.into()));
         self
     }
 
+    /// Add a separator line after the items so far.
+    #[must_use]
     pub fn separator(mut self) -> Self {
         self.entries.push(MenuEntry::Separator);
         self
     }
 
+    /// Whether the menu has no items.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
@@ -361,7 +382,7 @@ pub(crate) fn render_menu_panel(
                     .when(!item_disabled, |row| {
                         row.on_hover(move |hovered, _, cx| {
                             if *hovered {
-                                hover_state.set(Some(index), cx)
+                                hover_state.set(Some(index), cx);
                             }
                         })
                         .when(!is_submenu, |row| {
@@ -370,7 +391,7 @@ pub(crate) fn render_menu_panel(
                             // (inside a submenu) closes the menu before mouse up.
                             row.on_mouse_down(MouseButton::Left, move |_, window, cx| {
                                 cx.stop_propagation();
-                                choose(&item, &close_menu, window, cx)
+                                choose(&item, &close_menu, window, cx);
                             })
                         })
                     })
@@ -468,6 +489,7 @@ pub struct DropdownMenu {
 crate::implement_style_overrides!(DropdownMenu);
 
 impl DropdownMenu {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -482,31 +504,43 @@ impl DropdownMenu {
         }
     }
 
+    /// The element that opens the menu on click.
+    #[must_use]
     pub fn trigger(mut self, trigger: impl IntoElement) -> Self {
         self.trigger = Some(trigger.into_any_element());
         self
     }
 
+    /// The menu's items.
+    #[must_use]
     pub fn menu(mut self, menu: Menu) -> Self {
         self.menu = menu;
         self
     }
 
+    /// Which side it opens on.
+    #[must_use]
     pub fn side(mut self, side: Side) -> Self {
         self.side = side;
         self
     }
 
+    /// How it lines up with its trigger.
+    #[must_use]
     pub fn align(mut self, align: Align) -> Self {
         self.align = align;
         self
     }
 
+    /// Whether it is open (controlled).
+    #[must_use]
     pub fn open(mut self, open: bool) -> Self {
         self.open = Some(open);
         self
     }
 
+    /// Called with the new open state.
+    #[must_use]
     pub fn on_open_change(
         mut self,
         handler: impl Fn(&bool, &mut Window, &mut App) + 'static,
@@ -559,6 +593,7 @@ pub struct ContextMenu {
 crate::implement_style_overrides!(ContextMenu);
 
 impl ContextMenu {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -569,6 +604,8 @@ impl ContextMenu {
         }
     }
 
+    /// The menu's items.
+    #[must_use]
     pub fn menu(mut self, menu: Menu) -> Self {
         self.menu = menu;
         self

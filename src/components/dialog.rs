@@ -35,6 +35,7 @@ pub struct Dialog {
 }
 
 impl Dialog {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -47,28 +48,36 @@ impl Dialog {
         }
     }
 
+    /// Whether it is open (controlled).
+    #[must_use]
     pub fn open(mut self, open: bool) -> Self {
         self.open = open;
         self
     }
 
+    /// The title.
+    #[must_use]
     pub fn title(mut self, title: impl Into<SharedString>) -> Self {
         self.title = Some(title.into());
         self
     }
 
+    /// Secondary text below the title.
+    #[must_use]
     pub fn description(mut self, description: impl Into<SharedString>) -> Self {
         self.description = Some(description.into());
         self
     }
 
     /// Add an element to the right-aligned actions row.
+    #[must_use]
     pub fn footer(mut self, footer_element: impl IntoElement) -> Self {
         self.footer.push(footer_element.into_any_element());
         self
     }
 
     /// Called when the user dismisses the dialog.
+    #[must_use]
     pub fn on_close(mut self, handler: impl Fn(&(), &mut Window, &mut App) + 'static) -> Self {
         self.on_close = Some(Rc::new(handler));
         self
@@ -216,7 +225,7 @@ impl RenderOnce for Dialog {
             .sx(&DIALOG.scrim)
             .bg(theme.colors.overlay.opacity(progress))
             .on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
-                close_from_backdrop(window, cx)
+                close_from_backdrop(window, cx);
             })
             .child(
                 panel

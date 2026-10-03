@@ -33,6 +33,8 @@ pub struct Message {
 crate::implement_style_overrides!(Message);
 
 impl Message {
+    /// An empty message row.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             align: BubbleAlign::Start,
@@ -48,36 +50,42 @@ impl Message {
     }
 
     /// `End` puts the avatar on the right and right-aligns everything (your own turns).
+    #[must_use]
     pub fn align(mut self, align: BubbleAlign) -> Self {
         self.align = align;
         self
     }
 
     /// Usually an [`super::Avatar`]. Its column stays reserved for grouping.
+    #[must_use]
     pub fn avatar(mut self, avatar: impl IntoElement) -> Self {
         self.avatar = Some(avatar.into_any_element());
         self
     }
 
     /// Sender name in the header.
+    #[must_use]
     pub fn name(mut self, name: impl Into<SharedString>) -> Self {
         self.name = Some(name.into());
         self
     }
 
     /// Muted time next to the name.
+    #[must_use]
     pub fn timestamp(mut self, timestamp: impl Into<SharedString>) -> Self {
         self.timestamp = Some(timestamp.into());
         self
     }
 
     /// Extra header content, like a badge.
+    #[must_use]
     pub fn header(mut self, element: impl IntoElement) -> Self {
         self.header.push(element.into_any_element());
         self
     }
 
     /// Muted line under the content: delivery state, actions.
+    #[must_use]
     pub fn footer(mut self, element: impl IntoElement) -> Self {
         self.footer.push(element.into_any_element());
         self

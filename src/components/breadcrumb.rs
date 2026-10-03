@@ -47,6 +47,7 @@ pub struct Breadcrumb {
 crate::implement_style_overrides!(Breadcrumb);
 
 impl Breadcrumb {
+    /// An empty breadcrumb trail.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -58,6 +59,7 @@ impl Breadcrumb {
     }
 
     /// A clickable ancestor page.
+    #[must_use]
     pub fn link(
         mut self,
         label: impl Into<SharedString>,
@@ -71,6 +73,7 @@ impl Breadcrumb {
     }
 
     /// An ancestor shown as plain text.
+    #[must_use]
     pub fn text(mut self, label: impl Into<SharedString>) -> Self {
         self.entries.push(BreadcrumbEntry::Link {
             label: label.into(),
@@ -80,24 +83,28 @@ impl Breadcrumb {
     }
 
     /// The current page; not clickable.
+    #[must_use]
     pub fn page(mut self, label: impl Into<SharedString>) -> Self {
         self.entries.push(BreadcrumbEntry::Page(label.into()));
         self
     }
 
     /// `…` standing in for collapsed levels.
+    #[must_use]
     pub fn ellipsis(mut self) -> Self {
         self.entries.push(BreadcrumbEntry::Ellipsis(None));
         self
     }
 
     /// `…` that opens a menu of the collapsed levels.
+    #[must_use]
     pub fn ellipsis_menu(mut self, menu: Menu) -> Self {
         self.entries.push(BreadcrumbEntry::Ellipsis(Some(menu)));
         self
     }
 
     /// Replace the chevron between items with custom text, like `"/"`.
+    #[must_use]
     pub fn separator(mut self, separator: impl Into<SharedString>) -> Self {
         self.separator = Some(separator.into());
         self

@@ -54,6 +54,7 @@ pub fn set_reduced_motion(reduced: bool) {
     REDUCED_MOTION.with(|flag| flag.set(reduced));
 }
 
+/// Whether animations are turned off (see [`set_reduced_motion`]).
 pub fn reduced_motion() -> bool {
     REDUCED_MOTION.with(Cell::get)
 }
@@ -64,6 +65,7 @@ pub fn reduced_motion() -> bool {
 /// Timing functions, matching CSS where they share a name.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Easing {
+    /// Constant speed.
     Linear,
     /// `cubic-bezier(0.42, 0, 1, 1)`.
     EaseIn,
@@ -76,6 +78,7 @@ pub enum Easing {
     /// A damped spring settling over the animation's duration. Lower damping
     /// overshoots more (0.3 is bouncy, 1.0 settles without overshoot).
     Spring {
+        /// 0.3 is bouncy; 1.0 settles without overshoot.
         damping: f32,
     },
     /// Jumps to the end at the given number of steps.
@@ -84,6 +87,7 @@ pub enum Easing {
 
 impl Easing {
     /// Progress (0 to 1, possibly overshooting for springs) at time `t` (0 to 1).
+    #[must_use]
     pub fn apply(self, t: f32) -> f32 {
         let t = t.clamp(0., 1.);
         match self {
@@ -141,6 +145,8 @@ fn spring(damping: f32, t: f32) -> f32 {
 
 /// Values that can be tweened.
 pub trait Interpolate: Copy {
+    /// The value `progress` (0 to 1) of the way from `self` to `to`.
+    #[must_use]
     fn interpolate(self, to: Self, progress: f32) -> Self;
 }
 
@@ -194,64 +200,91 @@ impl<A: Interpolate, B: Interpolate> Interpolate for (A, B) {
 /// The animatable properties at one keyframe. `None` means "not set here".
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Frame {
+    /// Opacity from 0 to 1.
     pub opacity: Option<f32>,
+    /// Horizontal offset.
     pub x: Option<SxLength>,
+    /// Vertical offset.
     pub y: Option<SxLength>,
+    /// Width.
     pub width: Option<SxLength>,
+    /// Height.
     pub height: Option<SxLength>,
+    /// Background color.
     pub background: Option<SxColor>,
+    /// Text color.
     pub color: Option<SxColor>,
+    /// Border color.
     pub border_color: Option<SxColor>,
+    /// Corner radius.
     pub radius: Option<SxRadius>,
 }
 
 impl Frame {
+    /// An empty frame: it animates nothing.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Animate opacity (0 to 1).
+    #[must_use]
     pub fn opacity(mut self, opacity: f32) -> Self {
         self.opacity = Some(opacity);
         self
     }
 
     /// Horizontal offset from the laid-out position (spacing units by default).
+    #[must_use]
     pub fn x(mut self, x: impl Into<SxLength>) -> Self {
         self.x = Some(x.into());
         self
     }
 
     /// Vertical offset from the laid-out position.
+    #[must_use]
     pub fn y(mut self, y: impl Into<SxLength>) -> Self {
         self.y = Some(y.into());
         self
     }
 
+    /// Animate the width.
+    #[must_use]
     pub fn width(mut self, width: impl Into<SxLength>) -> Self {
         self.width = Some(width.into());
         self
     }
 
+    /// Animate the height.
+    #[must_use]
     pub fn height(mut self, height: impl Into<SxLength>) -> Self {
         self.height = Some(height.into());
         self
     }
 
+    /// Animate the background color.
+    #[must_use]
     pub fn background(mut self, color: impl Into<SxColor>) -> Self {
         self.background = Some(color.into());
         self
     }
 
+    /// Animate the text color.
+    #[must_use]
     pub fn color(mut self, color: impl Into<SxColor>) -> Self {
         self.color = Some(color.into());
         self
     }
 
+    /// Animate the border color.
+    #[must_use]
     pub fn border_color(mut self, color: impl Into<SxColor>) -> Self {
         self.border_color = Some(color.into());
         self
     }
 
+    /// Animate the corner radius.
+    #[must_use]
     pub fn radius(mut self, radius: impl Into<SxRadius>) -> Self {
         self.radius = Some(radius.into());
         self
@@ -274,11 +307,14 @@ pub struct Keyframes {
 }
 
 impl Keyframes {
+    /// No frames yet; add them with `.at(..)`.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Add a frame at `offset` (0 to 1).
+    #[must_use]
     pub fn at(mut self, offset: f32, frame: Frame) -> Self {
         self.frames.push((offset.clamp(0., 1.), frame));
         self.frames
@@ -287,11 +323,13 @@ impl Keyframes {
     }
 
     /// `at(0., frame)`.
+    #[must_use]
     pub fn from(self, frame: Frame) -> Self {
         self.at(0., frame)
     }
 
     /// `at(1., frame)`.
+    #[must_use]
     pub fn to(self, frame: Frame) -> Self {
         self.at(1., frame)
     }
@@ -388,15 +426,19 @@ fn sx_color(color: SxColor, colors: &crate::theme::ThemeColors) -> Hsla {
 /// How many times a motion plays.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Iterations {
+    /// Play this many times.
     Count(u32),
+    /// Loop forever.
     Infinite,
 }
 
 /// Which way each iteration runs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum MotionDirection {
+    /// From the first frame to the last.
     #[default]
     Normal,
+    /// From the last frame to the first.
     Reverse,
     /// Forward, then backward, and so on.
     Alternate,
@@ -415,6 +457,7 @@ pub struct Motion {
 
 impl Motion {
     /// 200ms, ease-out, played once.
+    #[must_use]
     pub fn new(keyframes: &Keyframes) -> Self {
         Self {
             keyframes: Rc::new(keyframes.clone()),
@@ -426,57 +469,75 @@ impl Motion {
         }
     }
 
+    /// How long one iteration takes.
+    #[must_use]
     pub fn duration(mut self, duration: Duration) -> Self {
         self.duration = duration;
         self
     }
 
+    /// `duration` in milliseconds.
+    #[must_use]
     pub fn duration_ms(self, milliseconds: u64) -> Self {
         self.duration(Duration::from_millis(milliseconds))
     }
 
     /// Wait before starting (before every iteration when infinite).
+    #[must_use]
     pub fn delay(mut self, delay: Duration) -> Self {
         self.delay = delay;
         self
     }
 
+    /// Wait this many milliseconds before starting.
+    #[must_use]
     pub fn delay_ms(self, milliseconds: u64) -> Self {
         self.delay(Duration::from_millis(milliseconds))
     }
 
+    /// The timing function.
+    #[must_use]
     pub fn easing(mut self, easing: Easing) -> Self {
         self.easing = easing;
         self
     }
 
+    /// Play `count` times.
+    #[must_use]
     pub fn iterations(mut self, count: u32) -> Self {
         self.iterations = Iterations::Count(count.max(1));
         self
     }
 
+    /// Loop forever.
+    #[must_use]
     pub fn infinite(mut self) -> Self {
         self.iterations = Iterations::Infinite;
         self
     }
 
+    /// Which way each iteration runs.
+    #[must_use]
     pub fn direction(mut self, direction: MotionDirection) -> Self {
         self.direction = direction;
         self
     }
 
     /// Shorthand for `.direction(MotionDirection::Alternate)`.
+    #[must_use]
     pub fn alternate(self) -> Self {
         self.direction(MotionDirection::Alternate)
     }
 
     /// Shorthand for `.direction(MotionDirection::Reverse)`.
+    #[must_use]
     pub fn reverse(self) -> Self {
         self.direction(MotionDirection::Reverse)
     }
 
     /// Keyframe progress at `elapsed` (0 to 1) of the whole GPUI animation,
     /// accounting for delay, iterations and direction.
+    #[must_use]
     pub fn progress_at(&self, elapsed: f32) -> f32 {
         let iteration_length = self.delay.as_secs_f32() + self.duration.as_secs_f32();
         let iteration_length = iteration_length.max(f32::EPSILON);
@@ -556,9 +617,13 @@ impl<E: IntoElement + Styled + 'static> MotionExt for E {}
 /// The edge a [`presets::slide_in`] motion starts from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum MotionSide {
+    /// From or to above.
     Top,
+    /// From or to below.
     Bottom,
+    /// From or to the left.
     Left,
+    /// From or to the right.
     Right,
 }
 
@@ -580,16 +645,19 @@ pub mod presets {
     });
 
     /// Opacity 0 → 1.
+    #[must_use]
     pub fn fade_in() -> Motion {
         Motion::new(&FADE_IN)
     }
 
     /// Opacity 1 → 0.
+    #[must_use]
     pub fn fade_out() -> Motion {
         Motion::new(&FADE_IN).reverse()
     }
 
     /// Fade in while moving `distance` spacing units from `side`.
+    #[must_use]
     pub fn slide_in(side: MotionSide, distance: f32) -> Motion {
         let start = match side {
             MotionSide::Top => Frame::new().y(-distance),
@@ -605,6 +673,7 @@ pub mod presets {
     }
 
     /// Tailwind's `animate-pulse`: opacity dips to 0.5 and back, forever.
+    #[must_use]
     pub fn pulse() -> Motion {
         Motion::new(
             &Keyframes::new()
@@ -618,6 +687,7 @@ pub mod presets {
     }
 
     /// Tailwind's `animate-bounce`: hop up a quarter of 1rem and land, forever.
+    #[must_use]
     pub fn bounce() -> Motion {
         Motion::new(
             &Keyframes::new()
@@ -631,6 +701,7 @@ pub mod presets {
     }
 
     /// A short horizontal shake, for invalid input.
+    #[must_use]
     pub fn shake() -> Motion {
         Motion::new(
             &Keyframes::new()
@@ -646,6 +717,7 @@ pub mod presets {
     }
 
     /// Briefly flash the background with the accent color, then fade back.
+    #[must_use]
     pub fn highlight() -> Motion {
         Motion::new(
             &Keyframes::new()
@@ -662,28 +734,39 @@ pub mod presets {
 /// Timing for [`use_transition`] and [`use_presence`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Transition {
+    /// How long the transition takes.
     pub duration: Duration,
+    /// The timing function.
     pub easing: Easing,
 }
 
 impl Transition {
+    /// A transition over `duration` with `easing`.
+    #[must_use]
     pub fn new(duration: Duration, easing: Easing) -> Self {
         Self { duration, easing }
     }
 
+    /// An ease-out transition over `milliseconds`.
+    #[must_use]
     pub fn ease_out(milliseconds: u64) -> Self {
         Self::new(Duration::from_millis(milliseconds), Easing::EaseOut)
     }
 
+    /// An ease-in-out transition over `milliseconds`.
+    #[must_use]
     pub fn ease_in_out(milliseconds: u64) -> Self {
         Self::new(Duration::from_millis(milliseconds), Easing::EaseInOut)
     }
 
+    /// A linear transition over `milliseconds`.
+    #[must_use]
     pub fn linear(milliseconds: u64) -> Self {
         Self::new(Duration::from_millis(milliseconds), Easing::Linear)
     }
 
     /// A gentle spring over 500ms.
+    #[must_use]
     pub fn spring() -> Self {
         Self::new(Duration::from_millis(500), Easing::Spring { damping: 0.6 })
     }
@@ -756,16 +839,19 @@ pub struct Presence {
 
 impl Presence {
     /// Render the element: true while present or still animating out.
+    #[must_use]
     pub fn is_mounted(&self) -> bool {
         self.present || self.progress > 0.001
     }
 
     /// 0 (gone) to 1 (fully in); use it for opacity, offsets, scale-like effects.
+    #[must_use]
     pub fn progress(&self) -> f32 {
         self.progress
     }
 
     /// Whether the element is entering or present (false while exiting).
+    #[must_use]
     pub fn is_present(&self) -> bool {
         self.present
     }
@@ -791,6 +877,7 @@ pub fn use_presence(
 }
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)] // Eased endpoints are exact.
 mod tests {
     use super::*;
 

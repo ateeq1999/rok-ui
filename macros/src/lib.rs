@@ -37,6 +37,8 @@ use syn::{
 ///
 /// Parameter rules:
 /// - A parameter named `window` or `cx` receives the GPUI window or app context.
+///   `cx: &mut Cx` receives both as one [`Cx`](../rok_ui/struct.Cx.html) handle instead
+///   (then there is no `window` parameter).
 /// - Plain parameters are required props and become arguments of `new(..)` (taking `impl Into<T>`).
 /// - `#[prop(optional)]` parameters start at `Default::default()` and get a builder method
 ///   with the same name. For `Option<T>` the method takes `impl Into<T>`.
@@ -48,7 +50,7 @@ use syn::{
 ///   so callers can chain `.w_full()`, `.mt_4()`, … like a `className`. Apply it in
 ///   the body with `.apply_style_overrides(&style_overrides)`.
 /// - One `#[sx] sx: Sx` parameter makes the component accept `.sx(..)` styles
-///   (StyleX's `xstyle`). Apply them last in the body: `.sx((&MY_STYLES.base, &sx))`.
+///   (`StyleX`'s `xstyle`). Apply them last in the body: `.sx((&MY_STYLES.base, &sx))`.
 #[proc_macro_attribute]
 pub fn component(attribute_arguments: TokenStream, item: TokenStream) -> TokenStream {
     if !attribute_arguments.is_empty() {
@@ -60,7 +62,7 @@ pub fn component(attribute_arguments: TokenStream, item: TokenStream) -> TokenSt
         .into();
     }
     let function = parse_macro_input!(item as ItemFn);
-    match expand_component(function) {
+    match expand_component(&function) {
         Ok(tokens) => tokens.into(),
         Err(error) => error.to_compile_error().into(),
     }
@@ -81,7 +83,7 @@ struct ComponentProperty {
     documentation: Vec<Attribute>,
 }
 
-fn expand_component(function: ItemFn) -> syn::Result<TokenStream2> {
+fn expand_component(function: &ItemFn) -> syn::Result<TokenStream2> {
     if !function.sig.generics.params.is_empty() {
         return Err(syn::Error::new(
             function.sig.generics.span(),
@@ -178,13 +180,22 @@ fn expand_component(function: ItemFn) -> syn::Result<TokenStream2> {
     }
 
     let gpui_path = quote!(::rok_ui::gpui);
+    let uses_cx = context_type.as_ref().is_some_and(is_cx_type);
+    if uses_cx && window_type.is_some() {
+        return Err(syn::Error::new(
+            function.sig.inputs.span(),
+            "a component taking `cx: &mut Cx` reaches the window through `cx.window`; remove the `window` parameter",
+        ));
+    }
     // Keep the caller's spelling of `&mut Window` / `&mut App` so their imports stay used.
-    let window_type = window_type
-        .map(|window_type| quote!(#window_type))
-        .unwrap_or_else(|| quote!(&mut #gpui_path::Window));
-    let context_type = context_type
-        .map(|context_type| quote!(#context_type))
-        .unwrap_or_else(|| quote!(&mut #gpui_path::App));
+    let window_type = window_type.map_or_else(
+        || quote!(&mut #gpui_path::Window),
+        |window_type| quote!(#window_type),
+    );
+    let context_type = context_type.map_or_else(
+        || quote!(&mut #gpui_path::App),
+        |context_type| quote!(#context_type),
+    );
 
     let struct_fields = properties.iter().map(|property| {
         let name = &property.name;
@@ -200,7 +211,16 @@ fn expand_component(function: ItemFn) -> syn::Result<TokenStream2> {
     for property in &properties {
         let name = &property.name;
         let property_type = &property.property_type;
-        let method_documentation = &property.documentation;
+        let fallback_documentation = format!("Set the `{name}` prop.");
+        let method_documentation = if property.documentation.is_empty() {
+            vec![quote!(#[doc = #fallback_documentation])]
+        } else {
+            property
+                .documentation
+                .iter()
+                .map(|attribute| quote!(#attribute))
+                .collect()
+        };
         match property.kind {
             PropertyKind::Required => {
                 if let Some(event_type) = event_handler_event_type(property_type) {
@@ -326,6 +346,30 @@ fn expand_component(function: ItemFn) -> syn::Result<TokenStream2> {
         syn::ReturnType::Type(_, return_type) => return_type.clone(),
     };
 
+    let render_implementation = if uses_cx {
+        quote! {
+            impl #gpui_path::RenderOnce for #component_name {
+                #[allow(unused_variables, clippy::needless_return)]
+                fn render(self, __rok_window: &mut #gpui_path::Window, __rok_app: &mut #gpui_path::App) -> #return_type {
+                    let Self { #(#field_names,)* } = self;
+                    let mut __rok_cx = ::rok_ui::Cx::new(__rok_window, __rok_app);
+                    let #context_name: &mut ::rok_ui::Cx<'_> = &mut __rok_cx;
+                    #body
+                }
+            }
+        }
+    } else {
+        quote! {
+            impl #gpui_path::RenderOnce for #component_name {
+                #[allow(unused_variables, clippy::needless_return)]
+                fn render(self, #window_name: #window_type, #context_name: #context_type) -> #return_type {
+                    let Self { #(#field_names,)* } = self;
+                    #body
+                }
+            }
+        }
+    };
+
     Ok(quote! {
         #(#documentation)*
         #[must_use = "components do nothing unless rendered as a child"]
@@ -343,13 +387,7 @@ fn expand_component(function: ItemFn) -> syn::Result<TokenStream2> {
             #(#builder_methods)*
         }
 
-        impl #gpui_path::RenderOnce for #component_name {
-            #[allow(unused_variables, clippy::needless_return)]
-            fn render(self, #window_name: #window_type, #context_name: #context_type) -> #return_type {
-                let Self { #(#field_names,)* } = self;
-                #body
-            }
-        }
+        #render_implementation
 
         impl #gpui_path::IntoElement for #component_name {
             type Element = #gpui_path::Component<Self>;
@@ -364,6 +402,21 @@ fn expand_component(function: ItemFn) -> syn::Result<TokenStream2> {
         #styled_implementation
         #sx_implementation
     })
+}
+
+/// Whether `context_type` is `&mut Cx` (any path ending in `Cx`).
+fn is_cx_type(context_type: &Type) -> bool {
+    let Type::Reference(reference) = context_type else {
+        return false;
+    };
+    let Type::Path(type_path) = reference.elem.as_ref() else {
+        return false;
+    };
+    type_path
+        .path
+        .segments
+        .last()
+        .is_some_and(|segment| segment.ident == "Cx")
 }
 
 /// `Option<T>` -> `Some(T)`.
@@ -394,7 +447,43 @@ fn single_generic_argument<'a>(property_type: &'a Type, wrapper_name: &str) -> O
 }
 
 mod children;
+mod procedure;
 mod styles;
+
+/// Declare a typed async command: a [`Procedure`](../rok_ui/query/trait.Procedure.html) with
+/// optional queries to invalidate after it succeeds.
+///
+/// The function is `async`, takes an optional `TaskCx` and one input, and returns
+/// `Result<Output, Error>`. The attribute turns it into a unit struct of the same name that
+/// implements `Procedure`, for `use_procedure(cx, create_note)` or `create_note.call(cx, input)`.
+///
+/// ```ignore
+/// #[procedure(invalidates = [query_key!["notes"]])]
+/// async fn create_note(cx: TaskCx, input: NewNote) -> Result<Note, NoteError> { .. }
+/// ```
+#[proc_macro_attribute]
+pub fn procedure(arguments: TokenStream, item: TokenStream) -> TokenStream {
+    match procedure::expand_procedure(arguments.into(), item.into()) {
+        Ok(tokens) => tokens.into(),
+        Err(error) => error.to_compile_error().into(),
+    }
+}
+
+/// Memoize an async function: calls with the same arguments share one in-flight future and its
+/// result, until `rok_ui::query::memo::invalidate` forgets it. Arguments are owned and `Debug`
+/// (they form the cache key); the output is `Clone + Send + Sync`.
+///
+/// ```ignore
+/// #[memoize]
+/// async fn current_user(cx: TaskCx) -> Option<User> { session::load(&cx).await }
+/// ```
+#[proc_macro_attribute]
+pub fn memoize(arguments: TokenStream, item: TokenStream) -> TokenStream {
+    match procedure::expand_memoize(arguments.into(), item.into()) {
+        Ok(tokens) => tokens.into(),
+        Err(error) => error.to_compile_error().into(),
+    }
+}
 
 /// Define StyleX-style style objects once, at module level.
 ///

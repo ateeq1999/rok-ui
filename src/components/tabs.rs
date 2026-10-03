@@ -31,6 +31,7 @@ pub struct Tabs {
 crate::implement_style_overrides!(Tabs);
 
 impl Tabs {
+    /// An empty tab list.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -43,17 +44,21 @@ impl Tabs {
     }
 
     /// Add a tab trigger.
+    #[must_use]
     pub fn tab(mut self, label: impl Into<SharedString>) -> Self {
         self.tab_labels.push(label.into());
         self
     }
 
+    /// The selected tab.
+    #[must_use]
     pub fn selected_index(mut self, selected_index: usize) -> Self {
         self.selected_index = selected_index;
         self
     }
 
     /// Receives the index of the tab the user picked.
+    #[must_use]
     pub fn on_change(mut self, handler: impl Fn(&usize, &mut Window, &mut App) + 'static) -> Self {
         self.on_change = Some(Rc::new(handler));
         self

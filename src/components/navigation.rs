@@ -36,6 +36,7 @@ pub struct NavigationDestination {
 }
 
 impl NavigationDestination {
+    /// Create it with its label.
     pub fn new(icon: IconName, label: impl Into<SharedString>) -> Self {
         Self {
             icon,
@@ -47,22 +48,28 @@ impl NavigationDestination {
     }
 
     /// The icon shown while this destination is selected.
+    #[must_use]
     pub fn selected_icon(mut self, icon: IconName) -> Self {
         self.selected_icon = Some(icon);
         self
     }
 
     /// A count on the icon, like unread messages. An empty string shows a dot.
+    #[must_use]
     pub fn badge(mut self, badge: impl Into<SharedString>) -> Self {
         self.badge = Some(badge.into());
         self
     }
 
+    /// Disable it: it ignores input and renders muted.
+    #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
+    /// The destination's label.
+    #[must_use]
     pub fn label(&self) -> &SharedString {
         &self.label
     }
@@ -71,9 +78,12 @@ impl NavigationDestination {
 /// When a [`NavigationBar`] or [`NavigationRail`] shows destination labels.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum NavigationLabelBehavior {
+    /// Every destination shows its label.
     #[default]
     AlwaysShow,
+    /// Only the selected destination shows its label.
     OnlyShowSelected,
+    /// Icons only.
     AlwaysHide,
 }
 
@@ -90,9 +100,12 @@ impl NavigationLabelBehavior {
 /// Where a [`NavigationRail`] places its destinations vertically.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum NavigationRailAlignment {
+    /// Destinations start at the top.
     #[default]
     Top,
+    /// Destinations are centered vertically.
     Center,
+    /// Destinations sit at the bottom.
     Bottom,
 }
 
@@ -271,13 +284,13 @@ fn selectable(
     item: gpui::Stateful<gpui::Div>,
     index: usize,
     destination: &NavigationDestination,
-    on_change: &Option<EventHandler<usize>>,
+    on_change: Option<&EventHandler<usize>>,
     after_change: Option<Callback>,
 ) -> gpui::Stateful<gpui::Div> {
     if destination.disabled {
         return item.sx(&NAVIGATION.disabled);
     }
-    let on_change = on_change.clone();
+    let on_change = on_change.cloned();
     on_activate(
         item.tab_index(0),
         Rc::new(move |window, cx| {
@@ -298,7 +311,7 @@ fn row_item(
     index: usize,
     destination: &NavigationDestination,
     selected: bool,
-    on_change: &Option<EventHandler<usize>>,
+    on_change: Option<&EventHandler<usize>>,
     after_change: Option<Callback>,
     cx: &App,
 ) -> AnyElement {
@@ -362,6 +375,7 @@ pub struct NavigationBar {
 crate::implement_style_overrides!(NavigationBar);
 
 impl NavigationBar {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -374,11 +388,15 @@ impl NavigationBar {
         }
     }
 
+    /// Add a destination.
+    #[must_use]
     pub fn destination(mut self, destination: NavigationDestination) -> Self {
         self.destinations.push(destination);
         self
     }
 
+    /// Add several destinations.
+    #[must_use]
     pub fn destinations(
         mut self,
         destinations: impl IntoIterator<Item = NavigationDestination>,
@@ -387,16 +405,22 @@ impl NavigationBar {
         self
     }
 
+    /// The selected destination.
+    #[must_use]
     pub fn selected_index(mut self, index: usize) -> Self {
         self.selected_index = index;
         self
     }
 
+    /// When destination labels are shown.
+    #[must_use]
     pub fn label_behavior(mut self, behavior: NavigationLabelBehavior) -> Self {
         self.label_behavior = behavior;
         self
     }
 
+    /// Called with the new value.
+    #[must_use]
     pub fn on_change(mut self, handler: impl Fn(&usize, &mut Window, &mut App) + 'static) -> Self {
         self.on_change = Some(Rc::new(handler));
         self
@@ -431,7 +455,8 @@ impl RenderOnce for NavigationBar {
                     .when(!self.label_behavior.shows(selected), |item| {
                         item.tooltip(Tooltip::text(destination.label.clone()))
                     });
-                selectable(item, index, destination, &self.on_change, None).into_any_element()
+                selectable(item, index, destination, self.on_change.as_ref(), None)
+                    .into_any_element()
             })
             .collect();
         div()
@@ -471,6 +496,7 @@ pub struct NavigationRail {
 crate::implement_style_overrides!(NavigationRail);
 
 impl NavigationRail {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -487,11 +513,15 @@ impl NavigationRail {
         }
     }
 
+    /// Add a destination.
+    #[must_use]
     pub fn destination(mut self, destination: NavigationDestination) -> Self {
         self.destinations.push(destination);
         self
     }
 
+    /// Add several destinations.
+    #[must_use]
     pub fn destinations(
         mut self,
         destinations: impl IntoIterator<Item = NavigationDestination>,
@@ -500,41 +530,50 @@ impl NavigationRail {
         self
     }
 
+    /// The selected destination.
+    #[must_use]
     pub fn selected_index(mut self, index: usize) -> Self {
         self.selected_index = index;
         self
     }
 
     /// Show labels beside the icons in a wider rail.
+    #[must_use]
     pub fn extended(mut self, extended: bool) -> Self {
         self.extended = extended;
         self
     }
 
     /// Labels under the icons (ignored while extended).
+    #[must_use]
     pub fn label_behavior(mut self, behavior: NavigationLabelBehavior) -> Self {
         self.label_behavior = behavior;
         self
     }
 
     /// Where the destinations sit vertically. Default: `Top`.
+    #[must_use]
     pub fn alignment(mut self, alignment: NavigationRailAlignment) -> Self {
         self.alignment = alignment;
         self
     }
 
     /// Above the destinations: a menu button or a floating action button.
+    #[must_use]
     pub fn leading(mut self, element: impl IntoElement) -> Self {
         self.leading.push(element.into_any_element());
         self
     }
 
     /// Below the destinations: settings or the user's avatar.
+    #[must_use]
     pub fn trailing(mut self, element: impl IntoElement) -> Self {
         self.trailing.push(element.into_any_element());
         self
     }
 
+    /// Called with the new value.
+    #[must_use]
     pub fn on_change(mut self, handler: impl Fn(&usize, &mut Window, &mut App) + 'static) -> Self {
         self.on_change = Some(Rc::new(handler));
         self
@@ -559,7 +598,7 @@ impl RenderOnce for NavigationRail {
                         index,
                         destination,
                         selected,
-                        &self.on_change,
+                        self.on_change.as_ref(),
                         None,
                         cx,
                     );
@@ -582,7 +621,8 @@ impl RenderOnce for NavigationRail {
                     .when(!shows_label, |item| {
                         item.tooltip(Tooltip::text(destination.label.clone()))
                     });
-                selectable(item, index, destination, &self.on_change, None).into_any_element()
+                selectable(item, index, destination, self.on_change.as_ref(), None)
+                    .into_any_element()
             })
             .collect();
 
@@ -677,6 +717,7 @@ pub struct NavigationDrawer {
 crate::implement_style_overrides!(NavigationDrawer);
 
 impl NavigationDrawer {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -690,27 +731,35 @@ impl NavigationDrawer {
     }
 
     /// Content above the destinations, such as the app name.
+    #[must_use]
     pub fn header(mut self, element: impl IntoElement) -> Self {
         self.header.push(element.into_any_element());
         self
     }
 
     /// A heading over the destinations that follow.
+    #[must_use]
     pub fn section(mut self, label: impl Into<SharedString>) -> Self {
         self.entries.push(DrawerEntry::Section(label.into()));
         self
     }
 
+    /// Add a divider after the destinations so far.
+    #[must_use]
     pub fn divider(mut self) -> Self {
         self.entries.push(DrawerEntry::Divider);
         self
     }
 
+    /// Add a destination.
+    #[must_use]
     pub fn destination(mut self, destination: NavigationDestination) -> Self {
         self.entries.push(DrawerEntry::Destination(destination));
         self
     }
 
+    /// Add several destinations.
+    #[must_use]
     pub fn destinations(
         mut self,
         destinations: impl IntoIterator<Item = NavigationDestination>,
@@ -720,11 +769,15 @@ impl NavigationDrawer {
         self
     }
 
+    /// The selected destination.
+    #[must_use]
     pub fn selected_index(mut self, index: usize) -> Self {
         self.selected_index = index;
         self
     }
 
+    /// Called with the new value.
+    #[must_use]
     pub fn on_change(mut self, handler: impl Fn(&usize, &mut Window, &mut App) + 'static) -> Self {
         self.on_change = Some(Rc::new(handler));
         self
@@ -746,7 +799,7 @@ impl RenderOnce for NavigationDrawer {
                         .into_any_element(),
                 ),
                 DrawerEntry::Divider => {
-                    rows.push(div().sx(&NAVIGATION.drawer_divider).into_any_element())
+                    rows.push(div().sx(&NAVIGATION.drawer_divider).into_any_element());
                 }
                 DrawerEntry::Destination(destination) => {
                     rows.push(row_item(
@@ -754,7 +807,7 @@ impl RenderOnce for NavigationDrawer {
                         index,
                         destination,
                         index == self.selected_index,
-                        &self.on_change,
+                        self.on_change.as_ref(),
                         close_modal.clone(),
                         cx,
                     ));

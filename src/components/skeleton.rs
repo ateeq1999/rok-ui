@@ -25,6 +25,7 @@ pub struct Skeleton {
 crate::implement_style_overrides!(Skeleton);
 
 impl Skeleton {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -41,10 +42,10 @@ impl RenderOnce for Skeleton {
             .apply_style_overrides(&self.style_overrides)
             .with_animation(
                 self.id,
-                Animation::new(Duration::from_millis(2000))
+                Animation::new(Duration::from_secs(2))
                     .repeat()
                     .with_easing(pulsating_between(0.5, 1.0)),
-                |skeleton, opacity| skeleton.opacity(opacity),
+                gpui::Styled::opacity,
             )
     }
 }

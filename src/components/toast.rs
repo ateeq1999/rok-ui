@@ -31,11 +31,16 @@ pub struct ToastId(u64);
 /// Icon and accent of a toast.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum ToastVariant {
+    /// Neutral, no icon.
     #[default]
     Default,
+    /// A green check icon.
     Success,
+    /// A blue info icon.
     Info,
+    /// An amber warning icon.
     Warning,
+    /// A red error icon.
     Error,
     /// A spinner; stays until dismissed or updated.
     Loading,
@@ -54,6 +59,7 @@ pub struct Toast {
 }
 
 impl Toast {
+    /// Create it with its title.
     pub fn new(title: impl Into<SharedString>) -> Self {
         Self {
             title: title.into(),
@@ -64,18 +70,22 @@ impl Toast {
         }
     }
 
+    /// A toast with a success icon.
     pub fn success(title: impl Into<SharedString>) -> Self {
         Self::new(title).variant(ToastVariant::Success)
     }
 
+    /// A toast with an info icon.
     pub fn info(title: impl Into<SharedString>) -> Self {
         Self::new(title).variant(ToastVariant::Info)
     }
 
+    /// A toast with a warning icon.
     pub fn warning(title: impl Into<SharedString>) -> Self {
         Self::new(title).variant(ToastVariant::Warning)
     }
 
+    /// A toast with an error icon.
     pub fn error(title: impl Into<SharedString>) -> Self {
         Self::new(title).variant(ToastVariant::Error)
     }
@@ -85,17 +95,22 @@ impl Toast {
         Self::new(title).variant(ToastVariant::Loading).persistent()
     }
 
+    /// Secondary text below the title.
+    #[must_use]
     pub fn description(mut self, description: impl Into<SharedString>) -> Self {
         self.description = Some(description.into());
         self
     }
 
+    /// The visual variant.
+    #[must_use]
     pub fn variant(mut self, variant: ToastVariant) -> Self {
         self.variant = variant;
         self
     }
 
     /// A button on the toast; clicking it runs `handler` and dismisses the toast.
+    #[must_use]
     pub fn action(
         mut self,
         label: impl Into<SharedString>,
@@ -106,12 +121,14 @@ impl Toast {
     }
 
     /// How long it stays. Defaults to 4 seconds.
+    #[must_use]
     pub fn duration(mut self, duration: Duration) -> Self {
         self.duration = Some(duration);
         self
     }
 
     /// Stay until dismissed.
+    #[must_use]
     pub fn persistent(mut self) -> Self {
         self.duration = None;
         self
@@ -183,6 +200,8 @@ fn schedule_dismissal(id: ToastId, duration: Option<Duration>, cx: &mut App) {
 pub struct Toaster;
 
 impl Toaster {
+    /// The toast region. `AppRoot` already renders one.
+    #[must_use]
     pub fn new() -> Self {
         Self
     }

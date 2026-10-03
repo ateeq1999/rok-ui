@@ -13,18 +13,22 @@ pub use presets::ThemePreset;
 /// Light or dark appearance.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum ThemeMode {
+    /// Dark text on light surfaces.
     #[default]
     Light,
+    /// Light text on dark surfaces.
     Dark,
 }
 
 impl ThemeMode {
     /// `true` for [`ThemeMode::Dark`].
+    #[must_use]
     pub fn is_dark(self) -> bool {
         self == ThemeMode::Dark
     }
 
     /// The other mode.
+    #[must_use]
     pub fn toggled(self) -> Self {
         match self {
             ThemeMode::Light => ThemeMode::Dark,
@@ -45,24 +49,31 @@ pub struct ThemeColors {
     pub foreground: Hsla,
     /// Card surface.
     pub card: Hsla,
+    /// Text on cards.
     pub card_foreground: Hsla,
     /// Floating surfaces: dialogs, tooltips' counterpart, menus.
     pub popover: Hsla,
+    /// Text in popovers and menus.
     pub popover_foreground: Hsla,
     /// Main call to action.
     pub primary: Hsla,
+    /// Text on the primary color.
     pub primary_foreground: Hsla,
     /// Low-emphasis filled surfaces.
     pub secondary: Hsla,
+    /// Text on the secondary color.
     pub secondary_foreground: Hsla,
     /// Subdued backgrounds and secondary text.
     pub muted: Hsla,
+    /// Secondary text: descriptions, placeholders.
     pub muted_foreground: Hsla,
     /// Hover and selected backgrounds.
     pub accent: Hsla,
+    /// Text on the accent color.
     pub accent_foreground: Hsla,
     /// Destructive actions and errors.
     pub destructive: Hsla,
+    /// Text on the destructive color.
     pub destructive_foreground: Hsla,
     /// Error text drawn directly on `background` or `card` (alerts, field errors).
     pub destructive_text: Hsla,
@@ -81,7 +92,9 @@ pub struct ThemeColors {
 pub struct Theme {
     /// Human-readable name, for example "Neutral" or "Rok".
     pub name: SharedString,
+    /// Light or dark.
     pub mode: ThemeMode,
+    /// The color tokens.
     pub colors: ThemeColors,
     /// Base corner radius (shadcn's `--radius`). Components derive smaller and
     /// larger radii from it, like `rounded-md` = radius − 2px.
@@ -100,6 +113,7 @@ impl Global for Theme {}
 
 impl Theme {
     /// Build a theme from a preset and a mode.
+    #[must_use]
     pub fn from_preset(preset: ThemePreset, mode: ThemeMode) -> Self {
         presets::build_theme(preset, mode)
     }
@@ -169,21 +183,25 @@ impl Theme {
     }
 
     /// `rounded-sm`: radius − 4px, never below zero.
+    #[must_use]
     pub fn radius_small(&self) -> Pixels {
         (self.radius - px(4.)).max(px(0.))
     }
 
     /// `rounded-md`: radius − 2px, never below zero.
+    #[must_use]
     pub fn radius_medium(&self) -> Pixels {
         (self.radius - px(2.)).max(px(0.))
     }
 
     /// `rounded-lg`: the base radius.
+    #[must_use]
     pub fn radius_large(&self) -> Pixels {
         self.radius
     }
 
     /// `rounded-xl`: radius + 4px (cards, dialogs).
+    #[must_use]
     pub fn radius_extra_large(&self) -> Pixels {
         self.radius + px(4.)
     }
@@ -197,6 +215,7 @@ impl Default for Theme {
 
 /// Read the active theme from any GPUI context: `cx.theme().colors.primary`.
 pub trait ActiveTheme {
+    /// The active theme.
     fn theme(&self) -> &Theme;
 }
 

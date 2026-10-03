@@ -43,6 +43,7 @@ impl<Value: 'static> Clone for State<Value> {
 
 impl<Value: 'static> State<Value> {
     /// Wrap an existing entity, for state owned by a parent view.
+    #[must_use]
     pub fn from_entity(entity: Entity<Value>) -> Self {
         Self { entity }
     }
@@ -77,6 +78,7 @@ impl<Value: 'static> State<Value> {
     }
 
     /// The underlying GPUI entity, for `cx.observe` and friends.
+    #[must_use]
     pub fn entity(&self) -> &Entity<Value> {
         &self.entity
     }

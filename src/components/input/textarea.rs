@@ -51,6 +51,7 @@ crate::implement_style_overrides!(Textarea);
 impl Textarea {
     /// `state` should be multi-line: create it with [`use_textarea_state`] or
     /// `InputState::new(cx).with_multiline(true)`.
+    #[must_use]
     pub fn new(state: &Entity<InputState>) -> Self {
         Self {
             state: state.clone(),
@@ -62,12 +63,15 @@ impl Textarea {
         }
     }
 
+    /// Disable it: it ignores input and renders muted.
+    #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
     /// Red border and ring, for validation errors.
+    #[must_use]
     pub fn invalid(mut self, invalid: bool) -> Self {
         self.invalid = invalid;
         self
@@ -266,7 +270,7 @@ fn shape(
     window
         .text_system()
         .shape_text(text, font_size, runs, wrap_width, None)
-        .map(|lines| lines.into_vec())
+        .map(Vec::from_iter)
         .unwrap_or_default()
 }
 

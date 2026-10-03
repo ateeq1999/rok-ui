@@ -37,6 +37,7 @@ pub struct Collapsible {
 crate::implement_style_overrides!(Collapsible);
 
 impl Collapsible {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -52,27 +53,35 @@ impl Collapsible {
     }
 
     /// The element that toggles the panel. Clicking anywhere on it toggles.
+    #[must_use]
     pub fn trigger(mut self, trigger: impl IntoElement) -> Self {
         self.trigger = Some(trigger.into_any_element());
         self
     }
 
     /// Content shown whether open or closed, between the trigger and the panel.
+    #[must_use]
     pub fn always_visible(mut self, element: impl IntoElement) -> Self {
         self.always_visible.push(element.into_any_element());
         self
     }
 
+    /// Start open when uncontrolled.
+    #[must_use]
     pub fn default_open(mut self, open: bool) -> Self {
         self.default_open = open;
         self
     }
 
+    /// Whether it is open (controlled).
+    #[must_use]
     pub fn open(mut self, open: bool) -> Self {
         self.open = Some(open);
         self
     }
 
+    /// Called with the new open state.
+    #[must_use]
     pub fn on_open_change(
         mut self,
         handler: impl Fn(&bool, &mut Window, &mut App) + 'static,

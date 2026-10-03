@@ -135,10 +135,10 @@ impl Render for ChatWindow {
                 )
                 .child(
                     MessageScroller::new(&self.scroller, move |index, _, _| {
-                        entries
-                            .get(index)
-                            .map(|entry| render_entry(index, entry))
-                            .unwrap_or_else(|| div().into_any_element())
+                        entries.get(index).map_or_else(
+                            || div().into_any_element(),
+                            |entry| render_entry(index, entry),
+                        )
                     })
                     .flex_1(),
                 )

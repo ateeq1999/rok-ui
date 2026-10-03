@@ -43,7 +43,9 @@ pub enum MainAxisAlignment {
     /// At the start: the reading-direction start for a `Row`, the top for a `Column`.
     #[default]
     Start,
+    /// At the end of the main axis.
     End,
+    /// Centered on the main axis.
     Center,
     /// Free space between children, none before the first or after the last.
     SpaceBetween,
@@ -72,7 +74,9 @@ impl MainAxisAlignment {
 pub enum CrossAxisAlignment {
     /// The top of a `Row`, the reading-direction start of a `Column`.
     Start,
+    /// The bottom of a `Row`, the reading-direction end of a `Column`.
     End,
+    /// Centered on the cross axis.
     #[default]
     Center,
     /// Children fill the cross axis.
@@ -156,6 +160,8 @@ macro_rules! flex_widget {
         crate::implement_style_overrides!($name);
 
         impl $name {
+            #[must_use]
+            /// An empty widget; add children with `.child(..)`.
             pub fn new() -> Self {
                 Self {
                     props: FlexProps::new(),
@@ -165,24 +171,28 @@ macro_rules! flex_widget {
             }
 
             /// Placement along the main axis. Default: `Start`.
+            #[must_use]
             pub fn main_axis_alignment(mut self, alignment: MainAxisAlignment) -> Self {
                 self.props.main_axis_alignment = alignment;
                 self
             }
 
             /// Placement across the main axis. Default: `Center`.
+            #[must_use]
             pub fn cross_axis_alignment(mut self, alignment: CrossAxisAlignment) -> Self {
                 self.props.cross_axis_alignment = alignment;
                 self
             }
 
             /// Default: `Max`, filling the parent along the main axis.
+            #[must_use]
             pub fn main_axis_size(mut self, size: MainAxisSize) -> Self {
                 self.props.main_axis_size = size;
                 self
             }
 
             /// Space between consecutive children (Flutter's `spacing`).
+            #[must_use]
             pub fn spacing(mut self, spacing: impl Into<Pixels>) -> Self {
                 self.props.spacing = spacing.into();
                 self
@@ -244,6 +254,8 @@ pub struct Expanded {
 crate::implement_style_overrides!(Expanded);
 
 impl Expanded {
+    /// Fill the remaining main-axis space of a `Row` or `Column`.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             flex: 1.,
@@ -254,6 +266,7 @@ impl Expanded {
     }
 
     /// This child's share of the free space relative to its siblings. Default: 1.
+    #[must_use]
     pub fn flex(mut self, flex: f32) -> Self {
         self.flex = flex;
         self
@@ -298,6 +311,8 @@ pub struct Flexible {
 crate::implement_style_overrides!(Flexible);
 
 impl Flexible {
+    /// Take a share of the remaining main-axis space, shrinking to the child if smaller.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             flex: 1.,
@@ -308,6 +323,7 @@ impl Flexible {
     }
 
     /// This child's share of the free space relative to its siblings. Default: 1.
+    #[must_use]
     pub fn flex(mut self, flex: f32) -> Self {
         self.flex = flex;
         self
@@ -351,11 +367,14 @@ pub struct Spacer {
 }
 
 impl Spacer {
+    /// Empty space that fills the remaining main axis.
+    #[must_use]
     pub fn new() -> Self {
         Self { flex: 1. }
     }
 
     /// This spacer's share of the free space relative to its siblings. Default: 1.
+    #[must_use]
     pub fn flex(mut self, flex: f32) -> Self {
         self.flex = flex;
         self
@@ -382,15 +401,24 @@ impl RenderOnce for Spacer {
 /// A point in a box, in reading-direction terms (Flutter's `AlignmentDirectional`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Alignment {
+    /// Top, reading-direction start.
     #[default]
     TopStart,
+    /// Top, centered horizontally.
     TopCenter,
+    /// Top, reading-direction end.
     TopEnd,
+    /// Centered vertically, at the start.
     CenterStart,
+    /// Centered on both axes.
     Center,
+    /// Centered vertically, at the end.
     CenterEnd,
+    /// Bottom, reading-direction start.
     BottomStart,
+    /// Bottom, centered horizontally.
     BottomCenter,
+    /// Bottom, reading-direction end.
     BottomEnd,
 }
 
@@ -398,7 +426,10 @@ impl Alignment {
     /// Lay out `element` (a flex row in the reading direction) so its children sit
     /// at this point.
     fn apply(self, element: Div) -> Div {
-        use Alignment::*;
+        use Alignment::{
+            BottomCenter, BottomEnd, BottomStart, Center, CenterEnd, CenterStart, TopCenter,
+            TopEnd, TopStart,
+        };
         let horizontal = match self {
             TopStart | CenterStart | BottomStart => JustifyContent::FlexStart,
             TopCenter | Center | BottomCenter => JustifyContent::Center,
@@ -428,6 +459,8 @@ pub struct Aligned {
 crate::implement_style_overrides!(Aligned);
 
 impl Aligned {
+    /// Place the child at `alignment` inside the available space.
+    #[must_use]
     pub fn new(alignment: Alignment) -> Self {
         Self {
             alignment,
@@ -465,6 +498,8 @@ pub struct Center {
 crate::implement_style_overrides!(Center);
 
 impl Center {
+    /// Center the child on both axes.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             children: Vec::new(),
@@ -500,17 +535,24 @@ impl RenderOnce for Center {
 /// (Flutter's `EdgeInsetsDirectional`).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct EdgeInsets {
+    /// Space above.
     pub top: Pixels,
+    /// Space at the reading-direction end.
     pub end: Pixels,
+    /// Space below.
     pub bottom: Pixels,
+    /// Space at the reading-direction start.
     pub start: Pixels,
 }
 
 impl EdgeInsets {
+    /// No space on any side.
+    #[must_use]
     pub fn zero() -> Self {
         Self::default()
     }
 
+    /// The same space on every side.
     pub fn all(value: impl Into<Pixels>) -> Self {
         let value = value.into();
         Self {
@@ -532,21 +574,29 @@ impl EdgeInsets {
         }
     }
 
+    /// Set the space above.
+    #[must_use]
     pub fn top(mut self, value: impl Into<Pixels>) -> Self {
         self.top = value.into();
         self
     }
 
+    /// Set the space at the reading-direction end.
+    #[must_use]
     pub fn end(mut self, value: impl Into<Pixels>) -> Self {
         self.end = value.into();
         self
     }
 
+    /// Set the space below.
+    #[must_use]
     pub fn bottom(mut self, value: impl Into<Pixels>) -> Self {
         self.bottom = value.into();
         self
     }
 
+    /// Set the space at the reading-direction start.
+    #[must_use]
     pub fn start(mut self, value: impl Into<Pixels>) -> Self {
         self.start = value.into();
         self
@@ -566,6 +616,8 @@ pub struct Padding {
 crate::implement_style_overrides!(Padding);
 
 impl Padding {
+    /// Pad the child by `insets`.
+    #[must_use]
     pub fn new(insets: EdgeInsets) -> Self {
         Self {
             insets,
@@ -575,10 +627,12 @@ impl Padding {
         }
     }
 
+    /// The same padding on every side.
     pub fn all(value: impl Into<Pixels>) -> Self {
         Self::new(EdgeInsets::all(value))
     }
 
+    /// `horizontal` padding on the start and end, `vertical` on the top and bottom.
     pub fn symmetric(horizontal: impl Into<Pixels>, vertical: impl Into<Pixels>) -> Self {
         Self::new(EdgeInsets::symmetric(horizontal, vertical))
     }
@@ -632,6 +686,7 @@ impl SizedBox {
         }
     }
 
+    /// A box of exactly `width` by `height`.
     pub fn new(width: impl Into<Pixels>, height: impl Into<Pixels>) -> Self {
         Self::sized(Some(width.into()), Some(height.into()), false)
     }
@@ -646,17 +701,20 @@ impl SizedBox {
         Self::sized(None, Some(height.into()), false)
     }
 
+    /// A square box with sides of `side`.
     pub fn square(side: impl Into<Pixels>) -> Self {
         let side = side.into();
         Self::sized(Some(side), Some(side), false)
     }
 
     /// As large as the parent allows.
+    #[must_use]
     pub fn expand() -> Self {
         Self::sized(None, None, true)
     }
 
     /// Zero by zero.
+    #[must_use]
     pub fn shrink() -> Self {
         Self::sized(Some(px(0.)), Some(px(0.)), false)
     }
@@ -672,9 +730,9 @@ impl RenderOnce for SizedBox {
     fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         fill_box(self.children)
             .flex_none()
-            .when(self.expand, |sized| sized.size_full())
-            .when_some(self.width, |sized, width| sized.w(width))
-            .when_some(self.height, |sized, height| sized.h(height))
+            .when(self.expand, gpui::Styled::size_full)
+            .when_some(self.width, gpui::Styled::w)
+            .when_some(self.height, gpui::Styled::h)
             .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
     }
@@ -712,6 +770,8 @@ pub struct Stack {
 crate::implement_style_overrides!(Stack);
 
 impl Stack {
+    /// Children layered on top of each other.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             alignment: Alignment::TopStart,
@@ -724,17 +784,21 @@ impl Stack {
     }
 
     /// Where non-positioned children sit. Default: `TopStart`.
+    #[must_use]
     pub fn alignment(mut self, alignment: Alignment) -> Self {
         self.alignment = alignment;
         self
     }
 
+    /// How children without a position are sized.
+    #[must_use]
     pub fn fit(mut self, fit: StackFit) -> Self {
         self.fit = fit;
         self
     }
 
     /// A child pinned to the stack's edges.
+    #[must_use]
     pub fn positioned(mut self, positioned: Positioned) -> Self {
         self.positioned.push(positioned.into_any_element());
         self
@@ -768,7 +832,7 @@ impl RenderOnce for Stack {
             .grid()
             .grid_cols(1)
             .grid_rows(1)
-            .when(self.fit == StackFit::Expand, |stack| stack.size_full())
+            .when(self.fit == StackFit::Expand, gpui::Styled::size_full)
             .children(layers)
             .children(self.positioned)
             .sx(&self.sx)
@@ -795,6 +859,8 @@ pub struct Positioned {
 crate::implement_style_overrides!(Positioned);
 
 impl Positioned {
+    /// A child of a `Stack` placed by its edges.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             top: None,
@@ -810,6 +876,7 @@ impl Positioned {
     }
 
     /// Pinned to all four edges, covering the parent.
+    #[must_use]
     pub fn fill() -> Self {
         Self::new()
             .top(px(0.))
@@ -818,31 +885,43 @@ impl Positioned {
             .start(px(0.))
     }
 
+    /// Distance from the top of the stack.
+    #[must_use]
     pub fn top(mut self, top: impl Into<Pixels>) -> Self {
         self.top = Some(top.into());
         self
     }
 
+    /// Distance from the reading-direction end.
+    #[must_use]
     pub fn end(mut self, end: impl Into<Pixels>) -> Self {
         self.end = Some(end.into());
         self
     }
 
+    /// Distance from the bottom of the stack.
+    #[must_use]
     pub fn bottom(mut self, bottom: impl Into<Pixels>) -> Self {
         self.bottom = Some(bottom.into());
         self
     }
 
+    /// Distance from the reading-direction start.
+    #[must_use]
     pub fn start(mut self, start: impl Into<Pixels>) -> Self {
         self.start = Some(start.into());
         self
     }
 
+    /// A fixed width.
+    #[must_use]
     pub fn width(mut self, width: impl Into<Pixels>) -> Self {
         self.width = Some(width.into());
         self
     }
 
+    /// A fixed height.
+    #[must_use]
     pub fn height(mut self, height: impl Into<Pixels>) -> Self {
         self.height = Some(height.into());
         self
@@ -867,14 +946,14 @@ impl RenderOnce for Positioned {
             .absolute()
             .flex()
             .flex_col()
-            .when_some(self.top, |positioned, top| positioned.top(top))
-            .when_some(self.bottom, |positioned, bottom| positioned.bottom(bottom))
+            .when_some(self.top, gpui::Styled::top)
+            .when_some(self.bottom, gpui::Styled::bottom)
             .when_some(self.start, |positioned, start| {
                 positioned.inset_start(start)
             })
-            .when_some(self.end, |positioned, end| positioned.inset_end(end))
-            .when_some(self.width, |positioned, width| positioned.w(width))
-            .when_some(self.height, |positioned, height| positioned.h(height))
+            .when_some(self.end, super::direction::DirectionalStyled::inset_end)
+            .when_some(self.width, gpui::Styled::w)
+            .when_some(self.height, gpui::Styled::h)
             .children(self.children)
             .sx(&self.sx)
             .apply_style_overrides(&self.style_overrides)
@@ -897,6 +976,8 @@ pub struct Wrap {
 crate::implement_style_overrides!(Wrap);
 
 impl Wrap {
+    /// Children that wrap onto new lines.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             alignment: MainAxisAlignment::Start,
@@ -910,24 +991,28 @@ impl Wrap {
     }
 
     /// Placement of children within a run. Default: `Start`.
+    #[must_use]
     pub fn alignment(mut self, alignment: MainAxisAlignment) -> Self {
         self.alignment = alignment;
         self
     }
 
     /// Placement of children of different heights within a run. Default: `Start`.
+    #[must_use]
     pub fn cross_axis_alignment(mut self, alignment: CrossAxisAlignment) -> Self {
         self.cross_axis_alignment = alignment;
         self
     }
 
     /// Space between children in a run.
+    #[must_use]
     pub fn spacing(mut self, spacing: impl Into<Pixels>) -> Self {
         self.spacing = spacing.into();
         self
     }
 
     /// Space between runs.
+    #[must_use]
     pub fn run_spacing(mut self, run_spacing: impl Into<Pixels>) -> Self {
         self.run_spacing = run_spacing.into();
         self
@@ -1005,6 +1090,7 @@ impl GridView {
     }
 
     /// A fixed number of columns (Flutter's `GridView.count`).
+    #[must_use]
     pub fn count(columns: usize) -> Self {
         Self::with_columns(None, GridColumns::Count(columns.max(1)))
     }
@@ -1016,6 +1102,7 @@ impl GridView {
     }
 
     /// Space between rows and between columns.
+    #[must_use]
     pub fn spacing(mut self, spacing: impl Into<Pixels>) -> Self {
         let spacing = spacing.into();
         self.main_axis_spacing = spacing;
@@ -1024,18 +1111,21 @@ impl GridView {
     }
 
     /// Space between rows.
+    #[must_use]
     pub fn main_axis_spacing(mut self, spacing: impl Into<Pixels>) -> Self {
         self.main_axis_spacing = spacing.into();
         self
     }
 
     /// Space between columns.
+    #[must_use]
     pub fn cross_axis_spacing(mut self, spacing: impl Into<Pixels>) -> Self {
         self.cross_axis_spacing = spacing.into();
         self
     }
 
     /// A fixed height for every row. Rows otherwise fit their tallest child.
+    #[must_use]
     pub fn row_height(mut self, height: impl Into<Pixels>) -> Self {
         self.row_height = Some(height.into());
         self
@@ -1071,7 +1161,7 @@ fn render_grid(
             .min_w(px(0.))
             .col_start(column as i16 + 1)
             .row_start(row as i16 + 1)
-            .when_some(row_height, |cell, height| cell.h(height))
+            .when_some(row_height, gpui::Styled::h)
             .child(child)
     });
     div()
@@ -1136,12 +1226,15 @@ impl RenderOnce for GridView {
 /// The space a [`LayoutBuilder`] has, measured from its last layout.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BoxConstraints {
+    /// The available width.
     pub max_width: Pixels,
+    /// The available height.
     pub max_height: Pixels,
 }
 
 impl BoxConstraints {
     /// The Material size class for this width.
+    #[must_use]
     pub fn size_class(&self) -> WindowSizeClass {
         WindowSizeClass::from_width(self.max_width)
     }
@@ -1174,6 +1267,7 @@ pub struct LayoutBuilder {
 crate::implement_style_overrides!(LayoutBuilder);
 
 impl LayoutBuilder {
+    /// Build content from the space available: `builder` gets the [`BoxConstraints`] measured on the last layout.
     pub fn new(
         id: impl Into<ElementId>,
         builder: impl FnOnce(BoxConstraints, &mut Window, &mut App) -> AnyElement + 'static,
@@ -1217,7 +1311,7 @@ impl RenderOnce for LayoutBuilder {
                     });
                 }
             },
-            |_, _, _, _| {},
+            |_, (), _, _| {},
         )
         .absolute()
         .top_0()
@@ -1252,6 +1346,8 @@ pub enum WindowSizeClass {
 }
 
 impl WindowSizeClass {
+    /// The Material size class for a window or pane `width` wide.
+    #[must_use]
     pub fn from_width(width: Pixels) -> Self {
         let width = f32::from(width);
         if width < 600. {
@@ -1268,6 +1364,7 @@ impl WindowSizeClass {
     }
 
     /// The class of the window's current width.
+    #[must_use]
     pub fn of(window: &Window) -> Self {
         Self::from_width(window.viewport_size().width)
     }

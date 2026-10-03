@@ -36,6 +36,7 @@ pub struct CommandItem {
 }
 
 impl CommandItem {
+    /// Create it with its label.
     pub fn new(label: impl Into<SharedString>) -> Self {
         Self {
             label: label.into(),
@@ -49,32 +50,42 @@ impl CommandItem {
     }
 
     /// Extra words the search matches besides the label.
+    #[must_use]
     pub fn keywords(mut self, keywords: impl IntoIterator<Item = impl Into<SharedString>>) -> Self {
         self.keywords = keywords.into_iter().map(Into::into).collect();
         self
     }
 
+    /// An icon shown with the label.
+    #[must_use]
     pub fn icon(mut self, icon: IconName) -> Self {
         self.icon = Some(icon);
         self
     }
 
+    /// A keyboard shortcut hint shown at the end.
+    #[must_use]
     pub fn shortcut(mut self, shortcut: impl Into<SharedString>) -> Self {
         self.shortcut = Some(shortcut.into());
         self
     }
 
+    /// Disable it: it ignores input and renders muted.
+    #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
     /// Show a check on the right (used by [`super::Combobox`] for the current value).
+    #[must_use]
     pub fn checked(mut self, checked: bool) -> Self {
         self.checked = Some(checked);
         self
     }
 
+    /// Called when the item is chosen.
+    #[must_use]
     pub fn on_select(mut self, handler: impl Fn(&(), &mut Window, &mut App) + 'static) -> Self {
         self.on_select = Some(Rc::new(handler));
         self
@@ -257,7 +268,7 @@ pub(crate) fn render_command(
                             }
                         })
                         .on_click(move |_, window, cx| {
-                            select_item(&selected_item, after_select.as_ref(), window, cx)
+                            select_item(&selected_item, after_select.as_ref(), window, cx);
                         })
                     })
                     .when_some(item.icon, |row, icon| {
@@ -313,7 +324,7 @@ pub(crate) fn render_command(
             };
             cx.stop_propagation();
             key_highlight.update(cx, |highlight| {
-                highlight.index = (highlight.index + step) % count
+                highlight.index = (highlight.index + step) % count;
             });
         })
         // Enter is the input's Submit action; capture it before the input does.
@@ -372,6 +383,7 @@ pub struct Command {
 crate::implement_style_overrides!(Command);
 
 impl Command {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -383,18 +395,22 @@ impl Command {
         }
     }
 
+    /// Text shown while nothing is entered or selected.
+    #[must_use]
     pub fn placeholder(mut self, placeholder: impl Into<SharedString>) -> Self {
         self.placeholder = placeholder.into();
         self
     }
 
     /// Text shown when nothing matches the search.
+    #[must_use]
     pub fn empty_text(mut self, empty_text: impl Into<SharedString>) -> Self {
         self.empty_text = empty_text.into();
         self
     }
 
     /// A headed group of items.
+    #[must_use]
     pub fn group(
         mut self,
         heading: impl Into<SharedString>,
@@ -408,6 +424,7 @@ impl Command {
     }
 
     /// Items without a group heading.
+    #[must_use]
     pub fn items(mut self, items: impl IntoIterator<Item = CommandItem>) -> Self {
         self.groups.push(CommandGroup {
             heading: None,
@@ -458,6 +475,7 @@ pub struct CommandDialog {
 }
 
 impl CommandDialog {
+    /// Create the component. `id` must be unique among its siblings; it keys the component's state.
     pub fn new(id: impl Into<ElementId>, command: Command) -> Self {
         Self {
             id: id.into(),
@@ -467,11 +485,15 @@ impl CommandDialog {
         }
     }
 
+    /// Whether it is open (controlled).
+    #[must_use]
     pub fn open(mut self, open: bool) -> Self {
         self.open = open;
         self
     }
 
+    /// Called when the dialog asks to close (Escape, outside click).
+    #[must_use]
     pub fn on_close(mut self, handler: impl Fn(&(), &mut Window, &mut App) + 'static) -> Self {
         self.on_close = Some(Rc::new(handler));
         self
@@ -543,7 +565,7 @@ impl RenderOnce for CommandDialog {
             .pt(viewport_size.height * 0.2)
             .bg(overlay.opacity(progress))
             .on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
-                backdrop_close(window, cx)
+                backdrop_close(window, cx);
             })
             .child(
                 panel

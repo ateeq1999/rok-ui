@@ -8,8 +8,10 @@ use crate::{component, styles};
 /// Direction of a [`Separator`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum SeparatorOrientation {
+    /// A horizontal line between stacked content.
     #[default]
     Horizontal,
+    /// A vertical line between side-by-side content.
     Vertical,
 }
 

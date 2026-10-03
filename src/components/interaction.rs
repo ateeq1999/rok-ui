@@ -121,7 +121,7 @@ fn focus_last_inside(panel: &FocusHandle, window: &mut Window, cx: &App) {
 
 /// Records the bounds of the element it is placed in (absolutely, full size).
 pub(crate) fn measure_bounds(bounds: Rc<Cell<Bounds<Pixels>>>) -> impl IntoElement {
-    canvas(move |measured, _, _| bounds.set(measured), |_, _, _, _| {})
+    canvas(move |measured, _, _| bounds.set(measured), |_, (), _, _| {})
         .absolute()
         .top_0()
         .left_0()
@@ -140,7 +140,7 @@ pub(crate) fn track_drag(
 ) -> impl IntoElement {
     canvas(
         |_, _, _| {},
-        move |_, _, window, _| {
+        move |_, (), window, _| {
             if !active {
                 return;
             }
@@ -167,7 +167,7 @@ pub(crate) fn on_activate(element: Stateful<Div>, handler: Callback) -> Stateful
     element
         .on_click(move |event, window, cx| {
             if !event.is_keyboard() {
-                handler(window, cx)
+                handler(window, cx);
             }
         })
         .on_key_down(move |event, window, cx| {
@@ -292,7 +292,7 @@ pub(crate) fn render_modal(
         .bg(theme.colors.overlay.opacity(progress))
         .when_some(on_backdrop, |scrim, on_backdrop| {
             scrim.on_mouse_down(gpui::MouseButton::Left, move |_, window, cx| {
-                on_backdrop(window, cx)
+                on_backdrop(window, cx);
             })
         })
         .child(panel.opacity(progress));
