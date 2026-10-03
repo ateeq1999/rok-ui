@@ -9,6 +9,20 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- `llms.txt`, a digest of the API and conventions for coding agents, and `roadmap.md`, which
+  tracks progress against `enhance.md`.
+- Agent skills for the `db` feature (rok-db) and for code-quality review; the `route` skill now
+  describes the router as it is.
+- `cargo deny` in CI (`deny.toml`: allowed licenses and accepted advisories), `SUPPORT.md`,
+  `CODEOWNERS` and `.editorconfig`.
+
+### Fixed
+
+- `SECURITY.md` lists 0.6 as the supported version and mentions the `db` feature's network
+  access.
+
 ## [0.6.0] - 2026-10-03
 
 ### Added

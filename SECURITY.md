@@ -6,8 +6,8 @@ rok-ui is pre-1.0. Security fixes go into the latest release only.
 
 | Version | Supported |
 |---|---|
-| 0.3.x | Yes |
-| < 0.3 | No |
+| 0.6.x | Yes |
+| < 0.6 | No |
 
 ## Reporting a vulnerability
 
@@ -24,6 +24,12 @@ You should get a reply within a week. Once the problem is confirmed, a fix is re
 as practical and the advisory is published with credit to you, unless you prefer to stay
 anonymous.
 
-rok-ui is a UI library: it does not open network connections or run untrusted code itself.
-Issues most likely to matter are crashes or memory problems triggered by input the
-application passes in, such as text, images or file names.
+rok-ui is a UI library: it does not run untrusted code itself, and it opens network
+connections only through the opt-in `db` feature (PostgreSQL through rok-db, to the URL the
+application passes in). Issues most likely to matter are crashes or memory problems triggered
+by input the application passes in, such as text, images or file names. Report problems in
+rok-db's query building (for example SQL injection) to
+[rok-db](https://github.com/ateeq1999/rok-db/security) instead.
+
+Dependencies are checked for known vulnerabilities and license problems in CI with
+`cargo deny` (see `deny.toml`).
