@@ -304,6 +304,27 @@ pub fn on_navigate(listener: impl Fn(&Location, &mut App) + 'static, cx: &mut Ap
         .push(Rc::new(listener));
 }
 
+/// Save the location under `key` (with the `persist` feature) and restore it now, so the app
+/// reopens where the user left it. Call it once at startup, after `rok_ui::init`.
+///
+/// ```no_run
+/// # fn startup(cx: &mut rok_ui::gpui::App) {
+/// rok_ui::router::persist_location("main-window", cx);
+/// # }
+/// ```
+#[cfg(feature = "persist")]
+pub fn persist_location(key: &str, cx: &mut App) {
+    let store = crate::persist::persisted_store(cx, &format!("location-{key}"), || "/".to_string());
+    let saved = store.peek();
+    if saved != "/" {
+        replace_unblocked(saved.into(), cx);
+    }
+    on_navigate(
+        move |location, _| store.set(location.href().to_string()),
+        cx,
+    );
+}
+
 /// Whether the current path is `path`, or below it unless `exact`. For marking
 /// the active item in navigation.
 pub fn is_active(path: &str, exact: bool, cx: &mut App) -> bool {
@@ -1160,6 +1181,32 @@ mod tests {
         );
         assert_eq!(normalize("users/".into()).as_ref(), "/users");
         assert_eq!(normalize("/".into()).as_ref(), "/");
+    }
+
+    #[cfg(feature = "persist")]
+    #[gpui::test]
+    fn the_location_is_saved_and_restored(cx: &mut gpui::TestAppContext) {
+        let key = format!("test-{}", std::process::id());
+        cx.update(|cx| {
+            crate::persist::set_app_name(cx, "rok-ui-tests");
+            persist_location(&key, cx);
+            navigate("/inbox/7?tab=info", cx);
+        });
+        cx.executor()
+            .advance_clock(std::time::Duration::from_secs(1));
+        cx.run_until_parked();
+        // A new app (fresh history) restores it.
+        let restored = cx.update(|cx| {
+            cx.set_global(Histories::default());
+            persist_location(&key, cx);
+            location(cx)
+        });
+        assert_eq!(restored.path(), "/inbox/7");
+        assert_eq!(restored.query("tab"), Some("info"));
+        let file = crate::persist::config_dir()
+            .join("rok-ui-tests")
+            .join(format!("location-{key}.json"));
+        std::fs::remove_file(file).ok();
     }
 
     #[gpui::test]

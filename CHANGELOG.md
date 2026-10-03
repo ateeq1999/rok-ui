@@ -14,7 +14,7 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - **Data layer** (`query` feature, opt-in; enabled by `db`): `rok_ui::query` with
   `QueryOptions`, hierarchical `query_key!` keys, `use_query` / `use_suspense_query`, one
   cache per app with shared in-flight fetches, stale and gc times, retries, placeholder and
-  previous data, refetch intervals, prefix `invalidate`, and `fetch_query`,
+  previous data, refetch intervals, refetch on window focus, prefix `invalidate`, and `fetch_query`,
   `ensure_query_data`, `prefetch_query`, `set_query_data`, `update_query_data`,
   `cancel_queries`, `reset_queries`.
 - **Mutations and procedures:** `use_mutation` with pending / success / error state,
@@ -55,7 +55,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
   `use_blocker` to hold navigation away from unsaved work; loaders (`Router::loader`,
   `loader_to`, `file_route! { loader }`) that run once per location and on
   `Link::preload(true)` hover; per-window histories (`set_per_window_history`,
-  `with_window`).
+  `with_window`); `persist_location` (with `persist`) restores the location on the next
+  launch.
 - **File-based routes:** the new `rok-ui-build` crate generates a typed route tree from
   `src/routes/` (TanStack Router's conventions: `$param`, `$` splats, `index`, flat
   `a.b.rs` files, `_pathless` and `layout:` layouts, `(group)` folders, `-ignored` entries,

@@ -454,8 +454,9 @@ if let Ok(path) = std::fs::read_to_string(last_page_file()) {
   `router::with_window(handle, || ..)` picks a window explicitly.
 - Builders run during render, inside the router's element, so they can use hooks
   (`use_state`, `use_signal`, `query::use_query`) like any component.
-- Nothing is persisted. The history starts at `/` on every launch; restore it yourself with
-  `on_navigate` as shown above.
+- The history starts at `/` on every launch. With the `persist` feature,
+  `router::persist_location("main", cx)` at startup saves the location and restores it on the
+  next launch; without it, use `on_navigate` as shown above.
 
 ## Testing
 

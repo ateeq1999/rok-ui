@@ -41,6 +41,7 @@ pub struct QueryOptions<T> {
     pub(crate) placeholder_data: Option<T>,
     pub(crate) keep_previous_data: bool,
     pub(crate) refetch_interval: Option<Duration>,
+    pub(crate) refetch_on_window_focus: bool,
 }
 
 impl<T: Send + 'static> QueryOptions<T> {
@@ -70,6 +71,7 @@ impl<T: Send + 'static> QueryOptions<T> {
             placeholder_data: None,
             keep_previous_data: false,
             refetch_interval: None,
+            refetch_on_window_focus: false,
         }
     }
 }
@@ -142,6 +144,14 @@ impl<T> QueryOptions<T> {
         self
     }
 
+    /// Mark the data stale when the reading window becomes active again, so it refetches (the
+    /// user may have changed it elsewhere). Default: off.
+    #[must_use]
+    pub fn refetch_on_window_focus(mut self, refetch: bool) -> Self {
+        self.refetch_on_window_focus = refetch;
+        self
+    }
+
     /// Refetch this often while a component reads the query.
     #[must_use]
     pub fn refetch_interval(mut self, interval: Duration) -> Self {
@@ -164,6 +174,7 @@ impl<T: Clone> Clone for QueryOptions<T> {
             placeholder_data: self.placeholder_data.clone(),
             keep_previous_data: self.keep_previous_data,
             refetch_interval: self.refetch_interval,
+            refetch_on_window_focus: self.refetch_on_window_focus,
         }
     }
 }

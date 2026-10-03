@@ -378,3 +378,18 @@ fn failures_stay_inside_their_boundaries(cx: &mut TestAppContext) {
     assert!(log.contains(&"boundary fallback"));
     assert!(log.contains(&"sibling"));
 }
+
+#[gpui::test]
+fn refocusing_a_window_refetches_marked_queries(cx: &mut TestAppContext) {
+    let fetches = Arc::new(AtomicUsize::new(0));
+    let options = counting_query(query_key!["focus"], fetches.clone(), "hello")
+        .stale_time(Duration::from_secs(3600))
+        .refetch_on_window_focus(true);
+    let (seen, window) = open(cx, vec![options]);
+    settle(window, |_| !seen.borrow().is_empty());
+    assert_eq!(fetches.load(Ordering::SeqCst), 1);
+
+    window.deactivate_window();
+    window.update(|window, _| window.activate_window());
+    settle(window, |_| fetches.load(Ordering::SeqCst) == 2);
+}
