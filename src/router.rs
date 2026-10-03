@@ -128,6 +128,18 @@ pub fn replace(path: impl Into<SharedString>, cx: &mut App) {
     changed(cx);
 }
 
+/// Run `loader` unless it already ran for this exact location.
+fn run_loader_once(route: &RouteMatch, loader: &Loader, cx: &mut App) {
+    let href = route.location.href();
+    let last = cx
+        .default_global::<Loaders>()
+        .last_loaded
+        .insert(route.pattern.clone(), href.clone());
+    if last.as_ref() != Some(&href) {
+        loader(route, cx);
+    }
+}
+
 /// `replace` for redirects and guards: blockers do not apply.
 fn replace_unblocked(path: SharedString, cx: &mut App) {
     let path = normalize(path);
@@ -422,6 +434,66 @@ type NotFoundBuilder = Rc<dyn Fn(&RouteMatch, &mut Window, &mut App) -> AnyEleme
 /// A guard: `Ok(())` lets the route render.
 pub type Guard = Rc<dyn Fn(&Location, &mut App) -> Result<(), RouteControl>>;
 
+/// Starts loading a route's data before it renders (prefetching queries).
+pub type Loader = Rc<dyn Fn(&RouteMatch, &mut App)>;
+
+/// One registered route.
+struct RouteEntry {
+    pattern: Pattern,
+    guards: Vec<Guard>,
+    loader: Option<Loader>,
+    build: RouteBuilder,
+}
+
+impl RouteEntry {
+    fn new(pattern: Pattern, build: RouteBuilder) -> Self {
+        Self {
+            pattern,
+            guards: Vec::new(),
+            loader: None,
+            build,
+        }
+    }
+}
+
+/// Loaders seen by routers, for link preloading, and the location each one last loaded.
+#[derive(Default)]
+struct Loaders {
+    registered: Vec<(Pattern, Loader)>,
+    last_loaded: HashMap<SharedString, SharedString>,
+}
+
+impl Global for Loaders {}
+
+/// Run the loaders of routes matching `path` (a link the user is about to follow), so its data
+/// starts loading early. `Link::preload(true)` calls this on hover.
+pub fn preload(path: &str, cx: &mut App) {
+    let location = Location::parse(path);
+    let matching: Vec<(RouteMatch, Loader)> = cx
+        .try_global::<Loaders>()
+        .map(|loaders| {
+            loaders
+                .registered
+                .iter()
+                .filter_map(|(pattern, loader)| {
+                    let (params, _) = pattern.matches(location.path())?;
+                    Some((
+                        RouteMatch {
+                            pattern: pattern.source.clone(),
+                            params,
+                            location: location.clone(),
+                        },
+                        loader.clone(),
+                    ))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    for (route, loader) in matching {
+        loader(&route, cx);
+    }
+}
+
 /// What a guard does instead of rendering the route.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RouteControl {
@@ -448,7 +520,7 @@ impl RouteControl {
 /// Renders the element of the route that matches the current location.
 #[derive(IntoElement)]
 pub struct Router {
-    routes: Vec<(Pattern, Vec<Guard>, RouteBuilder)>,
+    routes: Vec<RouteEntry>,
     redirects: Vec<(Pattern, SharedString)>,
     guards: Vec<(Pattern, Guard)>,
     not_found: Option<NotFoundBuilder>,
@@ -479,9 +551,8 @@ impl Router {
         pattern: &str,
         build: impl Fn(&RouteMatch, &mut Window, &mut App) -> E + 'static,
     ) -> Self {
-        self.routes.push((
+        self.routes.push(RouteEntry::new(
             Pattern::parse(pattern),
-            Vec::new(),
             Rc::new(move |route, window, cx| Some(build(route, window, cx).into_any_element())),
         ));
         self
@@ -502,9 +573,8 @@ impl Router {
         mut self,
         build: impl Fn(R, &mut Window, &mut App) -> E + 'static,
     ) -> Self {
-        self.routes.push((
+        self.routes.push(RouteEntry::new(
             Pattern::parse(R::PATTERN),
-            Vec::new(),
             Rc::new(move |route, window, cx| {
                 R::from_match(route).map(|typed| build(typed, window, cx).into_any_element())
             }),
@@ -550,11 +620,60 @@ impl Router {
         mut self,
         pattern: &str,
         guards: Vec<Guard>,
+        loader: Option<Loader>,
         build: impl Fn(&RouteMatch, &mut Window, &mut App) -> Option<AnyElement> + 'static,
     ) -> Self {
-        self.routes
-            .push((Pattern::parse(pattern), guards, Rc::new(build)));
+        self.routes.push(RouteEntry {
+            pattern: Pattern::parse(pattern),
+            guards,
+            loader,
+            build: Rc::new(build),
+        });
         self
+    }
+
+    /// Start loading data for routes matching `pattern` before they render: on navigation
+    /// (once per location) and when a `Link::preload(true)` link to them is hovered. Loaders
+    /// usually prefetch queries that the page then reads:
+    ///
+    /// ```
+    /// # use rok_ui::{prelude::*, query::{self, QueryOptions}, query_key, router::Router};
+    /// # fn note_query(id: u64) -> QueryOptions<String> {
+    /// #     QueryOptions::new(query_key!["notes", id], |_| async { Ok::<_, std::io::Error>(String::new()) })
+    /// # }
+    /// let router = Router::new()
+    ///     .route("/notes/:id", |_, _, _| div())
+    ///     .loader("/notes/:id", |route, cx| {
+    ///         if let Some(id) = route.param_as::<u64>("id") {
+    ///             query::prefetch_query(cx, &note_query(id));
+    ///         }
+    ///     });
+    /// # let _ = router;
+    /// ```
+    #[must_use]
+    pub fn loader(
+        mut self,
+        pattern: &str,
+        loader: impl Fn(&RouteMatch, &mut App) + 'static,
+    ) -> Self {
+        let source = Pattern::parse(pattern).source;
+        let loader: Loader = Rc::new(loader);
+        for route in &mut self.routes {
+            if route.pattern.source == source {
+                route.loader = Some(loader.clone());
+            }
+        }
+        self
+    }
+
+    /// [`Router::loader`] for a typed route.
+    #[must_use]
+    pub fn loader_to<R: Route>(self, loader: impl Fn(&R, &mut App) + 'static) -> Self {
+        self.loader(R::PATTERN, move |route, cx| {
+            if let Some(typed) = R::from_match(route) {
+                loader(&typed, cx);
+            }
+        })
     }
 
     /// Replace the location with `to` when it matches `from`. Parameters in
@@ -578,27 +697,46 @@ impl Router {
     }
 
     /// The best route for `location`, with its parameters.
-    fn resolve(&self, location: &Location) -> Option<(RouteMatch, &[Guard], RouteBuilder)> {
+    fn resolve(&self, location: &Location) -> Option<(RouteMatch, &RouteEntry)> {
         self.routes
             .iter()
             .enumerate()
-            .filter_map(|(index, (pattern, guards, build))| {
-                let (params, score) = pattern.matches(location.path())?;
-                Some((score, index, pattern, params, guards, build))
+            .filter_map(|(index, route)| {
+                let (params, score) = route.pattern.matches(location.path())?;
+                Some((score, index, route, params))
             })
             // Highest score first; earlier declarations win ties.
             .max_by(|a, b| a.0.cmp(&b.0).then(b.1.cmp(&a.1)))
-            .map(|(_, _, pattern, params, guards, build)| {
+            .map(|(_, _, route, params)| {
                 (
                     RouteMatch {
-                        pattern: pattern.source.clone(),
+                        pattern: route.pattern.source.clone(),
                         params,
                         location: location.clone(),
                     },
-                    guards.as_slice(),
-                    build.clone(),
+                    route,
                 )
             })
+    }
+
+    /// Make this router's loaders available to [`preload`].
+    fn register_loaders(&self, cx: &mut App) {
+        let loaders = cx.default_global::<Loaders>();
+        for route in &self.routes {
+            let Some(loader) = &route.loader else {
+                continue;
+            };
+            match loaders
+                .registered
+                .iter_mut()
+                .find(|(pattern, _)| pattern.source == route.pattern.source)
+            {
+                Some(registered) => registered.1 = loader.clone(),
+                None => loaders
+                    .registered
+                    .push((route.pattern.clone(), loader.clone())),
+            }
+        }
     }
 
     /// The first guard over `location` that refuses it.
@@ -608,8 +746,8 @@ impl Router {
                 guard(location, cx)?;
             }
         }
-        if let Some((_, guards, _)) = self.resolve(location) {
-            for guard in guards {
+        if let Some((_, route)) = self.resolve(location) {
+            for guard in &route.guards {
                 guard(location, cx)?;
             }
         }
@@ -661,25 +799,31 @@ impl RenderOnce for Router {
             replace_unblocked(target, cx);
             location = self::location(cx);
         }
-        let content = match self
-            .resolve(&location)
-            .filter(|_| !not_found)
-            .and_then(|(route, _, build)| build(&route, window, cx))
-        {
-            Some(content) => content,
-            None => match &self.not_found {
-                Some(build) => build(
-                    &RouteMatch {
-                        pattern: SharedString::default(),
-                        params: HashMap::new(),
-                        location,
-                    },
-                    window,
-                    cx,
-                ),
-                None => div().into_any_element(),
-            },
-        };
+        self.register_loaders(cx);
+        let content =
+            match self
+                .resolve(&location)
+                .filter(|_| !not_found)
+                .and_then(|(route, entry)| {
+                    if let Some(loader) = &entry.loader {
+                        run_loader_once(&route, loader, cx);
+                    }
+                    (entry.build)(&route, window, cx)
+                }) {
+                Some(content) => content,
+                None => match &self.not_found {
+                    Some(build) => build(
+                        &RouteMatch {
+                            pattern: SharedString::default(),
+                            params: HashMap::new(),
+                            location,
+                        },
+                        window,
+                        cx,
+                    ),
+                    None => div().into_any_element(),
+                },
+            };
         div()
             .flex()
             .flex_col()
@@ -712,6 +856,7 @@ pub struct Link {
     id: ElementId,
     to: SharedString,
     replace: bool,
+    preload: bool,
     exact: bool,
     children: Vec<AnyElement>,
     sx: Sx,
@@ -727,6 +872,7 @@ impl Link {
             id: id.into(),
             to: to.into(),
             replace: false,
+            preload: false,
             exact: false,
             children: Vec::new(),
             sx: Sx::new(),
@@ -756,6 +902,14 @@ impl Link {
         self
     }
 
+    /// Run the target route's loaders when the pointer enters the link, so its data is
+    /// loading before the click (TanStack Router's `preload: "intent"`). Default: off.
+    #[must_use]
+    pub fn preload(mut self, preload: bool) -> Self {
+        self.preload = preload;
+        self
+    }
+
     /// Replace the current history entry instead of adding one.
     #[must_use]
     pub fn replace(mut self, replace: bool) -> Self {
@@ -781,9 +935,17 @@ impl RenderOnce for Link {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
         let active = is_active(&self.to, self.exact, cx);
         let (to, replace_entry) = (self.to, self.replace);
+        let preload_target = self.preload.then(|| to.clone());
         let element = div()
             .id(self.id)
             .tab_index(0)
+            .when_some(preload_target, |element, target| {
+                element.on_hover(move |hovered, _, cx| {
+                    if *hovered {
+                        preload(&target, cx);
+                    }
+                })
+            })
             .sx((&LINK.root, active.then_some(&LINK.active), &self.sx))
             .children(self.children)
             .apply_style_overrides(&self.style_overrides);
@@ -805,7 +967,7 @@ mod tests {
     use super::*;
 
     fn resolve(router: &Router, path: &str) -> Option<(SharedString, Vec<(String, String)>)> {
-        router.resolve(&Location::parse(path)).map(|(route, _, _)| {
+        router.resolve(&Location::parse(path)).map(|(route, _)| {
             let mut params: Vec<(String, String)> = route
                 .params
                 .iter()

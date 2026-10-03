@@ -597,11 +597,13 @@ fn render(module: &str, nodes: &[Node]) -> Result<String, Error> {
             })
             .collect();
         write!(out,
-            "            .__file_route({:?}, ::std::vec![{}], |route, window, cx| {{\n                let outlet = {}::__rok_page(route, window, cx)?;\n",
+            "            .__file_route({:?}, ::std::vec![{}], ::core::option::Option::Some(::std::rc::Rc::new({}::__rok_loader) as ::rok_ui::router::Loader), |route, window, cx| {{\n                let outlet = {}::__rok_page(route, window, cx)?;\n",
             node.pattern(),
             guards.join(", "),
+            modules[index],
             modules[index]
-        ).ok();
+        )
+        .ok();
         for &layout in chain.iter().rev() {
             writeln!(
                 out,

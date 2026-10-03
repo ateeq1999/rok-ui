@@ -9,6 +9,8 @@ use crate::features::notes::note_query;
 file_route! {
     params: { id: u64 },
     search: NoteSearch,
+    // Starts fetching on navigation, and on hover over links with `.preload(true)`.
+    loader: |route, cx| query::prefetch_query(cx, &note_query(route.id)),
     component: NotePage,
 }
 

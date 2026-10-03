@@ -261,6 +261,23 @@ assert_eq!(search, InboxSearch { page: 2, q: None, unread_only: true });
 - `Link::to(&route).search(&InboxSearch { .. })` links with search params. Defaults are left
   out of the URL.
 
+## Loaders and preloading
+
+A loader starts a route's data loading before the route renders, usually by prefetching the
+queries its page reads. It runs once per location, and again when a link with
+`.preload(true)` to the route is hovered:
+
+```rust,ignore
+Router::new()
+    .route_to(|note: NoteRoute, _, _| NotePage::new(note.id))
+    .loader_to(|note: &NoteRoute, cx| query::prefetch_query(cx, &note_query(note.id)));
+
+Link::to(&NoteRoute { id: 3 }).preload(true).child("Open")
+```
+
+The page reads the same query (with `use_suspense_query` in a `Suspense`, or `use_query`), so
+it finds the data cached or in flight. `router::preload(path, cx)` runs loaders by hand.
+
 ## Blocking navigation
 
 `router::use_blocker(cx, dirty)` holds back navigation while `dirty` is true, so a form can ask
@@ -329,6 +346,7 @@ file_route! {
     search: NoteSearch,             // optional: `search(cx)` reads it
     component: NotePage,            // a page; a layout declares `layout: Name` instead
     before_load: |location, cx| Ok(()), // optional guard, also applied to child routes
+    loader: |route, cx| query::prefetch_query(cx, &note_query(route.id)), // optional, pages only
 }
 
 #[component]
@@ -414,6 +432,7 @@ together in an `AdaptiveScaffold`.
 | `typed_route!`, `Route`, `.route_to(..)` | Typed routes: `href()`, `parse(path)` |
 | `navigate_to`, `replace_to`, `use_params` | Navigate to and read typed routes |
 | `#[derive(Search)]`, `use_search`, `update_search`, `replace_search` | Typed search params |
+| `.loader(pattern, ..)`, `.loader_to(..)`, `preload(path, cx)`, `Link::preload` | Load data before a route renders |
 | `use_blocker(cx, when)`, `Blocker` | Hold navigation until the user confirms |
 | `file_route!`, `routes!()`, `rok_ui_build::routes` | File-based routes |
 | `GoBack`, `GoForward` | Actions bound to Alt+Left and Alt+Right |

@@ -31,6 +31,7 @@ struct FileRoute {
     component: Option<Path>,
     layout: Option<Path>,
     before_load: Option<Expr>,
+    loader: Option<Expr>,
 }
 
 impl Parse for FileRoute {
@@ -50,16 +51,18 @@ impl Parse for FileRoute {
                 "component" => route.component = Some(input.parse()?),
                 "layout" => route.layout = Some(input.parse()?),
                 "before_load" => route.before_load = Some(input.parse()?),
-                _ => {
-                    return Err(syn::Error::new(
-                        key.span(),
-                        "expected `params`, `search`, `component`, `layout` or `before_load`",
-                    ))
-                }
+                "loader" => route.loader = Some(input.parse()?),
+                _ => return Err(syn::Error::new(
+                    key.span(),
+                    "expected `params`, `search`, `component`, `layout`, `before_load` or `loader`",
+                )),
             }
             if !input.is_empty() {
                 input.parse::<Token![,]>()?;
             }
+        }
+        if route.loader.is_some() && route.layout.is_some() {
+            return Err(input.error("`loader` belongs on pages (`component: ..`), not layouts"));
         }
         if route.component.is_some() == route.layout.is_some() {
             return Err(input.error(
@@ -94,8 +97,24 @@ pub fn expand_file_route(input: TokenStream) -> syn::Result<TokenStream> {
             }
         },
     );
+    let loader = route.loader.map_or_else(
+        || quote!(let _ = (route, cx);),
+        |loader| {
+            quote! {
+                if let ::core::option::Option::Some(typed) = <Route as #router::Route>::from_match(route) {
+                    let loader: fn(&Route, &mut #gpui::App) = #loader;
+                    loader(&typed, cx);
+                }
+            }
+        },
+    );
     let render = match (route.component, route.layout) {
         (Some(component), _) => quote! {
+            #[doc(hidden)]
+            pub fn __rok_loader(route: &#router::RouteMatch, cx: &mut #gpui::App) {
+                #loader
+            }
+
             #[doc(hidden)]
             pub fn __rok_page(
                 _route: &#router::RouteMatch,

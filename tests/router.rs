@@ -289,3 +289,34 @@ fn blockers_hold_navigation_until_confirmed(cx: &mut TestAppContext) {
 fn route_fields_must_match_the_pattern() {
     trybuild::TestCases::new().compile_fail("tests/ui-router/*.rs");
 }
+
+struct Loading {
+    loads: Rc<RefCell<Vec<u64>>>,
+}
+
+impl Render for Loading {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let loads = self.loads.clone();
+        Router::new()
+            .route_to(|note: NoteRoute, _, _| div().child(note.id.to_string()))
+            .loader_to(move |note: &NoteRoute, _| loads.borrow_mut().push(note.id))
+    }
+}
+
+#[gpui::test]
+fn loaders_run_once_per_location_and_on_preload(cx: &mut TestAppContext) {
+    cx.update(rok_ui::init);
+    let loads = Rc::new(RefCell::new(Vec::new()));
+    let view_loads = loads.clone();
+    let (_, window) = cx.add_window_view(move |_, _| Loading { loads: view_loads });
+    window.update(|_, cx| router::navigate_to(&NoteRoute { id: 1 }, cx));
+    window.run_until_parked();
+    window.update(|window, _| window.refresh());
+    window.run_until_parked();
+    assert_eq!(*loads.borrow(), [1], "re-renders do not reload");
+
+    window.update(|_, cx| router::navigate_to(&NoteRoute { id: 2 }, cx));
+    window.run_until_parked();
+    window.update(|_, cx| router::preload(&NoteRoute { id: 3 }.href(), cx));
+    assert_eq!(*loads.borrow(), [1, 2, 3]);
+}

@@ -456,7 +456,8 @@ mod styles;
 ///
 /// Keys: `params: { id: u64 }` (types of the path's `$` parameters), `search: Type`,
 /// `component: Page` or `layout: Layout` (a layout renders its child route as its children),
-/// and `before_load: |location, cx| ..` (a guard returning `Result<(), RouteControl>`).
+/// `before_load: |location, cx| ..` (a guard returning `Result<(), RouteControl>`), and on
+/// pages `loader: |route: &Route, cx| ..` (starts loading data before the page renders).
 #[proc_macro]
 pub fn file_route(input: TokenStream) -> TokenStream {
     match file_route::expand_file_route(input.into()) {

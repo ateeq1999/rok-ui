@@ -12,7 +12,9 @@ file_route! {
 fn NotesLayout(#[children] children: Vec<AnyElement>, cx: &mut Cx) -> impl IntoElement {
     let notes = query::use_query(cx, notes_query());
     let links = notes.data().cloned().unwrap_or_default().into_iter().map(|note| {
-        Link::to(&super::NotesId { id: note.id }).child(note.title)
+        Link::to(&super::NotesId { id: note.id })
+            .preload(true)
+            .child(note.title)
     });
     div()
         .flex()
