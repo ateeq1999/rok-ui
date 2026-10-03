@@ -1,8 +1,8 @@
 //! Stores saved to disk (feature `persist`).
 //!
-//! A persisted store is a [`Store`] whose value is read from the app's config directory at
-//! startup and written back, debounced, after it changes. Values are JSON with a version
-//! number, so a newer app can migrate what an older one saved.
+//! A persisted store is a [`Store`](struct@crate::state::Store) whose value is read from the
+//! app's config directory at startup and written back, debounced, after it changes. Values
+//! are JSON with a version number, so a newer app can migrate what an older one saved.
 //!
 //! ```no_run
 //! use rok_ui::{gpui::App, persist};
