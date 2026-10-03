@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository_owner == 'ateeq1999'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository_owner == 'ateeq1999'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
