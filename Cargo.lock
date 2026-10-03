@@ -4639,6 +4639,7 @@ dependencies = [
  "jiff",
  "rok-ui-macros",
  "trybuild",
+ "ttf-parser 0.25.1",
  "unicode-bidi",
  "unicode-segmentation",
 ]

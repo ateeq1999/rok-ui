@@ -9,6 +9,23 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **Noto Sans Arabic** behind the `font-noto-sans-arabic` feature (`rok_ui::fonts::NOTO_SANS_ARABIC`),
+  an alternative to Cairo that maps every Arabic presentation form. The `fonts` group now
+  includes it. The `arabic` example gets a font switch when the feature is on.
+- `BidiText` truncates with an ellipsis under `.truncate()` on Windows.
+- String literals with right-to-left letters in `view!` and `children!` markup become `BidiText`
+  automatically.
+
+### Fixed
+
+- **Typing Arabic in a `Textarea` on Windows.** Wrapped rows are reordered, and the caret,
+  selection and clicks follow the visual text.
+- **Isolated Arabic letters in Cairo** (and other fonts without isolated presentation forms) on
+  Windows were drawn in a fallback font. rok-ui now reads each registered font's coverage and keeps
+  those letters in the chosen font. This adds the `ttf-parser` dependency.
+
 ## [0.3.0] - 2026-10-03
 
 ### Added

@@ -110,6 +110,9 @@ pub struct InputState {
     last_wrapped_lines: Vec<WrappedLine>,
     /// Per paragraph, per visual row: the RTL right-alignment shift (empty in LTR).
     last_row_offsets: Vec<Vec<Pixels>>,
+    /// Rows laid out by rok-ui instead of GPUI's wrapping, for right-to-left text on
+    /// Windows (see [`crate::bidi`]). When set, they replace `last_wrapped_lines`.
+    last_bidi_rows: Option<Vec<BidiRow>>,
     last_line_height: Pixels,
     is_selecting: bool,
 }
@@ -138,6 +141,7 @@ impl InputState {
             last_bounds: None,
             last_wrapped_lines: Vec::new(),
             last_row_offsets: Vec::new(),
+            last_bidi_rows: None,
             last_line_height: px(20.),
             is_selecting: false,
         }
@@ -389,6 +393,10 @@ impl InputState {
     /// Content offset nearest to `local` (relative to the text's top-left) in a
     /// multi-line field, using the wrapped lines from the last paint.
     fn multiline_index_for_point(&self, local: Point<Pixels>) -> usize {
+        if let Some(rows) = self.last_bidi_rows.as_ref() {
+            return bidi_row_index_for_point(rows, local, self.last_line_height)
+                .min(self.content.len());
+        }
         let line_height = self.last_line_height;
         let mut paragraph_start = 0;
         let mut line_top = px(0.);
@@ -417,6 +425,9 @@ impl InputState {
 
     /// Where `offset` is drawn in a multi-line field, relative to the text's top-left.
     pub(crate) fn multiline_position_for_offset(&self, offset: usize) -> Option<Point<Pixels>> {
+        if let Some(rows) = self.last_bidi_rows.as_ref() {
+            return bidi_row_position_for_offset(rows, offset, self.last_line_height);
+        }
         let line_height = self.last_line_height;
         let mut paragraph_start = 0;
         let mut line_top = px(0.);
@@ -438,6 +449,10 @@ impl InputState {
     /// Left edge of the text on the visual row at `y` (relative to the text's top).
     /// Zero in LTR; the right-alignment shift in RTL.
     pub(crate) fn multiline_row_left(&self, y: Pixels) -> Pixels {
+        if let Some(rows) = self.last_bidi_rows.as_ref() {
+            let row = (y / self.last_line_height).floor().max(0.) as usize;
+            return rows.get(row).map_or(px(0.), |row| row.left);
+        }
         let line_height = self.last_line_height;
         let mut line_top = px(0.);
         for (index, line) in self.last_wrapped_lines.iter().enumerate() {
@@ -878,8 +893,109 @@ struct InputTextElement {
     selection_color: Hsla,
 }
 
+/// One visual row of a multi-line field that rok-ui lays out itself (right-to-left
+/// text on Windows, see [`crate::bidi`]).
+#[derive(Clone)]
+pub(crate) struct BidiRow {
+    /// Byte range of the row in the field's content, including trailing spaces.
+    pub range: Range<usize>,
+    pub line: DisplayLine,
+    /// How far the row is shifted right to align it (right-to-left alignment).
+    pub left: Pixels,
+}
+
+/// Whether a multi-line field with `content` needs [`bidi_rows`] on this platform.
+pub(crate) fn needs_bidi_rows(content: &str) -> bool {
+    crate::bidi::platform_needs_reordering() && crate::bidi::has_rtl(content)
+}
+
+/// Wrap `text` into rows no wider than `width`, breaking between words in logical
+/// order (explicit newlines always break), and shape each row for display.
+pub(crate) fn bidi_rows(
+    text: &str,
+    run: &TextRun,
+    font_size: Pixels,
+    width: Option<Pixels>,
+    align_right: bool,
+    window: &Window,
+) -> Vec<BidiRow> {
+    let shape = |range: Range<usize>| {
+        let row_text = SharedString::from(text[range].to_string());
+        let run = TextRun {
+            len: row_text.len(),
+            ..run.clone()
+        };
+        DisplayLine::shape(row_text, &[run], font_size, window)
+    };
+    let mut ranges = Vec::new();
+    let mut paragraph_start = 0;
+    for paragraph in text.split('\n') {
+        let paragraph_end = paragraph_start + paragraph.len();
+        let mut row_start = paragraph_start;
+        let mut row_end = paragraph_start;
+        for word in paragraph.split_inclusive(' ') {
+            let word_end = row_end + word.len();
+            let fits = width.is_none_or(|width| {
+                let candidate = text[row_start..word_end].trim_end();
+                shape(row_start..row_start + candidate.len()).width() <= width
+            });
+            if !fits && row_end > row_start {
+                ranges.push(row_start..row_end);
+                row_start = row_end;
+            }
+            row_end = word_end;
+        }
+        ranges.push(row_start..paragraph_end);
+        paragraph_start = paragraph_end + 1;
+    }
+    ranges
+        .into_iter()
+        .map(|range| {
+            let line = shape(range.clone());
+            let left = match width {
+                Some(width) if align_right => (width - line.width()).max(px(0.)),
+                _ => px(0.),
+            };
+            BidiRow { range, line, left }
+        })
+        .collect()
+}
+
+/// Where content `offset` is drawn, relative to the text's top-left.
+fn bidi_row_position_for_offset(
+    rows: &[BidiRow],
+    offset: usize,
+    line_height: Pixels,
+) -> Option<Point<Pixels>> {
+    for (index, row) in rows.iter().enumerate() {
+        // At a soft wrap, the offset between two rows belongs to the second one.
+        let continues_on_next_row = rows
+            .get(index + 1)
+            .is_some_and(|next| next.range.start == row.range.end);
+        let inside = offset >= row.range.start
+            && (offset < row.range.end || (offset == row.range.end && !continues_on_next_row));
+        if inside {
+            let x = row.left + row.line.x_for_index(offset - row.range.start);
+            return Some(point(x, line_height * index as f32));
+        }
+    }
+    None
+}
+
+/// The content offset nearest to `local` (relative to the text's top-left).
+fn bidi_row_index_for_point(rows: &[BidiRow], local: Point<Pixels>, line_height: Pixels) -> usize {
+    if rows.is_empty() {
+        return 0;
+    }
+    let row_index = ((local.y / line_height).floor().max(0.) as usize).min(rows.len() - 1);
+    let row = &rows[row_index];
+    let index = row.line.closest_index_for_x(local.x - row.left);
+    (row.range.start + index).min(row.range.end)
+}
+
 /// A shaped line of field text and, when it was reordered for display (right-to-left
 /// text on Windows, see [`crate::bidi`]), the map from logical offsets to positions.
+#[derive(Clone)]
 pub(crate) struct DisplayLine {
     line: ShapedLine,
     bidi: Option<crate::bidi::VisualLine>,
@@ -895,7 +1011,7 @@ impl DisplayLine {
             } else {
                 crate::components::direction::TextDirection::Ltr
             };
-            let visual = crate::bidi::visual_line(&text, direction);
+            let visual = crate::bidi::visual_line_in_font(&text, direction, &runs[0].font.family);
             let run = TextRun {
                 len: visual.text.len(),
                 ..runs[0].clone()
@@ -1277,6 +1393,46 @@ mod tests {
                     .child(crate::components::Textarea::new(&self.0)),
             )
         }
+    }
+
+    #[gpui::test]
+    fn rtl_textarea_on_windows_wraps_and_maps_arabic(cx: &mut gpui::TestAppContext) {
+        if !crate::bidi::platform_needs_reordering() {
+            return;
+        }
+        cx.update(crate::init);
+        let text = "مرحبا بكم في واجهة روك للمكونات وهي مكتبة لتطبيقات سطح المكتب";
+        let state = cx.new(|cx| InputState::new(cx).with_multiline(true).with_text(text));
+        let view_state = state.clone();
+        let (_view, window_context) =
+            cx.add_window_view(move |_, _| RtlTextareaView(view_state.clone()));
+        window_context.run_until_parked();
+        state.read_with(window_context, |state, _| {
+            let rows = state
+                .last_bidi_rows
+                .as_ref()
+                .expect("rok-ui lays out the rows");
+            assert!(rows.len() > 1, "a long paragraph wraps");
+            // Rows tile the text in logical order.
+            assert_eq!(rows[0].range.start, 0);
+            assert_eq!(rows.last().unwrap().range.end, text.len());
+            for pair in rows.windows(2) {
+                assert_eq!(pair[0].range.end, pair[1].range.start);
+            }
+            // The first row starts at the right and the second sits one line lower.
+            let first = state.multiline_position_for_offset(0).unwrap();
+            let second = state
+                .multiline_position_for_offset(rows[1].range.start)
+                .unwrap();
+            assert!(first.x > second.x - px(1.) || first.y < second.y);
+            assert_eq!(second.y, state.last_line_height);
+            // Offsets inside a row survive a round trip through their position.
+            for (offset, _) in text[..rows[0].range.end].char_indices().skip(1) {
+                let position = state.multiline_position_for_offset(offset).unwrap();
+                let back = state.multiline_index_for_point(point(position.x, position.y + px(1.)));
+                assert_eq!(back, offset, "offset {offset} at {position:?}");
+            }
+        });
     }
 
     #[gpui::test]

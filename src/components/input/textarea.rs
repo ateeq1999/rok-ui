@@ -6,7 +6,10 @@ use gpui::{
     SharedString, Size, Style, StyleRefinement, TextAlign, TextRun, Window, WrappedLine,
 };
 
-use super::{forward_to_state, InputState, INPUT, INPUT_KEY_CONTEXT, TEXTAREA_KEY_CONTEXT};
+use super::{
+    bidi_rows, forward_to_state, needs_bidi_rows, BidiRow, InputState, INPUT, INPUT_KEY_CONTEXT,
+    TEXTAREA_KEY_CONTEXT,
+};
 use crate::sx::SxStyled;
 use crate::{
     components::focus_ring_outline, styles, styles::ApplyStyleOverrides, theme::ActiveTheme,
@@ -191,6 +194,8 @@ struct TextareaTextElement {
 
 struct TextareaPrepaint {
     lines: Vec<WrappedLine>,
+    /// Rows laid out by rok-ui (right-to-left text on Windows); replace `lines`.
+    rows: Vec<BidiRow>,
     line_height: Pixels,
     selection: Vec<PaintQuad>,
     cursor: Option<PaintQuad>,
@@ -294,6 +299,8 @@ impl Element for TextareaTextElement {
     ) -> (LayoutId, Self::RequestLayoutState) {
         let (text, runs) = self.display_text(window, cx);
         let line_height = window.line_height();
+        let font_size = window.text_style().font_size.to_pixels(window.rem_size());
+        let reorder = !self.state.read(cx).content.is_empty() && needs_bidi_rows(&text);
         let mut style = Style::default();
         style.size.width = relative(1.).into();
         let layout_id =
@@ -302,11 +309,13 @@ impl Element for TextareaTextElement {
                     AvailableSpace::Definite(width) => Some(width),
                     _ => None,
                 });
-                let lines = shape(text.clone(), &runs, wrap_width, window);
-                size(
-                    wrap_width.unwrap_or(px(0.)),
-                    total_height(&lines, line_height),
-                )
+                let height = if reorder {
+                    let rows = bidi_rows(&text, &runs[0], font_size, wrap_width, false, window);
+                    (line_height * rows.len() as f32).max(line_height)
+                } else {
+                    total_height(&shape(text.clone(), &runs, wrap_width, window), line_height)
+                };
+                size(wrap_width.unwrap_or(px(0.)), height)
             });
         (layout_id, ())
     }
@@ -322,12 +331,32 @@ impl Element for TextareaTextElement {
     ) -> Self::PrepaintState {
         let (text, runs) = self.display_text(window, cx);
         let line_height = window.line_height();
-        let lines = shape(text, &runs, Some(bounds.size.width), window);
         let content_is_empty = self.state.read(cx).content.is_empty();
         let rtl = crate::components::direction::is_rtl();
+        // Right-to-left text on Windows: rok-ui wraps and reorders the rows itself.
+        let reorder = !content_is_empty && needs_bidi_rows(&text);
+        let font_size = window.text_style().font_size.to_pixels(window.rem_size());
+        let rows = if reorder {
+            bidi_rows(
+                &text,
+                &runs[0],
+                font_size,
+                Some(bounds.size.width),
+                rtl,
+                window,
+            )
+        } else {
+            Vec::new()
+        };
+        let lines = if reorder {
+            Vec::new()
+        } else {
+            shape(text, &runs, Some(bounds.size.width), window)
+        };
 
         // Store the layout first so offset <-> position lookups use this frame's wrapping.
         self.state.update(cx, |state, _| {
+            state.last_bidi_rows = reorder.then(|| rows.clone());
             state.last_wrapped_lines = if content_is_empty {
                 Vec::new()
             } else {
@@ -384,6 +413,22 @@ impl Element for TextareaTextElement {
                 ),
                 self.cursor_color,
             ));
+        } else if reorder {
+            // Mixed-direction rows can need several highlight spans each.
+            for (index, row) in rows.iter().enumerate() {
+                let start = range.start.max(row.range.start);
+                let end = range.end.min(row.range.end);
+                if start >= end {
+                    continue;
+                }
+                let top = line_height * index as f32;
+                for (left, right) in row
+                    .line
+                    .selection_spans(start - row.range.start..end - row.range.start)
+                {
+                    selection.push(to_quad(row.left + left, top, row.left + right));
+                }
+            }
         } else {
             let start = position(range.start);
             let end = position(range.end);
@@ -403,6 +448,7 @@ impl Element for TextareaTextElement {
 
         TextareaPrepaint {
             lines,
+            rows,
             line_height,
             selection,
             cursor,
@@ -428,6 +474,15 @@ impl Element for TextareaTextElement {
         );
         for quad in prepaint.selection.drain(..) {
             window.paint_quad(quad);
+        }
+        for (index, row) in prepaint.rows.iter().enumerate() {
+            let top = bounds.top() + prepaint.line_height * index as f32;
+            row.line.paint(
+                point(bounds.left() + row.left, top),
+                prepaint.line_height,
+                window,
+                cx,
+            );
         }
         let mut line_top = bounds.top();
         for line in &prepaint.lines {

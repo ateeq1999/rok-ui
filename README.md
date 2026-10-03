@@ -57,8 +57,8 @@ rok-ui = { version = "0.3", default-features = false, features = ["button", "dia
 - **Groups:** `forms`, `overlays`, `layout`, `data` and `chat` each enable a whole group.
 - **Always included:** `AppRoot`, `Direction`, `BidiText`, the theme, icons, hooks, styling
   (`styles!`, `view!`) and motion, whatever features you pick.
-- **Fonts:** `font-cairo` and `font-inter` bundle Google Fonts (see [Fonts](#fonts)). They are
-  not part of `full`.
+- **Fonts:** `font-cairo`, `font-noto-sans-arabic` and `font-inter` bundle Google Fonts (see
+  [Fonts](#fonts)). They are not part of `full`.
 
 On Linux, GPUI needs the X11/Wayland development packages. On Debian/Ubuntu:
 
@@ -321,15 +321,18 @@ right order on every platform:
 
 - **Component text** (labels, titles, descriptions, options, menu items, table heads, badges)
   is handled automatically.
-- **Your own text:** wrap it in `BidiText`, which also wraps long paragraphs correctly:
-  `div().child(BidiText::new("مرحبا بك في rok-ui"))`.
-- **Inputs:** single-line inputs keep the caret, selection, clicks and IME in the right place
-  while you type Arabic.
+- **Your own text:** wrap it in `BidiText`, which also wraps long paragraphs and truncates with
+  an ellipsis under `.truncate()`: `div().child(BidiText::new("مرحبا بك في rok-ui"))`. String
+  literals with right-to-left letters in `view!` and `children!` markup are wrapped for you.
+- **Inputs:** inputs and textareas keep the caret, selection, clicks and IME in the right place
+  while you type Arabic, including across wrapped textarea rows.
 
 macOS and Linux lay out bidirectional text natively. GPUI 0.2.2's Windows backend draws every
 run left to right, so on Windows rok-ui reorders text itself: `rok_ui::bidi` runs the Unicode
-Bidirectional Algorithm and converts Arabic letters to their contextual presentation forms. The
-font must include those forms. Cairo, the font in the examples, does.
+Bidirectional Algorithm and converts joined Arabic letters to their contextual presentation
+forms. Many Arabic fonts, Cairo among them, leave the isolated presentation forms out. For fonts
+registered through `rok_ui::fonts`, rok-ui reads which forms each font has and draws isolated
+letters so they stay in that font. Noto Sans Arabic maps every form.
 
 ## Motion
 
@@ -492,9 +495,10 @@ are darkened (muted text `#666666`, destructive `#DC2626`) so every pair passes 
 
 ### Fonts
 
-rok-ui bundles two [Google Fonts](https://fonts.google.com), each behind a Cargo feature
-(`font-cairo`, `font-inter`, or `fonts` for both). They are off by default because they add
-their files (about 360 KB for Cairo, 1.3 MB for Inter) to your binary:
+rok-ui bundles three [Google Fonts](https://fonts.google.com), each behind a Cargo feature
+(`font-cairo`, `font-noto-sans-arabic`, `font-inter`, or `fonts` for all three). They are off by
+default because they add their files (about 360 KB for Cairo, 760 KB for Noto Sans Arabic,
+1.3 MB for Inter) to your binary:
 
 ```toml
 rok-ui = { version = "0.3", features = ["font-cairo"] }
@@ -504,6 +508,9 @@ rok-ui = { version = "0.3", features = ["font-cairo"] }
 rok_ui::fonts::CAIRO.register(cx)?;                     // Arabic + Latin, weights 400–700
 Theme::set_font_family(rok_ui::fonts::CAIRO.family(), cx);
 ```
+
+`NOTO_SANS_ARABIC` (Arabic, Persian, Urdu) is the alternative to Cairo: a more traditional
+naskh style that maps every Arabic presentation form.
 
 `Theme::set_font_family` survives preset and mode changes. For any other Google Font, download
 its static weights with `scripts/fetch-google-font.sh "IBM Plex Sans Arabic" 400,700 fonts/`
@@ -535,7 +542,7 @@ rok-ui/
 ├── Cargo.toml              workspace, the rok-ui crate and its feature list
 ├── macros/                 rok-ui-macros: #[component], styles!, style!, keyframes!, children!, view!
 ├── assets/icons/           built-in SVG icons (embedded at compile time)
-├── assets/fonts/           bundled Google Fonts (Cairo, Inter) and their licenses
+├── assets/fonts/           bundled Google Fonts (Cairo, Noto Sans Arabic, Inter) and licenses
 ├── src/
 │   ├── lib.rs              init(), re-exports
 │   ├── prelude.rs          use rok_ui::prelude::*
@@ -575,14 +582,14 @@ Contributions are welcome: bug reports, fixes, new components and docs. Read
 ## Known limitations (0.3)
 
 - **Right-to-left text on Windows** is reordered by rok-ui (see
-  [Arabic and mixed-direction text](#arabic-and-mixed-direction-text)), with three gaps:
-  - Text you pass as a plain string child needs `BidiText`. Elements you pass to a component,
-    such as `Message::footer` or bubble content, count as your own text.
-  - Typed right-to-left text in a multi-line `Textarea` is not reordered yet. Its placeholder is.
-  - Reordered text is not truncated with an ellipsis.
+  [Arabic and mixed-direction text](#arabic-and-mixed-direction-text)), with two gaps:
+  - Text built at runtime and passed as a plain string child (`div().child(name)`) needs
+    `BidiText`. Elements you pass to a component, such as `Message::footer` or bubble content,
+    count as your own text.
+  - Isolated letters in fonts registered outside `rok_ui::fonts` (for example installed system
+    fonts) assume the font has every presentation form.
 - **System font weights:** they depend on the platform UI font. Some Linux fonts have no medium
-  or semibold weight, so those render as regular. Bundled fonts (`font-cairo`, `font-inter`)
-  avoid this.
+  or semibold weight, so those render as regular. Bundled fonts avoid this.
 
 ## License
 

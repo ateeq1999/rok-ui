@@ -7,7 +7,8 @@
 
 use gpui::{
     prelude::*, px, AnyElement, App, AvailableSpace, Bounds, ElementId, GlobalElementId, LayoutId,
-    Pixels, ShapedLine, SharedString, Size, Style, TextAlign, TextStyle, WhiteSpace, Window,
+    Pixels, ShapedLine, SharedString, Size, Style, TextAlign, TextOverflow, TextStyle, WhiteSpace,
+    Window,
 };
 
 use crate::bidi;
@@ -88,7 +89,7 @@ impl TextMetrics {
 
     fn shape(&self, logical: &str, direction: TextDirection, window: &Window) -> ShapedLine {
         let visual: SharedString = if bidi::has_rtl(logical) {
-            bidi::visual_text(logical, direction).into()
+            bidi::visual_text_in_font(logical, direction, &self.style.font_family).into()
         } else {
             SharedString::from(logical.to_string())
         };
@@ -116,7 +117,7 @@ fn wrap(
     for paragraph in text.split('\n') {
         let Some(max_width) = max_width.filter(|_| metrics.style.white_space == WhiteSpace::Normal)
         else {
-            lines.push(paragraph.to_string());
+            lines.push(truncate(paragraph, max_width, metrics, direction, window));
             continue;
         };
         let mut line = String::new();
@@ -134,6 +135,44 @@ fn wrap(
         lines.push(line.trim_end().to_string());
     }
     lines
+}
+
+/// `line` cut to fit `max_width` with the overflow marker (usually "…") at its
+/// logical end, when the style asks for truncation (`.truncate()`). Unchanged when it
+/// fits, when no width is known or when the style does not truncate.
+fn truncate(
+    line: &str,
+    max_width: Option<Pixels>,
+    metrics: &TextMetrics,
+    direction: TextDirection,
+    window: &Window,
+) -> String {
+    let (Some(max_width), Some(TextOverflow::Truncate(marker))) =
+        (max_width, metrics.style.text_overflow.as_ref())
+    else {
+        return line.to_string();
+    };
+    if metrics.width(line, direction, window) <= max_width {
+        return line.to_string();
+    }
+    // Binary search for the longest prefix (on character boundaries) that fits.
+    let boundaries: Vec<usize> = line.char_indices().map(|(index, _)| index).collect();
+    let fits = |count: usize| {
+        let end = boundaries.get(count).copied().unwrap_or(line.len());
+        let candidate = format!("{}{marker}", line[..end].trim_end());
+        metrics.width(&candidate, direction, window) <= max_width
+    };
+    let (mut low, mut high) = (0, boundaries.len());
+    while low < high {
+        let middle = (low + high).div_ceil(2);
+        if fits(middle) {
+            low = middle;
+        } else {
+            high = middle - 1;
+        }
+    }
+    let end = boundaries.get(low).copied().unwrap_or(line.len());
+    format!("{}{marker}", line[..end].trim_end())
 }
 
 impl IntoElement for ReorderedText {
@@ -231,5 +270,57 @@ impl Element for ReorderedText {
                 .ok();
             top += metrics.line_height;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct EmptyView;
+
+    impl Render for EmptyView {
+        fn render(&mut self, _: &mut Window, _: &mut gpui::Context<Self>) -> impl IntoElement {
+            gpui::div()
+        }
+    }
+
+    #[gpui::test]
+    fn long_lines_truncate_with_an_ellipsis(cx: &mut gpui::TestAppContext) {
+        let (_view, window_context) = cx.add_window_view(|_, _| EmptyView);
+        window_context.update(|window, _| {
+            let style = TextStyle {
+                text_overflow: Some(TextOverflow::Truncate("…".into())),
+                ..TextStyle::default()
+            };
+            let metrics = TextMetrics {
+                style,
+                font_size: px(14.),
+                line_height: px(20.),
+            };
+            let text = "مرحبا بكم في واجهة روك للمكونات وهي مكتبة لتطبيقات سطح المكتب";
+            let direction = TextDirection::Rtl;
+            let max_width = px(120.);
+            assert!(metrics.width(text, direction, window) > max_width);
+
+            let cut = truncate(text, Some(max_width), &metrics, direction, window);
+            assert!(cut.ends_with('…'), "{cut}");
+            assert!(metrics.width(&cut, direction, window) <= max_width);
+            assert!(text.starts_with(cut.trim_end_matches('…').trim_end()));
+
+            // Text that fits, or a style without truncation, is left alone.
+            assert_eq!(
+                truncate("قصير", Some(px(400.)), &metrics, direction, window),
+                "قصير"
+            );
+            let plain = TextMetrics {
+                style: TextStyle::default(),
+                ..metrics
+            };
+            assert_eq!(
+                truncate(text, Some(max_width), &plain, direction, window),
+                text
+            );
+        });
     }
 }

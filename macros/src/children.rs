@@ -157,8 +157,34 @@ fn parse_if(input: ParseStream, syntax: Syntax) -> syn::Result<Node> {
 /// A plain child: an expression in list syntax, a markup element otherwise.
 fn parse_single(input: ParseStream, syntax: Syntax) -> syn::Result<Node> {
     match syntax {
-        Syntax::List => Ok(Node::Element(input.parse::<Expr>()?.into_token_stream())),
+        Syntax::List => {
+            let expression: Expr = input.parse()?;
+            if let Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Str(text),
+                ..
+            }) = &expression
+            {
+                return Ok(Node::Element(text_child(text)));
+            }
+            Ok(Node::Element(expression.into_token_stream()))
+        }
         Syntax::Markup => parse_markup_element(input),
+    }
+}
+
+/// A string literal child. Text with right-to-left letters becomes a `BidiText`,
+/// so it displays in the right order on every platform; other text stays a plain
+/// string.
+fn text_child(text: &syn::LitStr) -> TokenStream {
+    let has_rtl = text.value().chars().any(|character| {
+        matches!(character as u32,
+            0x0590..=0x08FF | 0xFB1D..=0xFDFF | 0xFE70..=0xFEFF | 0x10800..=0x10FFF
+            | 0x1E800..=0x1EFFF)
+    });
+    if has_rtl {
+        quote::quote!(::rok_ui::components::BidiText::new(#text))
+    } else {
+        text.into_token_stream()
     }
 }
 
@@ -169,7 +195,7 @@ fn parse_single(input: ParseStream, syntax: Syntax) -> syn::Result<Node> {
 fn parse_markup_element(input: ParseStream) -> syn::Result<Node> {
     if input.peek(syn::LitStr) {
         let text: syn::LitStr = input.parse()?;
-        return Ok(Node::Element(text.into_token_stream()));
+        return Ok(Node::Element(text_child(&text)));
     }
     if input.peek(token::Brace) {
         let content;

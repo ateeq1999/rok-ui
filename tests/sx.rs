@@ -106,6 +106,7 @@ fn children_macro_handles_mixed_types_and_control_flow() {
     let status = 2;
     let built: Vec<AnyElement> = children![
         "text",
+        "مرحبا",
         Badge::new("badge"),
         if loading { Spinner::new() } else { Badge::new("ready") },
         if let Some(text) = maybe { div().child(text) },
@@ -117,8 +118,8 @@ fn children_macro_handles_mixed_types_and_control_flow() {
             _ => Spinner::new(),
         },
     ];
-    // 1 + 1 + 1 + 1 + 3 + 6 + 2
-    assert_eq!(built.len(), 15);
+    // 2 + 1 + 1 + 1 + 3 + 6 + 2
+    assert_eq!(built.len(), 16);
 }
 
 struct StyledView {
@@ -155,6 +156,7 @@ impl Render for StyledView {
                     Button("cancel", label = "Cancel").outline()
                 }
                 div(sx = [ROW.text, ROW.position, ROW.misc]) { "styled" }
+                div { "مرحبا بك في rok-ui" }
             }
         })
     }

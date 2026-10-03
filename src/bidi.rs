@@ -57,8 +57,14 @@ pub fn is_converted(text: &str) -> bool {
 /// Reorder `text` for a renderer that draws every character left to right, on any
 /// platform. Each line is a separate paragraph with base `direction`.
 pub fn visual_text(text: &str, direction: TextDirection) -> String {
+    visual_text_in_font(text, direction, &crate::sx::current_theme().font_family)
+}
+
+/// [`visual_text`] for text drawn in `font_family`, so letters avoid any
+/// presentation forms that family is missing (see [`crate::fonts`]).
+pub fn visual_text_in_font(text: &str, direction: TextDirection, font_family: &str) -> String {
     text.split('\n')
-        .map(|line| visual_line(line, direction).text)
+        .map(|line| visual_line_in_font(line, direction, font_family).text)
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -87,6 +93,11 @@ pub struct VisualLine {
 
 /// Reorder one line (no newlines) and record where each character went.
 pub fn visual_line(line: &str, direction: TextDirection) -> VisualLine {
+    visual_line_in_font(line, direction, &crate::sx::current_theme().font_family)
+}
+
+/// [`visual_line`] for text drawn in `font_family`.
+pub fn visual_line_in_font(line: &str, direction: TextDirection, font_family: &str) -> VisualLine {
     use unicode_bidi::{BidiInfo, Level};
 
     let mut text = String::with_capacity(line.len() * 3 + 6);
@@ -102,7 +113,7 @@ pub fn visual_line(line: &str, direction: TextDirection) -> VisualLine {
             let (levels, runs) = info.visual_runs(paragraph, paragraph.range.clone());
             for run in runs {
                 if levels[run.start].is_rtl() {
-                    push_rtl_run(line, run, &mut text, &mut chars);
+                    push_rtl_run(line, run, font_family, &mut text, &mut chars);
                 } else {
                     for (offset, character) in line[run.clone()].char_indices() {
                         let start = text.len();
@@ -125,19 +136,17 @@ pub fn visual_line(line: &str, direction: TextDirection) -> VisualLine {
 
 /// Append a right-to-left run: letters in their contextual forms, clusters (a
 /// character plus its combining marks) in reverse order, paired punctuation mirrored.
-fn push_rtl_run(line: &str, run: Range<usize>, text: &mut String, chars: &mut Vec<VisualChar>) {
-    let mut clusters: Vec<(String, Range<usize>)> = Vec::new();
-    for (character, range) in shape_arabic_pieces(&line[run.clone()]) {
-        match clusters.last_mut() {
-            Some((cluster, cluster_range)) if is_combining(character) => {
-                cluster.push(character);
-                cluster_range.start = cluster_range.start.min(range.start);
-                cluster_range.end = cluster_range.end.max(range.end);
-            }
-            _ => clusters.push((mirror(character).to_string(), range)),
-        }
-    }
-    for (cluster, range) in clusters.iter().rev() {
+fn push_rtl_run(
+    line: &str,
+    run: Range<usize>,
+    font_family: &str,
+    text: &mut String,
+    chars: &mut Vec<VisualChar>,
+) {
+    for (cluster, range) in joined_clusters(&line[run.clone()], font_family)
+        .iter()
+        .rev()
+    {
         let start = text.len();
         text.push_str(cluster);
         let visual = start..text.len();
@@ -151,6 +160,167 @@ fn push_rtl_run(line: &str, run: Range<usize>, text: &mut String, chars: &mut Ve
             });
         }
     }
+}
+
+/// Keeps a letter from joining the character beside it.
+const ZERO_WIDTH_NON_JOINER: char = '\u{200C}';
+
+/// Split a right-to-left run (logical order) into clusters that keep their shape
+/// when the clusters are then laid out in reverse order.
+///
+/// Joined letters (initial, medial and final forms, and the lam-alef ligature) become
+/// their presentation-form characters. Isolated letters stay base letters wrapped in
+/// zero-width non-joiners: many fonts (Cairo among them) map the joined presentation
+/// forms but not the isolated ones, and an isolated base letter draws the same glyph.
+/// (Forcing joined forms with zero-width joiners instead breaks in DirectWrite once
+/// the run is reversed.) Marks stay in their letter's cluster. Paired punctuation is
+/// mirrored.
+fn joined_clusters(text: &str, font_family: &str) -> Vec<(String, Range<usize>)> {
+    struct Cluster {
+        /// Starts with the letter (or other character), followed by its marks.
+        text: String,
+        range: Range<usize>,
+        /// For an isolated letter, its isolated presentation form.
+        isolated_form: Option<char>,
+    }
+
+    let characters: Vec<(usize, char)> = text.char_indices().collect();
+    let range_of = |index: usize| {
+        let (start, character) = characters[index];
+        start..start + character.len_utf8()
+    };
+    // The nearest non-combining character before and after each position.
+    let neighbour = |from: usize, step: isize| -> Option<char> {
+        let mut index = from as isize + step;
+        while index >= 0 && (index as usize) < characters.len() {
+            let character = characters[index as usize].1;
+            if !is_combining(character) {
+                return Some(character);
+            }
+            index += step;
+        }
+        None
+    };
+
+    let mut clusters: Vec<Cluster> = Vec::new();
+    let mut index = 0;
+    while index < characters.len() {
+        let character = characters[index].1;
+        let range = range_of(index);
+
+        if is_combining(character) {
+            match clusters.last_mut() {
+                Some(cluster) => {
+                    cluster.text.push(character);
+                    cluster.range.end = range.end;
+                }
+                None => clusters.push(Cluster {
+                    text: character.to_string(),
+                    range,
+                    isolated_form: None,
+                }),
+            }
+            index += 1;
+            continue;
+        }
+
+        let joined_before = neighbour(index, -1).is_some_and(joins_forward);
+        let Some(forms) = forms(character) else {
+            clusters.push(Cluster {
+                text: mirror(character).to_string(),
+                range,
+                isolated_form: None,
+            });
+            index += 1;
+            continue;
+        };
+        let joined_before = joined_before && joins_backward(character);
+
+        // Lam then alef (with only marks between) make one ligature.
+        if character == 'ل' {
+            if let Some(alef_index) =
+                (index + 1..characters.len()).find(|&next| !is_combining(characters[next].1))
+            {
+                if let Some((isolated, last)) = lam_alef(characters[alef_index].1) {
+                    let mut text = String::from(if joined_before { last } else { isolated });
+                    // Marks that sat between lam and alef.
+                    text.extend((index + 1..alef_index).map(|mark| characters[mark].1));
+                    clusters.push(Cluster {
+                        text,
+                        range: range.start..range_of(alef_index).end,
+                        isolated_form: None,
+                    });
+                    index = alef_index + 1;
+                    continue;
+                }
+            }
+        }
+
+        let joined_after =
+            forms.joining == Joining::Dual && neighbour(index, 1).is_some_and(joins_backward);
+        let (text, isolated_form) = match (joined_before, joined_after) {
+            // Decided below, once the neighbouring letters are known.
+            (false, false) => (character.to_string(), Some(forms.isolated)),
+            (true, false) => (forms.last.to_string(), None),
+            (false, true) => (forms.first.to_string(), None),
+            (true, true) => (forms.middle.to_string(), None),
+        };
+        clusters.push(Cluster {
+            text,
+            range,
+            isolated_form,
+        });
+        index += 1;
+    }
+
+    // An isolated letter is best drawn as its base letter: the presentation forms
+    // around it do not join, so the font's own shaping draws it isolated, dots and
+    // all (some fonts map isolated presentation forms to dotless shapes, and many do
+    // not map them at all). Two base letters side by side would join, though, so in a
+    // run of isolated letters every other one uses its presentation form, or, if the
+    // font lacks it, is fenced off with zero-width non-joiners.
+    let mut start = 0;
+    while start < clusters.len() {
+        if clusters[start].isolated_form.is_none() {
+            start += 1;
+            continue;
+        }
+        let end = (start..clusters.len())
+            .find(|&index| clusters[index].isolated_form.is_none())
+            .unwrap_or(clusters.len());
+        // Keep the letters whose isolated forms are most often dotless as base letters.
+        let prefers_base = |index: usize| {
+            matches!(
+                clusters[index].text.chars().next(),
+                Some('ن' | 'ي' | 'ی' | 'ة')
+            )
+        };
+        let score = |parity: usize| {
+            (start..end)
+                .filter(|index| (index - start) % 2 == parity && prefers_base(*index))
+                .count()
+        };
+        let base_parity = if score(1) > score(0) { 1 } else { 0 };
+        for (offset, cluster) in clusters[start..end].iter_mut().enumerate() {
+            if offset % 2 == base_parity {
+                continue;
+            }
+            let form = cluster.isolated_form.unwrap_or_default();
+            let marks: String = cluster.text.chars().skip(1).collect();
+            cluster.text = if crate::fonts::lacks_presentation_form(font_family, form) {
+                let letter = cluster.text.chars().next().unwrap_or_default();
+                format!("{ZERO_WIDTH_NON_JOINER}{letter}{marks}{ZERO_WIDTH_NON_JOINER}")
+            } else {
+                format!("{form}{marks}")
+            };
+        }
+        start = end;
+    }
+
+    clusters
+        .into_iter()
+        .map(|cluster| (cluster.text, cluster.range))
+        .collect()
 }
 
 fn mirror(character: char) -> char {
@@ -273,6 +443,26 @@ fn forms(letter: char) -> Option<Forms> {
         'ی' => dual(0xFBFC),
         _ => return None,
     })
+}
+
+/// Every presentation-form character [`visual_line`] can emit, to check a font's
+/// coverage against.
+pub(crate) fn presentation_forms() -> Vec<char> {
+    let letters = "آأؤإئابةتثجحخدذرزسشصضطظعغفقكلمنهوىيپچژکگی";
+    let mut characters: Vec<char> = letters
+        .chars()
+        .filter_map(forms)
+        .flat_map(|forms| [forms.isolated, forms.last, forms.first, forms.middle])
+        .collect();
+    characters.extend(
+        "آأإا"
+            .chars()
+            .filter_map(lam_alef)
+            .flat_map(|(isolated, last)| [isolated, last]),
+    );
+    characters.sort_unstable();
+    characters.dedup();
+    characters
 }
 
 fn char_at(code: u32) -> char {
@@ -462,6 +652,24 @@ mod tests {
         assert!(mixed.chars[3].rtl);
         // Logical byte ranges tile the original text.
         assert_eq!(mixed.chars.last().unwrap().logical.end, "ab مر".len());
+    }
+
+    #[test]
+    fn adjacent_isolated_letters_alternate_base_and_presentation_forms() {
+        // و، ز and ن are all isolated. Plain base letters draw best (the font shapes them,
+        // dots included) but two side by side would join, so the middle one uses its
+        // presentation form.
+        let line = visual_line_in_font("وزن", TextDirection::Rtl, "Any Font");
+        let text = line.text.trim_start_matches(LEFT_TO_RIGHT_OVERRIDE);
+        let text = text.trim_end_matches(POP_DIRECTIONAL_FORMATTING);
+        assert_eq!(text, "ن\u{FEAF}و");
+
+        // A font without that form gets the base letter fenced off with non-joiners.
+        crate::fonts::mark_missing_presentation_forms("Gappy Font", ['\u{FEAF}']);
+        let line = visual_line_in_font("وزن", TextDirection::Rtl, "Gappy Font");
+        let text = line.text.trim_start_matches(LEFT_TO_RIGHT_OVERRIDE);
+        let text = text.trim_end_matches(POP_DIRECTIONAL_FORMATTING);
+        assert_eq!(text, "ن\u{200C}ز\u{200C}و");
     }
 
     #[test]

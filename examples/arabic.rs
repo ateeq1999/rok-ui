@@ -1,6 +1,7 @@
 //! An Arabic, right-to-left settings screen set in the Cairo font.
 //!
-//! Run with `cargo run --example arabic --features font-cairo`.
+//! Run with `cargo run --example arabic --features font-cairo`. Add
+//! `font-noto-sans-arabic` for a button that switches to Noto Sans Arabic.
 //!
 //! - `rok_ui::fonts::CAIRO` registers the bundled Cairo font (Google Fonts, OFL).
 //! - `set_text_direction(TextDirection::Rtl, cx)` mirrors every component.
@@ -30,7 +31,10 @@ fn ProfileCard(window: &mut Window, cx: &mut App) -> impl IntoElement {
         state.with_placeholder("name@example.com")
     });
     let bio = use_textarea_state("ar-bio", window, cx, |state| {
-        state.with_placeholder("اكتب نبذة قصيرة عنك…")
+        state.with_placeholder("اكتب نبذة قصيرة عنك…").with_text(
+            "مصممة واجهات من الرياض، أعمل على تطبيقات سطح المكتب منذ 2019. \
+                 أحب الخطوط العربية وتجربة المستخدم البسيطة.",
+        )
     });
     let city = use_state(window, cx, || Some(SharedString::from("riyadh")));
     let plan = use_state(window, cx, || Some(SharedString::from("pro")));
@@ -185,6 +189,30 @@ fn InvoicesCard() -> impl IntoElement {
         )
 }
 
+/// With `font-noto-sans-arabic` enabled, a button that switches between Cairo and
+/// Noto Sans Arabic.
+fn font_switch() -> Option<Button> {
+    #[cfg(feature = "font-noto-sans-arabic")]
+    {
+        Some(
+            Button::new("ar-font")
+                .outline()
+                .label("تبديل الخط")
+                .on_click(|_, _, cx| {
+                    let cairo = rok_ui::fonts::CAIRO.family();
+                    let next = if Theme::global(cx).font_family == cairo {
+                        rok_ui::fonts::NOTO_SANS_ARABIC.family()
+                    } else {
+                        cairo
+                    };
+                    Theme::set_font_family(next, cx);
+                }),
+        )
+    }
+    #[cfg(not(feature = "font-noto-sans-arabic"))]
+    None
+}
+
 struct ArabicWindow {
     dialog_open: bool,
 }
@@ -223,11 +251,13 @@ impl Render for ArabicWindow {
                                 .child(Muted::new("إدارة ملفك الشخصي وإشعاراتك وفواتيرك.")),
                         )
                         .child(
-                            Button::new("ar-theme")
-                                .outline()
-                                .icon(IconName::Moon)
-                                .label("الوضع الداكن")
-                                .on_click(|_, _, cx| Theme::toggle_mode(cx)),
+                            div().flex_dir().gap(px(8.)).children(font_switch()).child(
+                                Button::new("ar-theme")
+                                    .outline()
+                                    .icon(IconName::Moon)
+                                    .label("الوضع الداكن")
+                                    .on_click(|_, _, cx| Theme::toggle_mode(cx)),
+                            ),
                         ),
                 )
                 .child(P::new(
@@ -285,6 +315,10 @@ fn main() {
             rok_ui::fonts::CAIRO
                 .register(cx)
                 .expect("the Cairo font is bundled");
+            #[cfg(feature = "font-noto-sans-arabic")]
+            rok_ui::fonts::NOTO_SANS_ARABIC
+                .register(cx)
+                .expect("Noto Sans Arabic is bundled");
             Theme::set_font_family(rok_ui::fonts::CAIRO.family(), cx);
             set_text_direction(TextDirection::Rtl, cx);
 
