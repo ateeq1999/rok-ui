@@ -79,7 +79,7 @@ What exists now, by crate:
 | D.3 Field and form state | Done | `FieldMeta` (touched, blurred, dirty, validating, `error_map`, `form_error_map`) and `FormState`. |
 | D.4 Validation | Done | Mount / change / blur / submit events, errors per event, debounced async validators (latest run wins), form validators, `listen_to`, `Schema`, `GardeSchema` (`form-garde`), server errors from the submit handler. The `validator` adapter waits on decision K.5. |
 | D.5 Array and nested fields | Done | Composable paths; list operations move each row's state, input and focus with the row. |
-| D.6 Bound inputs | Partial | `BoundInput` / `TextField`, `CheckboxField`, `SwitchField`, `SubmitButton`, `FormErrors`, and `field.change_handler()` for any control whose `on_change` passes the value (`Select`, `Slider`, ...). No dedicated bound `Combobox`, `DatePicker`, `InputOtp` or `Textarea` yet. |
+| D.6 Bound inputs | Partial | `BoundInput` / `TextField`, `TextareaField`, `CheckboxField`, `SwitchField`, `SelectField`, `RadioGroupField`, `SliderField`, `SubmitButton`, `FormErrors`, and `field.change_handler()` for any other control whose `on_change` passes the value. No dedicated bound `Combobox`, `DatePicker` or `InputOtp` yet. |
 | D.6 `create_form_hook!` | Deferred | The bound field components already make forms one line per field. |
 | D.7 Behavior | Partial | Enter submits, a failed submit focuses the first invalid field, `reset` / `reset_field` / `set_value` / `validate`, `is_dirty()` with `use_blocker`. Not yet: scrolling the invalid field into view, persisted drafts. |
 
@@ -164,7 +164,7 @@ The plan left these open. The work so far assumed the following; each can still 
 - `#[shard]` (C.3); scoped `Cx` values (C.1); memoize scopes (C.5).
 - Router: async guards, pending timing (`pending_ms`), viewport preloading, scroll
   restoration, transitions.
-- Forms: more dedicated bound controls, scroll-into-view on a failed submit, persisted drafts.
+- Forms: bound `Combobox`, `DatePicker` and `InputOtp`, scroll-into-view on a failed submit, persisted drafts.
 - Devtools: mutations, forms and the signal graph.
 - 1.0: an API review against the component contract and Part B conventions, and
   `cargo public-api` checks in CI.

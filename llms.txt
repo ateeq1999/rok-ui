@@ -193,7 +193,8 @@ block_on}`):
   .validators(FormValidators::new().on_submit(|v| Some(FormError::field(&SignUp::CONFIRM, ".."))))
   .on_submit(|values, cx| Task<Result<(), FormError>>)`.
 - `let form = form::use_form(cx, opts); let email = form.field(cx, SignUp::EMAIL);`
-  `TextField::new(&email, "Email")`, `CheckboxField`, `SwitchField`, `BoundInput`,
+  `TextField::new(&email, "Email")`, `TextareaField`, `CheckboxField`, `SwitchField`,
+  `SelectField::new(&f, "Plan").option("pro", "Pro")`, `RadioGroupField`, `SliderField`, `BoundInput`,
   `SubmitButton::new(&form, "Save")`, `FormErrors::new(&form)`.
 - `form.array_field(cx, SignUp::TEAM)`: `push_value`, `remove_value`, `swap_values`,
   `move_value`, `insert_value`, `replace_value`, `push_handler`, `remove_handler`.

@@ -11,6 +11,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ### Added
 
+- Bound form controls `TextareaField`, `SelectField`, `RadioGroupField` and `SliderField`
+  (the last three behind their components' features).
 - `query::use_query_select`, TanStack Query's `select`: read a value derived from a query's
   data, derived again only when the data changes.
 - `db::watch_changes::<M>(cx)`: queries on `M`'s table refetch when its rows change in the

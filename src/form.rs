@@ -7,6 +7,13 @@ mod path;
 mod state;
 mod validators;
 
+#[cfg(feature = "radio-group")]
+pub use fields::RadioGroupField;
+#[cfg(feature = "select")]
+pub use fields::SelectField;
+#[cfg(feature = "slider")]
+pub use fields::SliderField;
+pub use fields::TextareaField;
 pub use fields::{BoundInput, CheckboxField, FormErrors, SubmitButton, SwitchField, TextField};
 #[cfg(feature = "form-garde")]
 pub use garde::GardeSchema;
