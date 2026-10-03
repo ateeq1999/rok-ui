@@ -185,6 +185,75 @@ pub fn invalidate_all(cx: &mut App) {
     cx.refresh_windows();
 }
 
+/// Keep queries that read `M`'s table fresh when its rows change in the database, whoever
+/// changes them: this app, another window or another process. Each insert, update or delete
+/// [`invalidate`]s `M::TABLE`, so every query whose key starts with the table name fetches
+/// again. Changes that arrive together refetch once.
+///
+/// It listens to rok-db's change feed, so the table needs its trigger first:
+/// `M::install_change_notifications(&db)`, once, from a migration or at startup. Watching
+/// stops when the returned task is dropped (`.detach()` keeps it for the life of the app) or
+/// when the listener fails; it keeps the connection it started with.
+///
+/// ```no_run
+/// # use rok_ui::{prelude::*, db::{self, rok_db::prelude::*}};
+/// # #[derive(Debug, Clone, Model)]
+/// # #[rok(crate = "rok_ui::db::rok_db", table = "users")]
+/// # struct User { #[rok(primary_key)] id: i64 }
+/// fn watch_users(cx: &mut App) {
+///     db::watch_changes::<User>(cx).detach();
+/// }
+/// ```
+///
+/// Notifications are not a durable log: changes made while the listener reconnects are
+/// missed. Fails with [`DbError::NotConnected`] without a connection.
+pub fn watch_changes<M>(cx: &mut App) -> Task<Result<(), DbError>>
+where
+    M: rok_db::Model + 'static,
+{
+    use futures::{
+        channel::{mpsc, oneshot},
+        future::Either,
+        StreamExt as _,
+    };
+
+    let Some(db) = connection(cx) else {
+        return Task::ready(Err(DbError::NotConnected));
+    };
+    let (changes_tx, mut changes_rx) = mpsc::unbounded::<()>();
+    // Dropping `stop` (with the task below) ends the listener.
+    let (stop, mut stopped) = oneshot::channel::<()>();
+    let listening = start(async move {
+        let mut changes = M::changes(&db).await?;
+        loop {
+            let next = std::pin::pin!(changes.recv());
+            match futures::future::select(&mut stopped, next).await {
+                Either::Left(_) => return Ok(()),
+                Either::Right((change, _)) => {
+                    change?;
+                    if changes_tx.unbounded_send(()).is_err() {
+                        return Ok(());
+                    }
+                }
+            }
+        }
+    });
+    cx.spawn(async move |cx| {
+        let _stop = stop;
+        while changes_rx.next().await.is_some() {
+            // Coalesce a burst (a bulk write) into one refetch.
+            while changes_rx.try_recv().is_ok() {}
+            if cx.update(|cx| invalidate(M::TABLE, cx)).is_err() {
+                return Ok(());
+            }
+        }
+        match listening.await {
+            Ok(result) => result.map_err(DbError::from),
+            Err(_) => Err(DbError::Cancelled),
+        }
+    })
+}
+
 /// The state of a [`use_query`]: data from the last successful fetch, the error
 /// of the last failed one, and whether a fetch is running.
 #[derive(Clone, Debug)]

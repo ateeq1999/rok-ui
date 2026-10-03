@@ -207,6 +207,8 @@ PostgreSQL through rok-db (a type-safe async ORM on sqlx), run on the shared run
 - `db::db_query(query_key!["users"], |db| async move { User::query().all(&db).await })` ->
   `QueryOptions`; `db::db_mutation(|db, input| async move { .. })` -> `MutationOptions`;
   `db::run(cx, |db| async move { .. })` for one-off work; `db::invalidate("users", cx)`.
+- `db::watch_changes::<User>(cx).detach()` invalidates `query_key![User::TABLE]` whenever a row
+  changes in the database (any process); needs `User::install_change_notifications(&db)` once.
 - Models derive rok-db's `Model`; without a direct rok-db dependency add
   `#[rok(crate = "rok_ui::db::rok_db")]`.
 - Futures passed in must be `Send + 'static`: clone the data they need, never capture UI

@@ -11,6 +11,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ### Added
 
+- `db::watch_changes::<M>(cx)`: queries on `M`'s table refetch when its rows change in the
+  database, from this app or any other (rok-db change feeds).
 - `llms.txt`, a digest of the API and conventions for coding agents, and `roadmap.md`, which
   tracks progress against `enhance.md`.
 - Agent skills for the `db` feature (rok-db) and for code-quality review; the `route` skill now

@@ -44,6 +44,9 @@ When unsure, look at the source in `~/.cargo/registry/src/*/rok-db-core-<version
   `db::invalidate("users", cx)` for one-off work.
 - Keys: the first key part is the table or resource (`["users", id]`), so invalidating
   `["users"]` refreshes every query that reads it.
+- Rows changed outside the app: `db::watch_changes::<M>(cx)` invalidates `M::TABLE` from
+  rok-db's change feed (after `M::install_change_notifications(&db)`), so keys must start with
+  the table name for it to reach them.
 - Futures run on another thread: they must be `Send + 'static`. Clone the `Db` and the inputs
   into them. Never capture `Entity`, `Window`, `App` or other UI handles.
 - Errors surface as `DbError::{NotConnected, Failed, Cancelled}`. Show `NotConnected` as a
