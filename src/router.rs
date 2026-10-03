@@ -1,30 +1,4 @@
-//! Client-side routing for desktop apps: paths with parameters, back and forward
-//! history, and links.
-//!
-//! ```ignore
-//! Router::new()
-//!     .route("/", |_, _, _| HomePage::new())
-//!     .route("/users/:id", |route, _, _| UserPage::new(route.param("id").unwrap_or_default()))
-//!     .route("/files/*path", |route, _, _| FileBrowser::new(route.param("path").unwrap_or_default()))
-//!     .redirect("/home", "/")
-//!     .not_found(|route, _, _| NotFound::new(route.path()))
-//!
-//! // Anywhere with `&mut App`:
-//! rok_ui::router::navigate("/users/42", cx);
-//! rok_ui::router::back(cx);
-//!
-//! // Or declaratively:
-//! Link::new("profile-link", "/users/42").child("Profile")
-//! ```
-//!
-//! Patterns are matched segment by segment. `:name` captures one segment,
-//! `*name` (only at the end) captures the rest of the path, and the most specific
-//! pattern wins regardless of declaration order: static segments beat parameters,
-//! which beat wildcards. Query strings (`?tab=billing`) are parsed separately.
-//!
-//! The history is app-wide, like a browser tab: every [`Router`] in every window
-//! shows the current location. Alt+Left and Alt+Right go back and forward once
-//! [`crate::init`] has run.
+#![doc = include_str!("../docs/guide/router.md")]
 
 use std::{collections::HashMap, rc::Rc};
 

@@ -1,33 +1,4 @@
-//! PostgreSQL out of the box with [rok-db](https://github.com/ateeq1999/rok-db),
-//! an async ORM built on sqlx.
-//!
-//! rok-db runs on tokio, and GPUI has its own executor, so rok-ui keeps a small
-//! tokio runtime in the background and hands results back to the UI thread.
-//!
-//! ```ignore
-//! use rok_ui::db::{self, rok_db::prelude::*};
-//!
-//! #[derive(Debug, Clone, Model)]
-//! #[rok(crate = "rok_ui::db::rok_db")]   // when rok-db is not a direct dependency
-//! struct User { id: i64, email: String, name: Option<String> }
-//!
-//! // At startup:
-//! db::connect(std::env::var("DATABASE_URL")?, cx).detach();
-//!
-//! // In a component: loading, then data or an error. Re-runs when invalidated.
-//! let users = db::use_query("users", window, cx, |db| async move {
-//!     User::query().order_by(User::EMAIL.asc()).all(&db).await
-//! });
-//!
-//! // After a write:
-//! let insert = db::run(cx, move |db| async move { new_user.insert(&db).await });
-//! cx.spawn(async move |cx| {
-//!     if insert.await.is_ok() {
-//!         cx.update(|cx| db::invalidate("users", cx)).ok();
-//!     }
-//! })
-//! .detach();
-//! ```
+#![doc = include_str!("../docs/guide/database.md")]
 
 use std::{collections::HashMap, fmt, future::Future, sync::OnceLock};
 

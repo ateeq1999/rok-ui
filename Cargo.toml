@@ -33,8 +33,7 @@ unicode-bidi = "0.3"
 ttf-parser = "0.25"
 jiff = { version = "0.2", optional = true }
 rok-ui-hooks = { version = "0.3", optional = true }
-# rok-db is not on crates.io yet: it must be published before a rok-ui release.
-rok-db = { git = "https://github.com/ateeq1999/rok-db", rev = "d985ea8", optional = true }
+rok-db = { version = "0.1", optional = true }
 tokio = { version = "1", features = ["rt-multi-thread"], optional = true }
 
 # Reads which Arabic letter forms installed fonts have (the same crate GPUI uses).
@@ -53,7 +52,7 @@ windows = { version = "0.61", features = ["Win32_Graphics_DirectWrite"] }
 # macros are always available.
 [features]
 default = ["full"]
-full = ["forms", "overlays", "layout", "data", "chat", "shell", "state", "router"]
+full = ["forms", "overlays", "layout", "data", "chat", "shell", "state"]
 
 # Groups.
 forms = [
@@ -85,10 +84,15 @@ font-noto-sans-arabic = []
 # App infrastructure.
 # Reactive state from rok-ui-hooks (signals, memos, effects, stores), wired into GPUI.
 state = ["dep:rok-ui-hooks"]
-# Routes with params, back / forward history and links.
+# Routes with params, back / forward history and links (not part of `full`).
 router = []
 # PostgreSQL through rok-db, on a background tokio runtime (not part of `full`).
 db = ["dep:rok-db", "dep:tokio"]
+# rok-db column types and migrations.
+db-chrono = ["db", "rok-db/chrono"]
+db-uuid = ["db", "rok-db/uuid"]
+db-json = ["db", "rok-db/json"]
+db-migrate = ["db", "rok-db/migrate"]
 
 # Components, with the components they are built from.
 accordion = []
@@ -187,7 +191,7 @@ required-features = ["full"]
 
 [[example]]
 name = "notes"
-required-features = ["full"]
+required-features = ["full", "router"]
 
 [[example]]
 name = "db_users"

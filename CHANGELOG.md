@@ -16,13 +16,17 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
   when the signals it reads change, `use_signal` gives a component its own signal, and
   `use_tracked` re-renders a window for shared signals. `rok_ui::init` pumps rok-ui-hooks' timers
   and async tasks.
-- **Router** (`router` feature, part of `full`): `Router` with `:param` and `*wildcard`
+- **Router** (`router` feature, opt-in): `Router` with `:param` and `*wildcard`
   patterns ranked by specificity, redirects and a not-found route; app-wide back / forward
   history (`navigate`, `replace`, `back`, `forward`, Alt+Left / Alt+Right); query strings;
   `Link`; `is_active` and `on_navigate`.
 - **Database** (`db` feature, opt-in): PostgreSQL through rok-db on a background tokio runtime.
   `db::connect`, `db::run` for any database work, and `db::use_query` with loading and error
   states, caching and `db::invalidate`.
+  `db-chrono`, `db-uuid`, `db-json` and `db-migrate` forward rok-db's column types and
+  migrations.
+- **Guides** in `docs/guide` (also the module docs on docs.rs): app shells and layouts,
+  reactive state, routing and the database, with examples throughout.
 - The `notes` (router and state) and `db_users` (rok-db) examples.
 
 ## [0.4.0] - 2026-10-03

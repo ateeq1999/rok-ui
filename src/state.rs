@@ -1,33 +1,4 @@
-//! Reactive state with [rok-ui-hooks](https://docs.rs/rok-ui-hooks): signals,
-//! memos, effects and stores, wired into GPUI so views re-render when the values
-//! they read change.
-//!
-//! The whole crate is re-exported as [`signals`]. This module adds the glue:
-//!
-//! - [`TrackSignals::track`]: a view (`Context<V>`) re-renders when the signals
-//!   read by a closure change.
-//! - [`use_signal`]: a signal owned by an element (like `use_state`), whose
-//!   changes re-render the window.
-//! - [`use_tracked`]: re-render the window when signals read by a closure change,
-//!   for components that read shared signals or stores.
-//!
-//! ```ignore
-//! use rok_ui::state::{create_store, TrackSignals};
-//!
-//! struct Cart { items: Store<Vec<Item>> }
-//!
-//! impl Cart {
-//!     fn new(items: Store<Vec<Item>>, cx: &mut Context<Self>) -> Self {
-//!         let watched = items.clone();
-//!         cx.track(move || watched.with(|_| ()));   // re-render on every change
-//!         Self { items }
-//!     }
-//! }
-//! ```
-//!
-//! [`crate::init`] starts a pump that calls [`signals::tick`] on GPUI's executor,
-//! so `use_resource`, `spawn`, `use_debounced` and `use_throttled` work without a
-//! loop of your own.
+#![doc = include_str!("../docs/guide/state.md")]
 
 use std::{
     cell::{Cell, RefCell},

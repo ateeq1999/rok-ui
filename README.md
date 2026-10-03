@@ -17,8 +17,9 @@ developer experience.
   works like `useState`.
 - **Overridable styles.** Every visual component implements GPUI's `Styled`, so `.w_full().mt_4()`
   overrides its defaults the way `className` does.
-- **App plumbing.** Reactive state from rok-ui-hooks, a router with params and history, and
-  PostgreSQL through rok-db (`db` feature), all wired into GPUI.
+- **App plumbing.** Reactive state from rok-ui-hooks, a router with params and history (`router`
+  feature), and PostgreSQL through rok-db (`db` feature), all wired into GPUI. See the
+  [guides](docs/guide/README.md).
 - **Flutter-style app shells and layouts.** `Scaffold`, `AppBar`, `NavigationBar`,
   `NavigationRail`, `NavigationDrawer` and an `AdaptiveScaffold` that follows the window
   width, plus `Row`, `Column`, `Expanded`, `Stack`, `GridView`, `LayoutBuilder` and friends.
@@ -61,8 +62,8 @@ rok-ui = { version = "0.4", default-features = false, features = ["button", "dia
   `textarea`, `kbd`, `native-select` and `toggle-group`.
 - **Groups:** `forms`, `overlays`, `layout`, `data`, `chat` and `shell` (Scaffold, navigation
   and layout widgets) each enable a whole group.
-- **App features:** `state` (rok-ui-hooks) and `router` are part of `full`; `db` (rok-db, sqlx
-  and tokio) is opt-in.
+- **App features:** `state` (rok-ui-hooks) is part of `full`. `router` and `db` (rok-db, sqlx and
+  tokio, plus `db-chrono`, `db-uuid`, `db-json`, `db-migrate`) are opt-in.
 - **Always included:** `AppRoot`, `Direction`, `BidiText`, the theme, icons, hooks, styling
   (`styles!`, `view!`) and motion, whatever features you pick.
 - **Fonts:** `font-cairo`, `font-noto-sans-arabic` and `font-inter` bundle Google Fonts (see
@@ -395,6 +396,8 @@ div().when(panel.is_mounted(), |div| div.child(panel.apply(content, &FADE_UP)))
 
 ## App shells and layouts
 
+Full guide: [docs/guide/app-shells.md](docs/guide/app-shells.md).
+
 For people coming from Flutter, rok-ui has its Material app structure and layout widgets, built
 on the same theme and controlled like every other component. Run
 `cargo run --example app_shell` and resize the window.
@@ -469,10 +472,13 @@ rather than Flutter's constraints. The one difference you will notice: a `Column
 
 ## State, routing and data
 
-Three features cover the app plumbing most desktop apps need. `state` and `router` are part of
-`full`. `db` is opt-in because it brings in sqlx and a tokio runtime.
+Three features cover the app plumbing most desktop apps need. `state` is part of `full`; `router`
+and `db` are opt-in (`db` brings in sqlx and a tokio runtime). Each has a full guide in
+[`docs/guide`](docs/guide/README.md), also shown as the module docs on docs.rs.
 
 ### Reactive state (`state`)
+
+Full guide: [docs/guide/state.md](docs/guide/state.md).
 
 [rok-ui-hooks](https://crates.io/crates/rok-ui-hooks) gives you fine-grained signals, memos,
 effects and stores. `rok_ui::state` re-exports the crate (as `rok_ui::state::signals`) and wires
@@ -507,6 +513,8 @@ fn Counter(window: &mut Window, cx: &mut App) -> impl IntoElement {
 
 ### Routing (`router`)
 
+Full guide: [docs/guide/router.md](docs/guide/router.md).
+
 ```rust
 Router::new()
     .route("/", |_, _, _| HomePage::new())
@@ -523,10 +531,12 @@ Router::new()
 - **Reading the location:** `router::location(cx)` (path and query), `router::is_active(path,
   exact, cx)` for highlighting navigation, and `router::on_navigate` for listeners.
 
-`cargo run --example notes` puts the router, a store and `use_signal` together in an
+`cargo run --example notes --features router` puts the router, a store and `use_signal` together in an
 `AdaptiveScaffold`.
 
 ### Database (`db`)
+
+Full guide: [docs/guide/database.md](docs/guide/database.md).
 
 [rok-db](https://github.com/ateeq1999/rok-db), a type-safe async ORM for PostgreSQL on sqlx,
 runs on a background tokio runtime, and its results come back to the UI thread:
