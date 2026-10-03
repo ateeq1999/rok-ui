@@ -74,7 +74,7 @@ serde_json = { version = "1", optional = true }
 
 # Reads which Arabic letter forms installed fonts have (the same crate GPUI uses).
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.61", features = ["Win32_Graphics_DirectWrite"] }
+windows = { version = "0.62", features = ["Win32_Graphics_DirectWrite"] }
 
 # Every component is a feature, so you compile only what you use:
 #

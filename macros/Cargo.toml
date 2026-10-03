@@ -28,4 +28,4 @@ development = ["rok-ui"]
 [dependencies]
 proc-macro2 = "1"
 rok-ui-grammar = { version = "0.6.0", path = "../rok-ui-grammar" }
-syn = { version = "2", features = ["full"] }
+syn = { version = "3", features = ["full"] }
