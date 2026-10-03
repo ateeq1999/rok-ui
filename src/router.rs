@@ -176,6 +176,12 @@ pub fn can_go_forward(cx: &mut App) -> bool {
     history.index + 1 < history.entries.len()
 }
 
+/// Every history entry, oldest first, and the index of the current one.
+pub fn history_entries(cx: &mut App) -> (Vec<SharedString>, usize) {
+    let history = history(cx);
+    (history.entries.clone(), history.index)
+}
+
 /// The current location.
 pub fn location(cx: &mut App) -> Location {
     let history = history(cx);

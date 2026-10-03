@@ -34,6 +34,8 @@ pub mod components;
 pub mod cx;
 #[cfg(feature = "db")]
 pub mod db;
+#[cfg(feature = "devtools")]
+pub mod devtools;
 pub mod fonts;
 #[cfg(feature = "form")]
 pub mod form;
@@ -126,4 +128,6 @@ pub fn init(cx: &mut gpui::App) {
     router::init(cx);
     #[cfg(feature = "state")]
     state::init(cx);
+    #[cfg(feature = "devtools")]
+    devtools::init(cx);
 }

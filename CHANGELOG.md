@@ -38,6 +38,9 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - **Stores:** `#[derive(Store)]` generates a store with one signal per field; the `persist`
   feature saves stores as versioned JSON in the config directory (`persisted_store`,
   `PersistOptions` with migrations).
+- **Devtools** (`devtools` feature): `Devtools`, an overlay toggled with Ctrl-Shift-D that
+  shows the router history and every cached query with its status and age;
+  `router::history_entries`.
 - **Components:** `#[default]` / `#[default(expr)]` props, and `#[key(..)]` on `view!` /
   `children!` loops (the new `Keyed` element) so hook state follows reordered items.
 - **Router v2** (`router` feature): typed routes with `typed_route!` (fields checked against

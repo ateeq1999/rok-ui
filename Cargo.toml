@@ -129,6 +129,8 @@ form-garde = ["form", "dep:garde"]
 runtime = ["dep:tokio"]
 # Stores saved to the config directory (`rok_ui::persist`).
 persist = ["state", "dep:serde", "dep:serde_json"]
+# An overlay showing the router and the query cache (Ctrl-Shift-D). Not part of `full`.
+devtools = []
 # Routes with params, back / forward history and links (not part of `full`).
 router = []
 # PostgreSQL through rok-db, on a background tokio runtime (not part of `full`).
