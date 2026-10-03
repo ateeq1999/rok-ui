@@ -7,6 +7,12 @@ mod path;
 mod state;
 mod validators;
 
+#[cfg(feature = "combobox")]
+pub use fields::ComboboxField;
+#[cfg(feature = "date-picker")]
+pub use fields::DatePickerField;
+#[cfg(feature = "input-otp")]
+pub use fields::InputOtpField;
 #[cfg(feature = "radio-group")]
 pub use fields::RadioGroupField;
 #[cfg(feature = "select")]

@@ -428,7 +428,7 @@ fn pickers_and_text_areas_edit_their_fields(cx: &mut TestAppContext) {
             .field(cx, Profile::PLAN)
     });
     assert_eq!(plan.value().map(String::as_str), Some("team"));
-    assert!(plan.meta().is_touched);
+    assert!(plan.meta().is_blurred, "a pick counts as leaving the field");
     assert_eq!(plan.errors(), ["Not yet"], "blur validators ran");
 
     // The text area takes several lines.
@@ -467,4 +467,99 @@ fn pickers_and_text_areas_edit_their_fields(cx: &mut TestAppContext) {
     window.run_until_parked();
     let values = profile(window);
     assert_eq!((values.country.as_str(), values.volume), ("sd", 7.));
+}
+
+#[derive(FormValues, Clone, Debug, Default, PartialEq)]
+struct Verify {
+    code: String,
+    language: String,
+    due: Option<rok_ui::components::CalendarDate>,
+}
+
+type VerifySlot = Rc<RefCell<Option<Form<Verify>>>>;
+
+/// A code input, a combobox and a date picker bound to a form.
+struct VerifyView(VerifySlot);
+
+impl Render for VerifyView {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let mut cx = Cx::new(window, cx);
+        let form = form::use_form(
+            &mut cx,
+            FormOptions::new(Verify::default()).field(
+                Verify::CODE,
+                Validators::new()
+                    .on_blur(|code: &String| (code != "123456").then_some("Wrong code")),
+            ),
+        );
+        let code = form.field(&mut cx, Verify::CODE);
+        let language = form.field(&mut cx, Verify::LANGUAGE);
+        let due = form.field(&mut cx, Verify::DUE);
+        *self.0.borrow_mut() = Some(form);
+        rok_ui::components::AppRoot::new()
+            .child(form::InputOtpField::new(&code, "Code", 6))
+            .child(
+                form::ComboboxField::new(&language, "Language")
+                    .option("rust", "Rust")
+                    .option("zig", "Zig"),
+            )
+            .child(form::DatePickerField::new(&due, "Due"))
+    }
+}
+
+#[gpui::test]
+fn code_inputs_fill_their_field_and_check_it_when_complete(cx: &mut TestAppContext) {
+    cx.update(rok_ui::init);
+    let slot: VerifySlot = Rc::new(RefCell::new(None));
+    let view_slot = slot.clone();
+    let (_, window) = cx.add_window_view(move |_, _| VerifyView(view_slot.clone()));
+    window.run_until_parked();
+    let code = |window: &mut VisualTestContext| {
+        window.update(|_, cx| {
+            slot.borrow()
+                .clone()
+                .expect("rendered")
+                .field(cx, Verify::CODE)
+        })
+    };
+
+    // One character per frame, as a person types: the boxes read the code they rendered.
+    let type_code = |window: &mut VisualTestContext, digits: &str| {
+        for digit in digits.chars() {
+            window.simulate_input(&digit.to_string());
+            window.run_until_parked();
+        }
+    };
+    window.simulate_keystrokes("tab");
+    type_code(window, "123");
+    let partial = code(window);
+    assert_eq!(partial.value().map(String::as_str), Some("123"));
+    assert!(
+        !partial.meta().is_blurred,
+        "typing does not leave the field"
+    );
+
+    type_code(window, "999");
+    let full = code(window);
+    assert_eq!(full.value().map(String::as_str), Some("123999"));
+    assert!(
+        full.meta().is_blurred,
+        "filling the last box counts as leaving the field"
+    );
+    assert_eq!(
+        full.errors(),
+        ["Wrong code"],
+        "a full code runs blur validators"
+    );
+
+    // The combobox and the date picker render values set from code.
+    let date = rok_ui::components::CalendarDate::new(2026, 10, 3);
+    window.update(|_, cx| {
+        let form = slot.borrow().clone().expect("rendered");
+        form.set_value(cx, Verify::LANGUAGE, "zig".to_string());
+        form.set_value(cx, Verify::DUE, date);
+    });
+    window.run_until_parked();
+    let values = window.update(|_, _| slot.borrow().clone().expect("rendered").values().clone());
+    assert_eq!((values.language.as_str(), values.due), ("zig", date));
 }

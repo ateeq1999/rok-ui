@@ -87,8 +87,11 @@ fn SignUpForm(cx: &mut Cx) -> impl IntoElement {
 - `TextareaField` binds a multi-line text area: Enter adds a line and Ctrl/Cmd-Enter submits.
 - `CheckboxField` and `SwitchField` bind `bool` fields. `SelectField` and `RadioGroupField`
   (with the `select` and `radio-group` features) bind `String` fields to the chosen option's
-  value, and `SliderField` (`slider`) binds an `f32`; picking a value counts as leaving the
-  field, so blur validators run. Any other control with an `on_change` that passes the new
+  value, as does `ComboboxField` (`combobox`); `SliderField` (`slider`) binds an `f32` and
+  `DatePickerField` (`date-picker`) an `Option<CalendarDate>`. Picking a value counts as
+  leaving the field, so blur validators run.
+- `InputOtpField` (`input-otp`) binds a one-time code to a `String`: every edit changes the
+  value, and filling the last box counts as leaving the field. Any other control with an `on_change` that passes the new
   value binds with `.on_change(field.change_handler())`.
 - Errors show once the field is touched or a submit was attempted
   (`field.should_show_errors()`); custom layouts read `field.meta()` directly.
