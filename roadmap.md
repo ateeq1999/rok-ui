@@ -96,7 +96,8 @@ What exists now, by crate:
 | E.7 Blocking | Done | `use_blocker` with `proceed` / `reset`. |
 | E.7 Per-window history | Done | `set_per_window_history`, `with_window`; a router's subtree reads its window's history. App-wide stays the default. |
 | E.7 Persistence | Done | `router::persist_location` (router + persist). |
-| E.7 Scroll restoration, transitions | Not started | |
+| E.7 Scroll restoration | Done | `ScrollArea::restore_scroll` and `Scaffold::restore_scroll`: offsets kept per history entry (and window), restored on back / forward, dropped with an abandoned back stack. |
+| E.7 Transitions | Not started | |
 
 ## Part F: folder structure
 
@@ -162,7 +163,7 @@ The plan left these open. The work so far assumed the following; each can still 
 
 - The workspace split (F.2, decision K.2) and remote procedures (C.4, decision K.6).
 - `#[shard]` (C.3); scoped `Cx` values (C.1); memoize scopes (C.5).
-- Router: viewport preloading, scroll restoration, transitions.
+- Router: viewport preloading, transitions.
 - Devtools: forms and the signal graph.
 - 1.0: an API review against the component contract and Part B conventions, and
   `cargo public-api` checks in CI.

@@ -4,7 +4,7 @@ use std::{cell::Cell, collections::HashMap, rc::Rc};
 
 use gpui::{
     actions, div, prelude::*, AnyElement, AnyWindowHandle, App, Bounds, ElementId, Global,
-    GlobalElementId, InspectorElementId, KeyBinding, LayoutId, Pixels, SharedString,
+    GlobalElementId, InspectorElementId, KeyBinding, LayoutId, Pixels, Point, SharedString,
     StyleRefinement, Task, Window,
 };
 
@@ -61,6 +61,8 @@ type NavigateListener = Rc<dyn Fn(&Location, &mut App)>;
 struct History {
     entries: Vec<SharedString>,
     index: usize,
+    /// Scroll offsets by (entry index, scroll area), for scroll restoration.
+    scroll: HashMap<(usize, SharedString), Point<Pixels>>,
 }
 
 impl Default for History {
@@ -68,6 +70,7 @@ impl Default for History {
         Self {
             entries: vec!["/".into()],
             index: 0,
+            scroll: HashMap::new(),
         }
     }
 }
@@ -150,6 +153,8 @@ pub fn navigate(path: impl Into<SharedString>, cx: &mut App) {
         return;
     }
     history.entries.truncate(history.index + 1);
+    let index = history.index;
+    history.scroll.retain(|(entry, _), _| *entry <= index);
     history.entries.push(path);
     history.index += 1;
     changed(cx);
@@ -164,6 +169,7 @@ pub fn replace(path: impl Into<SharedString>, cx: &mut App) {
     let history = history(cx);
     let index = history.index;
     history.entries[index] = path;
+    history.scroll.retain(|(entry, _), _| *entry != index);
     changed(cx);
 }
 
@@ -308,7 +314,49 @@ fn replace_unblocked(path: SharedString, cx: &mut App) {
     let history = history(cx);
     let index = history.index;
     history.entries[index] = path;
+    history.scroll.retain(|(entry, _), _| *entry != index);
     changed(cx);
+}
+
+/// Scroll restoration for a scroll container `area` tracked by `handle`: save its offset under
+/// the window's current history entry and, when the entry changed since `last` (the entry the
+/// container showed at its previous render, `None` for a container just built), put back the
+/// offset it had there, or the top. Returns the current entry for the caller to remember.
+#[cfg_attr(
+    not(any(feature = "scroll-area", feature = "scaffold")),
+    allow(dead_code)
+)]
+pub(crate) fn restore_scroll(
+    area: &SharedString,
+    handle: &gpui::ScrollHandle,
+    last: Option<usize>,
+    window: &Window,
+    cx: &mut App,
+) -> usize {
+    with_window(window.window_handle(), || {
+        let history = history(cx);
+        let entry = history.index;
+        let saved = |history: &History| history.scroll.get(&(entry, area.clone())).copied();
+        match last {
+            Some(previous) if previous != entry => {
+                history
+                    .scroll
+                    .insert((previous, area.clone()), handle.offset());
+                handle.set_offset(saved(history).unwrap_or_default());
+            }
+            None => {
+                if let Some(offset) = saved(history) {
+                    handle.set_offset(offset);
+                }
+            }
+            Some(_) => {
+                history
+                    .scroll
+                    .insert((entry, area.clone()), handle.offset());
+            }
+        }
+        entry
+    })
 }
 
 /// Go back one entry, if there is one.

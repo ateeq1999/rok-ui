@@ -471,6 +471,23 @@ fn NotePage(cx: &mut Cx) -> impl IntoElement {
 `examples/file_routes` is a complete app: layouts, a guarded pathless layout, typed links,
 search params and queries with `Suspense`.
 
+## Scroll restoration
+
+A scroll container can remember where each page was left. Turn it on with
+`ScrollArea::restore_scroll(true)` or, for an app shell, `Scaffold::restore_scroll(true)`:
+
+```rust,no_run
+# use rok_ui::prelude::*;
+# fn shell(page: AnyElement) -> impl IntoElement {
+Scaffold::new("app").restore_scroll(true).child(page)
+# }
+```
+
+Going back or forward returns the container to the offset it had on that history entry; a new
+page starts at the top. Offsets are kept per history entry (per window with per-window
+history), and dropped when the user navigates away from a back stack. Containers are told apart
+by their id, so give each one that restores a distinct id.
+
 ## Listening to navigation
 
 `router::on_navigate` runs after every change, for analytics, window titles, or restoring the

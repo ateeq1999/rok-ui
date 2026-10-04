@@ -50,6 +50,9 @@ struct ScrollMemory {
     handle: ScrollHandle,
     /// Pointer position and scroll offset (along the dragged axis) when a thumb drag started.
     drag: Option<(bool, Pixels, Pixels)>,
+    /// The history entry shown at the last render, with `restore_scroll`.
+    #[cfg(feature = "router")]
+    entry: Option<usize>,
 }
 
 /// Thumb length and offset along a track of `track_length`, for a viewport of
@@ -86,6 +89,8 @@ pub struct ScrollArea {
     id: ElementId,
     axis: ScrollAxis,
     handle: Option<ScrollHandle>,
+    #[cfg(feature = "router")]
+    restore: bool,
     children: Vec<AnyElement>,
     sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
@@ -100,6 +105,8 @@ impl ScrollArea {
             id: id.into(),
             axis: ScrollAxis::Vertical,
             handle: None,
+            #[cfg(feature = "router")]
+            restore: false,
             children: Vec::new(),
             sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
@@ -117,6 +124,16 @@ impl ScrollArea {
     #[must_use]
     pub fn horizontal(self) -> Self {
         self.axis(ScrollAxis::Horizontal)
+    }
+
+    /// Remember the scroll position per history entry (feature `router`): going back or forward
+    /// to a page returns this area to where it was, and a new page starts at the top. Areas
+    /// are told apart by their id, so give each scroll area that restores a distinct id.
+    #[cfg(feature = "router")]
+    #[must_use]
+    pub fn restore_scroll(mut self, restore: bool) -> Self {
+        self.restore = restore;
+        self
     }
 
     /// Scroll with `handle` (create it once and keep it, like any GPUI scroll handle), so
@@ -141,11 +158,25 @@ impl RenderOnce for ScrollArea {
             use_keyed_state(child_id(&self.id, "scroll"), window, cx, || ScrollMemory {
                 handle: ScrollHandle::new(),
                 drag: None,
+                #[cfg(feature = "router")]
+                entry: None,
             });
         let handle = self
             .handle
             .clone()
             .unwrap_or_else(|| memory.read(cx).handle.clone());
+        #[cfg(feature = "router")]
+        if self.restore {
+            let last = memory.read(cx).entry;
+            let entry = crate::router::restore_scroll(
+                &self.id.to_string().into(),
+                &handle,
+                last,
+                window,
+                cx,
+            );
+            memory.update(cx, |memory| memory.entry = Some(entry));
+        }
         let drag = memory.read(cx).drag;
         let viewport = handle.bounds().size;
         let max_offset = handle.max_offset();
