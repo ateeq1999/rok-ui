@@ -11,6 +11,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ### Added
 
+- `FormOptions::scroll_handle` and `ScrollArea::track_scroll`: a failed submit scrolls the
+  first invalid field into view as well as focusing it.
 - `Router::guard_async` and `Router::pending`: guards that decide in the background (once per
   visit), with what to render meanwhile.
 - `FormOptions::persist_draft` (with `persist`): forms save their values while the user edits

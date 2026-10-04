@@ -7,7 +7,9 @@ use std::{
     time::Duration,
 };
 
-use gpui::{App, Entity, FocusHandle, SharedString, Subscription, Task, Window};
+use gpui::{
+    App, Entity, FocusHandle, Pixels, Point, ScrollHandle, SharedString, Subscription, Task, Window,
+};
 
 use super::{
     path::{FieldKey, FormValues, Path},
@@ -144,10 +146,26 @@ pub(crate) struct FormInner<V> {
     mounted: HashSet<SharedString>,
     pub(crate) bindings: HashMap<SharedString, Binding<V>>,
     pub(crate) focus: HashMap<SharedString, FocusHandle>,
+    /// The scroll container the form lives in, from [`FormOptions::scroll_handle`].
+    pub(crate) scroll: Option<ScrollHandle>,
+    /// Where each bound field sits in that container's content, recorded as it lays out.
+    pub(crate) anchors: HashMap<SharedString, FieldAnchor>,
     /// Bumped whenever the values change, so a draft is saved only after real edits.
     revision: u64,
     #[cfg(feature = "persist")]
     draft: Option<DraftState>,
+}
+
+/// A field's position in its scroll container's content (unscrolled, window coordinates),
+/// written by the field every frame.
+pub(crate) type FieldAnchor = Rc<std::cell::Cell<Option<Point<Pixels>>>>;
+
+/// Scroll `handle` so the field at `position` is at the top of the visible area.
+fn scroll_to_field(handle: &ScrollHandle, position: Point<Pixels>) {
+    let top = handle.bounds().origin.y - position.y;
+    let lowest = -handle.max_offset().height;
+    let offset = handle.offset();
+    handle.set_offset(gpui::point(offset.x, top.clamp(lowest, gpui::px(0.))));
 }
 
 /// How [`FormOptions::persist_draft`] loads and saves a form's values.
@@ -378,6 +396,7 @@ pub struct FormOptions<V> {
     validators: FormValidators<V>,
     fields: Vec<(SharedString, ErasedField<V>)>,
     on_submit: Option<SubmitHandler<V>>,
+    scroll: Option<ScrollHandle>,
     #[cfg(feature = "persist")]
     draft: Option<Draft<V>>,
 }
@@ -391,9 +410,22 @@ impl<V: FormValues> FormOptions<V> {
             validators: FormValidators::new(),
             fields: Vec::new(),
             on_submit: None,
+            scroll: None,
             #[cfg(feature = "persist")]
             draft: None,
         }
+    }
+
+    /// The scroll container the form is in: the handle given to
+    /// [`ScrollArea::track_scroll`](crate::components::ScrollArea::track_scroll) (or a div's
+    /// `track_scroll`). Pass the same handle on every render. A failed submit then scrolls the
+    /// first invalid field to the top of the container, as well as focusing it. Fields
+    /// rendered with the bound controls (`TextField`, `CheckboxField`, `SelectField`, ...) are
+    /// found; a bare `BoundInput` is not.
+    #[must_use]
+    pub fn scroll_handle(mut self, handle: ScrollHandle) -> Self {
+        self.scroll = Some(handle);
+        self
     }
 
     /// Validators over the whole form.
@@ -499,6 +531,7 @@ pub fn use_form<V: FormValues>(cx: &mut Cx, options: FormOptions<V>) -> Form<V> 
         validators,
         fields,
         on_submit,
+        scroll,
         #[cfg(feature = "persist")]
         draft,
     } = options;
@@ -532,6 +565,8 @@ pub fn use_form<V: FormValues>(cx: &mut Cx, options: FormOptions<V>) -> Form<V> 
             mounted: HashSet::new(),
             bindings: HashMap::new(),
             focus: HashMap::new(),
+            scroll: None,
+            anchors: HashMap::new(),
             revision: 0,
             #[cfg(feature = "persist")]
             draft: None,
@@ -548,6 +583,7 @@ pub fn use_form<V: FormValues>(cx: &mut Cx, options: FormOptions<V>) -> Form<V> 
     entity.update(cx.app, |inner, _| {
         inner.form_validators = validators;
         inner.on_submit = on_submit;
+        inner.scroll = scroll;
         for (key, field) in fields {
             if !inner.fields.contains_key(&key) {
                 new_fields.push(key.clone());
@@ -818,11 +854,19 @@ pub(crate) fn submit<V: FormValues>(
         let first_invalid = inner
             .order
             .iter()
-            .find(|key| inner.meta.get(*key).is_some_and(|meta| !meta.is_valid()))
-            .and_then(|key| inner.focus.get(key))
-            .cloned();
-        if let (Some(handle), Some(window)) = (first_invalid, window) {
-            window.focus(&handle);
+            .find(|key| inner.meta.get(*key).is_some_and(|meta| !meta.is_valid()));
+        let focus = first_invalid.and_then(|key| inner.focus.get(key)).cloned();
+        let position = first_invalid
+            .and_then(|key| inner.anchors.get(key))
+            .and_then(|anchor| anchor.get());
+        if let (Some(handle), Some(position)) = (&inner.scroll, position) {
+            scroll_to_field(handle, position);
+        }
+        if let Some(window) = window {
+            if let Some(focus) = focus {
+                window.focus(&focus);
+            }
+            window.refresh();
         }
         return;
     }
@@ -1151,6 +1195,7 @@ fn form_rekey_and_set<V: FormValues, E: 'static>(
         rekey_map(&mut inner.meta, key, rekey);
         rekey_map(&mut inner.bindings, key, rekey);
         rekey_map(&mut inner.focus, key, rekey);
+        rekey_map(&mut inner.anchors, key, rekey);
         // Row validators are bound to row indices; they register again on the next render.
         inner
             .fields

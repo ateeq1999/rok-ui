@@ -133,6 +133,10 @@ fn SignUpForm(cx: &mut Cx) -> impl IntoElement {
 - **Submit.** Submitting runs every validator. If anything is invalid, the first invalid bound
   field gets focus; otherwise the submit handler runs, and the `FormError` it returns shows on
   its fields as `ValidationEvent::Server` errors.
+- **Long forms.** Give the form the handle of the scroll area it sits in, and a failed submit
+  also scrolls the first invalid field to the top: keep a `ScrollHandle` in your view, pass it
+  to `ScrollArea::track_scroll(&handle)` and to `FormOptions::scroll_handle(handle.clone())`.
+  The bound field controls are found this way; a bare `BoundInput` is not.
 
 ## Nested and list fields
 

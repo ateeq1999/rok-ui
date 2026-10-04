@@ -647,3 +647,57 @@ mod drafts {
         std::fs::remove_dir_all(directory).ok();
     }
 }
+
+#[derive(FormValues, Clone, Debug, Default, PartialEq)]
+struct Long {
+    email: String,
+}
+
+/// A short scroll area with the only required field far below the fold.
+struct LongView(Rc<RefCell<Option<Form<Long>>>>, gpui::ScrollHandle);
+
+impl Render for LongView {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let mut cx = Cx::new(window, cx);
+        let form = form::use_form(
+            &mut cx,
+            FormOptions::new(Long::default())
+                .scroll_handle(self.1.clone())
+                .field(
+                    Long::EMAIL,
+                    Validators::new()
+                        .on_submit(|email: &String| email.is_empty().then_some("Required")),
+                ),
+        );
+        let email = form.field(&mut cx, Long::EMAIL);
+        *self.0.borrow_mut() = Some(form);
+        rok_ui::components::ScrollArea::new("long")
+            .track_scroll(&self.1)
+            .h(px(200.))
+            .w(px(300.))
+            .child(div().h(px(1500.)))
+            .child(TextField::new(&email, "Email"))
+    }
+}
+
+#[gpui::test]
+fn a_failed_submit_scrolls_to_the_first_invalid_field(cx: &mut TestAppContext) {
+    cx.update(rok_ui::init);
+    let slot = Rc::new(RefCell::new(None));
+    let handle = gpui::ScrollHandle::new();
+    let (view_slot, view_handle) = (slot.clone(), handle.clone());
+    let (_, window) =
+        cx.add_window_view(move |_, _| LongView(view_slot.clone(), view_handle.clone()));
+    window.run_until_parked();
+    assert_eq!(handle.offset().y, px(0.));
+
+    window.update(|window, cx| {
+        slot.borrow().clone().expect("rendered").submit(window, cx);
+    });
+    window.run_until_parked();
+    let offset = -handle.offset().y;
+    assert!(
+        offset > px(1300.) && offset <= px(1500.),
+        "scrolled to the field: {offset:?}"
+    );
+}

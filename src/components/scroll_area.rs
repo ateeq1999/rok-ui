@@ -85,6 +85,7 @@ pub fn thumb_geometry(
 pub struct ScrollArea {
     id: ElementId,
     axis: ScrollAxis,
+    handle: Option<ScrollHandle>,
     children: Vec<AnyElement>,
     sx: crate::sx::Sx,
     style_overrides: StyleRefinement,
@@ -98,6 +99,7 @@ impl ScrollArea {
         Self {
             id: id.into(),
             axis: ScrollAxis::Vertical,
+            handle: None,
             children: Vec::new(),
             sx: crate::sx::Sx::new(),
             style_overrides: StyleRefinement::default(),
@@ -116,6 +118,15 @@ impl ScrollArea {
     pub fn horizontal(self) -> Self {
         self.axis(ScrollAxis::Horizontal)
     }
+
+    /// Scroll with `handle` (create it once and keep it, like any GPUI scroll handle), so
+    /// code outside can read or set the position: scroll to an item, or let a form scroll to
+    /// its first invalid field.
+    #[must_use]
+    pub fn track_scroll(mut self, handle: &ScrollHandle) -> Self {
+        self.handle = Some(handle.clone());
+        self
+    }
 }
 
 impl ParentElement for ScrollArea {
@@ -131,7 +142,10 @@ impl RenderOnce for ScrollArea {
                 handle: ScrollHandle::new(),
                 drag: None,
             });
-        let handle = memory.read(cx).handle.clone();
+        let handle = self
+            .handle
+            .clone()
+            .unwrap_or_else(|| memory.read(cx).handle.clone());
         let drag = memory.read(cx).drag;
         let viewport = handle.bounds().size;
         let max_offset = handle.max_offset();

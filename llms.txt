@@ -196,6 +196,8 @@ block_on}`):
   .on_change_async_debounce(d, |v| async ..).listen_to(&SignUp::PASSWORD))
   .validators(FormValidators::new().on_submit(|v| Some(FormError::field(&SignUp::CONFIRM, ".."))))
   .on_submit(|values, cx| Task<Result<(), FormError>>)`.
+- Long forms: `FormOptions::scroll_handle(handle)` with `ScrollArea::track_scroll(&handle)`;
+  a failed submit scrolls the first invalid bound field into view.
 - Drafts (with `persist`): `.persist_draft(PersistOptions::new("sign-up"))` restores and saves
   the values (Serialize + Deserialize); a successful submit or `reset` deletes the draft.
 - `let form = form::use_form(cx, opts); let email = form.field(cx, SignUp::EMAIL);`
