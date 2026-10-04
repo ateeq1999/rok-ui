@@ -162,6 +162,7 @@ rok-ui-hooks signals re-exported as `rok_ui::state`: `create_signal`, `create_me
 - `router::set_per_window_history(true, cx)` gives each window its own history;
   `router::with_window(handle, || ..)`; `router::persist_location("main", cx)` (with `persist`).
 - Scroll restoration: `ScrollArea::restore_scroll(true)`, `Scaffold::restore_scroll(true)`.
+- Page transitions: `Router::transition(motion::fade_in())` (enter only).
 - File-based: `rok-ui-build` in build-dependencies, `rok_ui_build::routes("src/routes").generate()`
   in build.rs, `rok_ui::routes!();` in the crate, `routes::tree()` renders. Files: `__root.rs`,
   `__not_found.rs`, `index.rs`, `$id.rs`, `$.rs`, `a.b.rs`, `_pathless.rs`, `(group)/`,

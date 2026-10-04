@@ -11,6 +11,7 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ### Added
 
+- `Router::transition(motion)`: animate each page in when the location changes.
 - `Link::preload_visible(true)`: run a link's loaders once it is on screen (TanStack Router's
   `preload: "viewport"`).
 - Scroll restoration: `ScrollArea::restore_scroll(true)` and `Scaffold::restore_scroll(true)`

@@ -767,3 +767,50 @@ fn links_preload_when_they_come_into_view(cx: &mut TestAppContext) {
         "the other one once it is scrolled into view"
     );
 }
+
+/// Pages that slide in from above, with a marker recording where the page is drawn.
+struct SlidingPages(Rc<std::cell::Cell<Pixels>>);
+
+impl Render for SlidingPages {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let top = self.0.clone();
+        Router::new()
+            .route("/*page", move |_, _, _| {
+                let top = top.clone();
+                div().h(px(100.)).child(
+                    gpui::canvas(
+                        move |bounds, _, _| top.set(bounds.origin.y),
+                        |_, (), _, _| {},
+                    )
+                    .size(px(1.)),
+                )
+            })
+            .transition(
+                rok_ui::motion::presets::slide_in(rok_ui::motion::MotionSide::Top, 10.)
+                    .duration_ms(400),
+            )
+    }
+}
+
+#[gpui::test]
+fn route_transitions_play_when_the_location_changes(cx: &mut TestAppContext) {
+    cx.update(rok_ui::init);
+    let top = Rc::new(std::cell::Cell::new(px(0.)));
+    let view_top = top.clone();
+    let (_, window) = cx.add_window_view(move |_, _| SlidingPages(view_top.clone()));
+    let frame = |window: &mut gpui::VisualTestContext, wait: u64| {
+        std::thread::sleep(std::time::Duration::from_millis(wait));
+        window.update(|window, _| window.refresh());
+        window.run_until_parked();
+        top.get()
+    };
+    let rest = frame(window, 500);
+
+    window.update(|_, cx| router::navigate("/next", cx));
+    window.run_until_parked();
+    assert!(
+        frame(window, 0) < rest,
+        "the new page starts above its place"
+    );
+    assert_eq!(frame(window, 500), rest, "and slides into it");
+}

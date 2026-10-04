@@ -930,6 +930,7 @@ pub struct Router {
     async_guards: Vec<(Pattern, SharedString, AsyncGuard)>,
     not_found: Option<NotFoundBuilder>,
     pending: Option<NotFoundBuilder>,
+    transition: Option<crate::motion::Motion>,
     sx: Sx,
     style_overrides: StyleRefinement,
 }
@@ -947,6 +948,7 @@ impl Router {
             async_guards: Vec::new(),
             not_found: None,
             pending: None,
+            transition: None,
             sx: Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
@@ -1054,6 +1056,25 @@ impl Router {
         let key = format!("{}#{}", pattern, self.async_guards.len()).into();
         self.async_guards
             .push((Pattern::parse(&pattern), key, Rc::new(guard)));
+        self
+    }
+
+    /// Animate each page in when the location changes, with any [`Motion`](crate::motion::Motion)
+    /// (`motion::fade_in()`, `motion::slide_in(..)`, your own keyframes). The new page plays
+    /// it once per location; the old page is replaced at once (there is no exit animation).
+    /// Reduced motion skips it.
+    ///
+    /// ```
+    /// # use rok_ui::prelude::*;
+    /// // `motion` is the prelude's name for `rok_ui::motion::presets`.
+    /// let router = Router::new()
+    ///     .route("/", |_, _, _| div().child("Home"))
+    ///     .transition(motion::fade_in().duration_ms(150));
+    /// # let _ = router;
+    /// ```
+    #[must_use]
+    pub fn transition(mut self, motion: crate::motion::Motion) -> Self {
+        self.transition = Some(motion);
         self
     }
 
@@ -1365,6 +1386,7 @@ impl Router {
                 .sx(&self.sx)
                 .apply_style_overrides(&self.style_overrides);
         }
+        let href = location.href();
         let content =
             match self
                 .resolve(&location)
@@ -1389,6 +1411,19 @@ impl Router {
                     None => div().into_any_element(),
                 },
             };
+        let content = match self.transition.clone() {
+            Some(motion) => {
+                use crate::motion::MotionExt;
+                div()
+                    .flex()
+                    .flex_col()
+                    .size_full()
+                    .child(content)
+                    .motion(ElementId::Name(format!("rok-route:{href}").into()), motion)
+                    .into_any_element()
+            }
+            None => content,
+        };
         div()
             .flex()
             .flex_col()

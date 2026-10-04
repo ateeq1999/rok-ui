@@ -492,6 +492,22 @@ page starts at the top. Offsets are kept per history entry (per window with per-
 history), and dropped when the user navigates away from a back stack. Containers are told apart
 by their id, so give each one that restores a distinct id.
 
+## Page transitions
+
+`Router::transition(motion)` animates each page in when the location changes, with any motion
+(`motion::fade_in()`, `motion::slide_in(..)` from the prelude, or your own keyframes):
+
+```rust,no_run
+# use rok_ui::prelude::*;
+let router = Router::new()
+    .route("/", |_, _, _| div().child("Home"))
+    .route("/about", |_, _, _| div().child("About"))
+    .transition(motion::fade_in().duration_ms(150));
+```
+
+The new page plays it once per location. The old page is replaced at once (there is no exit
+animation), and reduced motion skips the animation.
+
 ## Listening to navigation
 
 `router::on_navigate` runs after every change, for analytics, window titles, or restoring the
