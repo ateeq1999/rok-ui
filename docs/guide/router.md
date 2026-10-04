@@ -234,6 +234,30 @@ let router = Router::new()
     });
 ```
 
+### Guards that wait
+
+`.guard_async(prefix, guard)` is for a decision that takes time, like asking a server whether
+the session is still valid. The guard returns a GPUI `Task` with the same `Result`. While it
+runs, the router renders `.pending(..)` (TanStack Router's `pendingComponent`; nothing by
+default), never the guarded route:
+
+```rust,no_run
+# use rok_ui::{prelude::*, router::RouteControl};
+# async fn session_is_valid() -> bool { true }
+let router = Router::new()
+    .route("/login", |_, _, _| div().child("Sign in"))
+    .route("/account", |_, _, _| div().child("Your account"))
+    .guard_async("/account", |_, cx| {
+        cx.spawn(async |_| {
+            if session_is_valid().await { Ok(()) } else { Err(RouteControl::redirect("/login")) }
+        })
+    })
+    .pending(|_, _, _| div().child("Checking your session"));
+```
+
+It runs once each time a window arrives at a guarded location; later renders of that visit
+reuse the decision, and leaving and coming back checks again. Synchronous guards run first.
+
 ## Typed routes
 
 A typed route is a struct whose fields are the pattern's parameters. Links and navigation
@@ -309,6 +333,10 @@ let router = Router::new()
 
 let link = Link::to(&NoteRoute { id: 3 }).preload(true).child("Open");
 ```
+
+`Link::preload_visible(true)` preloads as soon as the link is on screen instead (TanStack
+Router's `preload: "viewport"`), for links the user is likely to follow, such as the next page
+of a list; each link preloads once per location the user visits.
 
 The page reads the same query (with `use_suspense_query` in a `Suspense`, or `use_query`), so
 it finds the data cached or in flight. `router::preload(path, cx)` runs loaders by hand. If the
@@ -447,6 +475,39 @@ fn NotePage(cx: &mut Cx) -> impl IntoElement {
 `examples/file_routes` is a complete app: layouts, a guarded pathless layout, typed links,
 search params and queries with `Suspense`.
 
+## Scroll restoration
+
+A scroll container can remember where each page was left. Turn it on with
+`ScrollArea::restore_scroll(true)` or, for an app shell, `Scaffold::restore_scroll(true)`:
+
+```rust,no_run
+# use rok_ui::prelude::*;
+# fn shell(page: AnyElement) -> impl IntoElement {
+Scaffold::new("app").restore_scroll(true).child(page)
+# }
+```
+
+Going back or forward returns the container to the offset it had on that history entry; a new
+page starts at the top. Offsets are kept per history entry (per window with per-window
+history), and dropped when the user navigates away from a back stack. Containers are told apart
+by their id, so give each one that restores a distinct id.
+
+## Page transitions
+
+`Router::transition(motion)` animates each page in when the location changes, with any motion
+(`motion::fade_in()`, `motion::slide_in(..)` from the prelude, or your own keyframes):
+
+```rust,no_run
+# use rok_ui::prelude::*;
+let router = Router::new()
+    .route("/", |_, _, _| div().child("Home"))
+    .route("/about", |_, _, _| div().child("About"))
+    .transition(motion::fade_in().duration_ms(150));
+```
+
+The new page plays it once per location. The old page is replaced at once (there is no exit
+animation), and reduced motion skips the animation.
+
 ## Listening to navigation
 
 `router::on_navigate` runs after every change, for analytics, window titles, or restoring the
@@ -514,6 +575,7 @@ together in an `AdaptiveScaffold`.
 | `on_navigate(listener, cx)` | Run code after each navigation |
 | `Link::new(id, to)`, `Link::to(&route)` | Navigates on click, Enter or Space; `.search(..)`, `.replace(..)`, `.exact(..)` |
 | `.guard(prefix, guard)`, `RouteControl` | Redirect or "not found" before a route renders |
+| `.guard_async(prefix, guard)`, `.pending(..)` | A guard that decides in the background, and what shows meanwhile |
 | `typed_route!`, `Route`, `.route_to(..)` | Typed routes: `href()`, `parse(path)` |
 | `navigate_to`, `replace_to`, `use_params` | Navigate to and read typed routes |
 | `#[derive(Search)]`, `use_search`, `update_search`, `replace_search` | Typed search params |

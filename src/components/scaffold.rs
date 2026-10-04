@@ -434,6 +434,8 @@ pub struct Scaffold {
     app_bar: Option<AppBar>,
     body: Vec<AnyElement>,
     body_scrollable: bool,
+    #[cfg(feature = "router")]
+    restore_scroll: bool,
     drawer: Option<AnyElement>,
     end_drawer: Option<AnyElement>,
     drawer_open: Option<bool>,
@@ -458,6 +460,8 @@ impl Scaffold {
             app_bar: None,
             body: Vec::new(),
             body_scrollable: true,
+            #[cfg(feature = "router")]
+            restore_scroll: false,
             drawer: None,
             end_drawer: None,
             drawer_open: None,
@@ -485,6 +489,15 @@ impl Scaffold {
     #[must_use]
     pub fn body_scrollable(mut self, scrollable: bool) -> Self {
         self.body_scrollable = scrollable;
+        self
+    }
+
+    /// Remember the body's scroll position per history entry (feature `router`): going back
+    /// or forward to a page returns the body to where it was, and a new page starts at the top.
+    #[cfg(feature = "router")]
+    #[must_use]
+    pub fn restore_scroll(mut self, restore: bool) -> Self {
+        self.restore_scroll = restore;
         self
     }
 
@@ -686,9 +699,24 @@ impl RenderOnce for Scaffold {
             app_bar
         });
 
+        #[cfg(feature = "router")]
+        let restored = (self.body_scrollable && self.restore_scroll).then(|| {
+            let memory =
+                crate::hooks::use_keyed_state(child_id(&id, "body-scroll"), window, cx, || {
+                    (gpui::ScrollHandle::new(), None::<usize>)
+                });
+            let (handle, last) = memory.read(cx).clone();
+            let area = child_id(&id, "body").to_string().into();
+            let entry = crate::router::restore_scroll(&area, &handle, last, window, cx);
+            memory.update(cx, |memory| memory.1 = Some(entry));
+            handle
+        });
+        #[cfg(not(feature = "router"))]
+        let restored: Option<gpui::ScrollHandle> = None;
         let body = div()
             .id(child_id(&id, "body"))
             .sx(&SCAFFOLD.body)
+            .when_some(restored, |body, handle| body.track_scroll(&handle))
             .map(|body| {
                 if self.body_scrollable {
                     // Content keeps its height and scrolls instead of shrinking to fit.

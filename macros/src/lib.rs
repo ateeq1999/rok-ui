@@ -125,6 +125,9 @@ pub fn procedure(arguments: TokenStream, item: TokenStream) -> TokenStream {
 /// result, until `rok_ui::query::memo::invalidate` forgets it. Arguments are owned and `Debug`
 /// (they form the cache key); the output is `Clone + Send + Sync`.
 ///
+/// `#[memoize(scope = navigation)]` keeps results until the next navigation, and
+/// `#[memoize(ttl_ms = 5000)]` for that long after the work started.
+///
 /// ```no_run
 /// # use rok_ui::{memoize, query::TaskCx};
 /// # #[derive(Clone)] struct User;

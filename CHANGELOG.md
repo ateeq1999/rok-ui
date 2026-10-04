@@ -9,6 +9,20 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- Memoize scopes: `#[memoize(scope = navigation)]` (forgotten on the next navigation) and
+  `#[memoize(ttl_ms = N)]`; `query::memo::{memoize_in, MemoScope, end_navigation}`.
+- `Router::transition(motion)`: animate each page in when the location changes.
+- `Link::preload_visible(true)`: run a link's loaders once it is on screen (TanStack Router's
+  `preload: "viewport"`).
+- Scroll restoration: `ScrollArea::restore_scroll(true)` and `Scaffold::restore_scroll(true)`
+  return to where each page was left on back and forward (feature `router`).
+- `FormOptions::scroll_handle` and `ScrollArea::track_scroll`: a failed submit scrolls the
+  first invalid field into view as well as focusing it.
+- `Router::guard_async` and `Router::pending`: guards that decide in the background (once per
+  visit), with what to render meanwhile.
+
 ## [0.7.0] - 2026-10-04
 
 ### Added

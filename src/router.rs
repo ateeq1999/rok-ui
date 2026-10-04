@@ -4,8 +4,8 @@ use std::{cell::Cell, collections::HashMap, rc::Rc};
 
 use gpui::{
     actions, div, prelude::*, AnyElement, AnyWindowHandle, App, Bounds, ElementId, Global,
-    GlobalElementId, InspectorElementId, KeyBinding, LayoutId, Pixels, SharedString,
-    StyleRefinement, Window,
+    GlobalElementId, InspectorElementId, KeyBinding, LayoutId, Pixels, Point, SharedString,
+    StyleRefinement, Task, Window,
 };
 
 use crate::{
@@ -61,6 +61,8 @@ type NavigateListener = Rc<dyn Fn(&Location, &mut App)>;
 struct History {
     entries: Vec<SharedString>,
     index: usize,
+    /// Scroll offsets by (entry index, scroll area), for scroll restoration.
+    scroll: HashMap<(usize, SharedString), Point<Pixels>>,
 }
 
 impl Default for History {
@@ -68,6 +70,7 @@ impl Default for History {
         Self {
             entries: vec!["/".into()],
             index: 0,
+            scroll: HashMap::new(),
         }
     }
 }
@@ -130,6 +133,8 @@ fn history(cx: &mut App) -> &mut History {
 
 /// Re-render every window and tell listeners where the app is now.
 fn changed(cx: &mut App) {
+    #[cfg(feature = "query")]
+    crate::query::memo::end_navigation();
     let location = location(cx);
     let listeners = cx.default_global::<Histories>().listeners.clone();
     for listener in listeners {
@@ -150,6 +155,8 @@ pub fn navigate(path: impl Into<SharedString>, cx: &mut App) {
         return;
     }
     history.entries.truncate(history.index + 1);
+    let index = history.index;
+    history.scroll.retain(|(entry, _), _| *entry <= index);
     history.entries.push(path);
     history.index += 1;
     changed(cx);
@@ -164,6 +171,7 @@ pub fn replace(path: impl Into<SharedString>, cx: &mut App) {
     let history = history(cx);
     let index = history.index;
     history.entries[index] = path;
+    history.scroll.retain(|(entry, _), _| *entry != index);
     changed(cx);
 }
 
@@ -308,7 +316,49 @@ fn replace_unblocked(path: SharedString, cx: &mut App) {
     let history = history(cx);
     let index = history.index;
     history.entries[index] = path;
+    history.scroll.retain(|(entry, _), _| *entry != index);
     changed(cx);
+}
+
+/// Scroll restoration for a scroll container `area` tracked by `handle`: save its offset under
+/// the window's current history entry and, when the entry changed since `last` (the entry the
+/// container showed at its previous render, `None` for a container just built), put back the
+/// offset it had there, or the top. Returns the current entry for the caller to remember.
+#[cfg_attr(
+    not(any(feature = "scroll-area", feature = "scaffold")),
+    allow(dead_code)
+)]
+pub(crate) fn restore_scroll(
+    area: &SharedString,
+    handle: &gpui::ScrollHandle,
+    last: Option<usize>,
+    window: &Window,
+    cx: &mut App,
+) -> usize {
+    with_window(window.window_handle(), || {
+        let history = history(cx);
+        let entry = history.index;
+        let saved = |history: &History| history.scroll.get(&(entry, area.clone())).copied();
+        match last {
+            Some(previous) if previous != entry => {
+                history
+                    .scroll
+                    .insert((previous, area.clone()), handle.offset());
+                handle.set_offset(saved(history).unwrap_or_default());
+            }
+            None => {
+                if let Some(offset) = saved(history) {
+                    handle.set_offset(offset);
+                }
+            }
+            Some(_) => {
+                history
+                    .scroll
+                    .insert((entry, area.clone()), handle.offset());
+            }
+        }
+        entry
+    })
 }
 
 /// Go back one entry, if there is one.
@@ -624,6 +674,23 @@ type RouteBuilder = Rc<dyn Fn(&RouteMatch, &mut Window, &mut App) -> Option<AnyE
 type NotFoundBuilder = Rc<dyn Fn(&RouteMatch, &mut Window, &mut App) -> AnyElement>;
 /// A guard: `Ok(())` lets the route render.
 pub type Guard = Rc<dyn Fn(&Location, &mut App) -> Result<(), RouteControl>>;
+/// A guard that decides in the background (a session check, a permission lookup).
+pub type AsyncGuard = Rc<dyn Fn(&Location, &mut App) -> Task<Result<(), RouteControl>>>;
+
+/// Async guard checks per window: the location each guard checked and what it decided.
+#[derive(Default)]
+struct GuardChecks {
+    checks: HashMap<(Option<AnyWindowHandle>, SharedString), GuardCheck>,
+}
+
+impl Global for GuardChecks {}
+
+struct GuardCheck {
+    href: SharedString,
+    /// `None` while the guard runs.
+    outcome: Option<Result<(), RouteControl>>,
+    _task: Task<()>,
+}
 
 /// Starts loading a route's data before it renders (prefetching queries).
 pub type Loader = Rc<dyn Fn(&RouteMatch, &mut App)>;
@@ -782,6 +849,28 @@ pub fn use_pending(
     show
 }
 
+/// Links preloaded because they were on screen, and the location they were seen on.
+#[derive(Default)]
+struct VisiblePreloads {
+    location: SharedString,
+    done: std::collections::HashSet<SharedString>,
+}
+
+impl Global for VisiblePreloads {}
+
+/// Preload `target` once per location the window shows, after this frame is drawn.
+fn preload_once_visible(target: SharedString, window: &Window, cx: &mut App) {
+    let shown = with_window(window.window_handle(), || location(cx).href());
+    let seen = cx.default_global::<VisiblePreloads>();
+    if seen.location != shown {
+        seen.location = shown;
+        seen.done.clear();
+    }
+    if seen.done.insert(target.clone()) {
+        cx.defer(move |cx| preload(&target, cx));
+    }
+}
+
 /// Run the loaders of routes matching `path` (a link the user is about to follow), so its data
 /// starts loading early. `Link::preload(true)` calls this on hover.
 pub fn preload(path: &str, cx: &mut App) {
@@ -840,7 +929,10 @@ pub struct Router {
     routes: Vec<RouteEntry>,
     redirects: Vec<(Pattern, SharedString)>,
     guards: Vec<(Pattern, Guard)>,
+    async_guards: Vec<(Pattern, SharedString, AsyncGuard)>,
     not_found: Option<NotFoundBuilder>,
+    pending: Option<NotFoundBuilder>,
+    transition: Option<crate::motion::Motion>,
     sx: Sx,
     style_overrides: StyleRefinement,
 }
@@ -855,7 +947,10 @@ impl Router {
             routes: Vec::new(),
             redirects: Vec::new(),
             guards: Vec::new(),
+            async_guards: Vec::new(),
             not_found: None,
+            pending: None,
+            transition: None,
             sx: Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
@@ -926,6 +1021,75 @@ impl Router {
     ) -> Self {
         let pattern = format!("{}/*__rok_rest", prefix.trim_end_matches('/'));
         self.guards.push((Pattern::parse(&pattern), Rc::new(guard)));
+        self
+    }
+
+    /// Like [`Router::guard`], for a guard that decides in the background: checking a session
+    /// with a server, loading permissions. While it runs the router renders
+    /// [`Router::pending`] (or nothing), never the guarded route. It runs once each time the
+    /// window arrives at a location below `prefix`, and again after the user leaves and comes
+    /// back.
+    ///
+    /// ```no_run
+    /// # use rok_ui::{prelude::*, router::{Router, RouteControl}};
+    /// # async fn session_is_valid() -> bool { true }
+    /// let router = Router::new()
+    ///     .route("/login", |_, _, _| div().child("Sign in"))
+    ///     .route("/account", |_, _, _| div().child("Your account"))
+    ///     .guard_async("/account", |_, cx| {
+    ///         cx.spawn(async |_| {
+    ///             if session_is_valid().await {
+    ///                 Ok(())
+    ///             } else {
+    ///                 Err(RouteControl::redirect("/login"))
+    ///             }
+    ///         })
+    ///     })
+    ///     .pending(|_, _, _| div().child("Checking your session"));
+    /// # let _ = router;
+    /// ```
+    #[must_use]
+    pub fn guard_async(
+        mut self,
+        prefix: &str,
+        guard: impl Fn(&Location, &mut App) -> Task<Result<(), RouteControl>> + 'static,
+    ) -> Self {
+        let pattern = format!("{}/*__rok_rest", prefix.trim_end_matches('/'));
+        let key = format!("{}#{}", pattern, self.async_guards.len()).into();
+        self.async_guards
+            .push((Pattern::parse(&pattern), key, Rc::new(guard)));
+        self
+    }
+
+    /// Animate each page in when the location changes, with any [`Motion`](crate::motion::Motion)
+    /// (`motion::fade_in()`, `motion::slide_in(..)`, your own keyframes). The new page plays
+    /// it once per location; the old page is replaced at once (there is no exit animation).
+    /// Reduced motion skips it.
+    ///
+    /// ```
+    /// # use rok_ui::prelude::*;
+    /// // `motion` is the prelude's name for `rok_ui::motion::presets`.
+    /// let router = Router::new()
+    ///     .route("/", |_, _, _| div().child("Home"))
+    ///     .transition(motion::fade_in().duration_ms(150));
+    /// # let _ = router;
+    /// ```
+    #[must_use]
+    pub fn transition(mut self, motion: crate::motion::Motion) -> Self {
+        self.transition = Some(motion);
+        self
+    }
+
+    /// What to render while an async guard decides (TanStack Router's `pendingComponent`).
+    /// Default: nothing.
+    #[must_use]
+    pub fn pending<E: IntoElement>(
+        mut self,
+        build: impl Fn(&RouteMatch, &mut Window, &mut App) -> E + 'static,
+    ) -> Self {
+        self.pending = Some(Rc::new(move |route, window, cx| {
+            build(route, window, cx).into_any_element()
+        }));
         self
     }
 
@@ -1071,6 +1235,70 @@ impl Router {
         Ok(())
     }
 
+    /// What the async guards over `location` decided: `None` while one still runs.
+    fn check_async_guards(
+        &self,
+        location: &Location,
+        cx: &mut App,
+    ) -> Option<Result<(), RouteControl>> {
+        if self.async_guards.is_empty() {
+            return Some(Ok(()));
+        }
+        let window = CURRENT_WINDOW.with(Cell::get);
+        let href = location.href();
+        // A check holds for one visit: leaving the location forgets it.
+        cx.default_global::<GuardChecks>()
+            .checks
+            .retain(|(owner, _), check| *owner != window || check.href == href);
+        let mut pending = false;
+        for (pattern, key, guard) in &self.async_guards {
+            if pattern.matches(location.path()).is_none() {
+                continue;
+            }
+            let id = (window, key.clone());
+            let outcome = cx
+                .default_global::<GuardChecks>()
+                .checks
+                .get(&id)
+                .map(|check| check.outcome.clone());
+            match outcome {
+                Some(Some(Ok(()))) => {}
+                Some(Some(Err(control))) => {
+                    // Decided once: a later visit checks again.
+                    cx.default_global::<GuardChecks>().checks.remove(&id);
+                    return Some(Err(control));
+                }
+                Some(None) => pending = true,
+                None => {
+                    let deciding = guard(location, cx);
+                    let task_id = id.clone();
+                    let task = cx.spawn(async move |cx| {
+                        let outcome = deciding.await;
+                        cx.update(|cx| {
+                            if let Some(check) =
+                                cx.default_global::<GuardChecks>().checks.get_mut(&task_id)
+                            {
+                                check.outcome = Some(outcome);
+                            }
+                            cx.refresh_windows();
+                        })
+                        .ok();
+                    });
+                    cx.default_global::<GuardChecks>().checks.insert(
+                        id,
+                        GuardCheck {
+                            href: href.clone(),
+                            outcome: None,
+                            _task: task,
+                        },
+                    );
+                    pending = true;
+                }
+            }
+        }
+        (!pending).then_some(Ok(()))
+    }
+
     /// The target of the first redirect matching `location`, parameters filled in.
     fn redirect_for(&self, location: &Location) -> Option<SharedString> {
         self.redirects.iter().find_map(|(pattern, to)| {
@@ -1107,15 +1335,24 @@ impl Router {
     fn render_content(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let mut location = location(cx);
         let mut not_found = false;
+        let mut guarding = false;
         // Follow redirects and guard redirects (a few hops at most, so a cycle cannot hang
         // the app).
         for _ in 0..8 {
             let target = match self.redirect_for(&location) {
                 Some(target) => Some(target),
-                None => match self.check_guards(&location, cx) {
-                    Ok(()) => None,
-                    Err(RouteControl::Redirect(target)) => Some(target),
-                    Err(RouteControl::NotFound) => {
+                None => match self
+                    .check_guards(&location, cx)
+                    .map(|()| self.check_async_guards(&location, cx))
+                {
+                    Ok(Some(Ok(()))) => None,
+                    Ok(None) => {
+                        guarding = true;
+                        None
+                    }
+                    Err(RouteControl::Redirect(target))
+                    | Ok(Some(Err(RouteControl::Redirect(target)))) => Some(target),
+                    Err(RouteControl::NotFound) | Ok(Some(Err(RouteControl::NotFound))) => {
                         not_found = true;
                         None
                     }
@@ -1130,6 +1367,28 @@ impl Router {
         self.register_loaders(cx);
         #[cfg(feature = "query")]
         cancel_stale_loads(&location, cx);
+        if guarding {
+            let content = match &self.pending {
+                Some(build) => build(
+                    &RouteMatch {
+                        pattern: SharedString::default(),
+                        params: HashMap::new(),
+                        location,
+                    },
+                    window,
+                    cx,
+                ),
+                None => div().into_any_element(),
+            };
+            return div()
+                .flex()
+                .flex_col()
+                .size_full()
+                .child(content)
+                .sx(&self.sx)
+                .apply_style_overrides(&self.style_overrides);
+        }
+        let href = location.href();
         let content =
             match self
                 .resolve(&location)
@@ -1154,6 +1413,19 @@ impl Router {
                     None => div().into_any_element(),
                 },
             };
+        let content = match self.transition.clone() {
+            Some(motion) => {
+                use crate::motion::MotionExt;
+                div()
+                    .flex()
+                    .flex_col()
+                    .size_full()
+                    .child(content)
+                    .motion(ElementId::Name(format!("rok-route:{href}").into()), motion)
+                    .into_any_element()
+            }
+            None => content,
+        };
         div()
             .flex()
             .flex_col()
@@ -1187,6 +1459,7 @@ pub struct Link {
     to: SharedString,
     replace: bool,
     preload: bool,
+    preload_visible: bool,
     exact: bool,
     children: Vec<AnyElement>,
     sx: Sx,
@@ -1203,6 +1476,7 @@ impl Link {
             to: to.into(),
             replace: false,
             preload: false,
+            preload_visible: false,
             exact: false,
             children: Vec::new(),
             sx: Sx::new(),
@@ -1240,6 +1514,15 @@ impl Link {
         self
     }
 
+    /// Run the target route's loaders as soon as the link is on screen (TanStack Router's
+    /// `preload: "viewport"`), for links the user is likely to follow, such as the next page
+    /// of a list. Each link preloads once per location the user visits. Default: off.
+    #[must_use]
+    pub fn preload_visible(mut self, preload: bool) -> Self {
+        self.preload_visible = preload;
+        self
+    }
+
     /// Replace the current history entry instead of adding one.
     #[must_use]
     pub fn replace(mut self, replace: bool) -> Self {
@@ -1266,9 +1549,25 @@ impl RenderOnce for Link {
         let active = is_active(&self.to, self.exact, cx);
         let (to, replace_entry) = (self.to, self.replace);
         let preload_target = self.preload.then(|| to.clone());
+        let visible_target = self.preload_visible.then(|| to.clone());
         let element = div()
             .id(self.id)
             .tab_index(0)
+            .when_some(visible_target, |element, target| {
+                // A marker the size of the link notices when the link is drawn on screen.
+                element.relative().child(
+                    gpui::canvas(
+                        move |bounds, window, cx| {
+                            if window.content_mask().bounds.intersects(&bounds) {
+                                preload_once_visible(target, window, cx);
+                            }
+                        },
+                        |_, (), _, _| {},
+                    )
+                    .absolute()
+                    .size_full(),
+                )
+            })
             .when_some(preload_target, |element, target| {
                 element.on_hover(move |hovered, _, cx| {
                     if *hovered {

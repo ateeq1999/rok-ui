@@ -260,3 +260,13 @@ let rate = exchange_rate("EUR".into()).await;
 ```
 
 `query::memo::invalidate(prefix)` forgets results by module path or function path.
+
+A scope bounds how long a result is kept:
+
+- `#[memoize]` (the app scope): until `invalidate` or `memo::clear()` removes it.
+- `#[memoize(scope = navigation)]`: until the next navigation, for a lookup the loaders, guards
+  and components of one page share (permissions, the current record).
+- `#[memoize(ttl_ms = 30_000)]`: for that long after the work started.
+
+There is no per-frame scope: a memoized function is async, and its result arrives after the
+frame that asked for it.

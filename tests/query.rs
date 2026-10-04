@@ -315,7 +315,7 @@ fn memoized_calls_share_one_future() {
     });
     assert_eq!(results, (42, 42, 10));
     assert_eq!(LOADS.load(Ordering::SeqCst), 2);
-    rok_ui::query::memo::invalidate(module_path!());
+    rok_ui::query::memo::invalidate(&format!("{}::expensive", module_path!()));
     assert_eq!(rok_ui::runtime::block_on(expensive(21)), 42);
     assert_eq!(LOADS.load(Ordering::SeqCst), 3);
 }
@@ -542,4 +542,45 @@ fn mutation_runs_are_logged_newest_first(cx: &mut TestAppContext) {
         let (_, overlay) = cx.add_window_view(|_, _| Overlay);
         overlay.run_until_parked();
     }
+}
+
+static TIMED_LOADS: AtomicUsize = AtomicUsize::new(0);
+static PAGE_LOADS: AtomicUsize = AtomicUsize::new(0);
+
+#[memoize(ttl_ms = 50)]
+async fn exchange_rate(currency: String) -> usize {
+    TIMED_LOADS.fetch_add(1, Ordering::SeqCst);
+    currency.len()
+}
+
+#[memoize(scope = navigation)]
+async fn page_permissions(page: u32) -> u32 {
+    PAGE_LOADS.fetch_add(1, Ordering::SeqCst);
+    page
+}
+
+#[test]
+fn memoized_results_expire_with_their_scope() {
+    let rate = || rok_ui::runtime::block_on(exchange_rate("EUR".into()));
+    assert_eq!((rate(), rate()), (3, 3));
+    assert_eq!(TIMED_LOADS.load(Ordering::SeqCst), 1, "kept while fresh");
+    std::thread::sleep(Duration::from_millis(60));
+    rate();
+    assert_eq!(
+        TIMED_LOADS.load(Ordering::SeqCst),
+        2,
+        "loaded again once expired"
+    );
+
+    let permissions = || rok_ui::runtime::block_on(page_permissions(7));
+    permissions();
+    permissions();
+    assert_eq!(PAGE_LOADS.load(Ordering::SeqCst), 1);
+    rok_ui::query::memo::end_navigation();
+    permissions();
+    assert_eq!(
+        PAGE_LOADS.load(Ordering::SeqCst),
+        2,
+        "a navigation forgets it"
+    );
 }

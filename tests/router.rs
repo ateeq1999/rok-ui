@@ -501,3 +501,338 @@ fn pending_indicators_wait_before_showing_and_stay_a_minimum(cx: &mut TestAppCon
     window.update(|_, cx| router::navigate_to(&NoteRoute { id: 7 }, cx));
     assert_eq!(frame(window, 300), (false, false));
 }
+
+/// An account page behind a guard that asks a (slow) session check.
+struct SessionShell {
+    valid: Rc<RefCell<bool>>,
+    checks: Rc<RefCell<u32>>,
+    rendered: Rc<RefCell<Vec<String>>>,
+}
+
+impl Render for SessionShell {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let (valid, checks) = (self.valid.clone(), self.checks.clone());
+        let (login, account, pending) = (
+            self.rendered.clone(),
+            self.rendered.clone(),
+            self.rendered.clone(),
+        );
+        Router::new()
+            .route("/", |_, _, _| div())
+            .route("/login", move |_, _, _| {
+                login.borrow_mut().push("login".into());
+                div()
+            })
+            .route("/account", move |_, _, _| {
+                account.borrow_mut().push("account".into());
+                div()
+            })
+            .guard_async("/account", move |_, cx| {
+                *checks.borrow_mut() += 1;
+                let valid = *valid.borrow();
+                let delay = cx
+                    .background_executor()
+                    .timer(std::time::Duration::from_millis(50));
+                cx.spawn(async move |_| {
+                    delay.await;
+                    if valid {
+                        Ok(())
+                    } else {
+                        Err(RouteControl::redirect("/login"))
+                    }
+                })
+            })
+            .pending(move |_, _, _| {
+                pending.borrow_mut().push("checking".into());
+                div()
+            })
+    }
+}
+
+#[gpui::test]
+fn async_guards_hold_the_route_until_they_decide(cx: &mut TestAppContext) {
+    cx.update(rok_ui::init);
+    let valid = Rc::new(RefCell::new(false));
+    let checks = Rc::new(RefCell::new(0));
+    let rendered = Rc::new(RefCell::new(Vec::new()));
+    let (view_valid, view_checks, view_rendered) =
+        (valid.clone(), checks.clone(), rendered.clone());
+    let (_, window) = cx.add_window_view(move |_, _| SessionShell {
+        valid: view_valid,
+        checks: view_checks,
+        rendered: view_rendered,
+    });
+    let decide = |window: &mut gpui::VisualTestContext| {
+        window
+            .executor()
+            .advance_clock(std::time::Duration::from_millis(60));
+        window.run_until_parked();
+    };
+
+    // A refused check redirects; the account page never renders.
+    window.update(|_, cx| router::navigate("/account", cx));
+    window.run_until_parked();
+    assert_eq!(
+        rendered.borrow().last().map(String::as_str),
+        Some("checking")
+    );
+    decide(window);
+    window.update(|_, cx| assert_eq!(router::location(cx).path(), "/login"));
+    assert!(!rendered.borrow().iter().any(|page| page == "account"));
+
+    // Coming back checks again; an accepted check renders the route.
+    *valid.borrow_mut() = true;
+    window.update(|_, cx| router::navigate("/account", cx));
+    window.run_until_parked();
+    assert_eq!(
+        rendered.borrow().last().map(String::as_str),
+        Some("checking")
+    );
+    decide(window);
+    assert_eq!(
+        rendered.borrow().last().map(String::as_str),
+        Some("account")
+    );
+    assert_eq!(*checks.borrow(), 2);
+
+    // Later renders of the same visit reuse the decision.
+    window.update(|window, _| window.refresh());
+    window.run_until_parked();
+    assert_eq!(
+        rendered.borrow().last().map(String::as_str),
+        Some("account")
+    );
+    assert_eq!(*checks.borrow(), 2);
+}
+
+/// A long page in a scroll area that restores its position per history entry.
+struct LongPage(gpui::ScrollHandle);
+
+impl Render for LongPage {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        rok_ui::components::ScrollArea::new("page")
+            .restore_scroll(true)
+            .track_scroll(&self.0)
+            .h(px(200.))
+            .child(div().h(px(2000.)))
+    }
+}
+
+#[gpui::test]
+fn scroll_areas_return_to_where_each_page_was_left(cx: &mut TestAppContext) {
+    use gpui::point;
+
+    cx.update(rok_ui::init);
+    let handle = gpui::ScrollHandle::new();
+    let view_handle = handle.clone();
+    let (_, window) = cx.add_window_view(move |_, _| LongPage(view_handle.clone()));
+    let scroll = |window: &mut gpui::VisualTestContext, y: f32| {
+        handle.set_offset(point(px(0.), px(-y)));
+        window.update(|window, _| window.refresh());
+        window.run_until_parked();
+    };
+    let go = |window: &mut gpui::VisualTestContext, step: fn(&mut App)| {
+        window.update(|_, cx| step(cx));
+        window.run_until_parked();
+        -handle.offset().y
+    };
+    window.run_until_parked();
+
+    scroll(window, 500.);
+    assert_eq!(
+        go(window, |cx| router::navigate("/b", cx)),
+        px(0.),
+        "a new page starts at the top"
+    );
+    scroll(window, 300.);
+    assert_eq!(go(window, router::back), px(500.));
+    assert_eq!(go(window, router::forward), px(300.));
+
+    // A new branch forgets the abandoned entries.
+    assert_eq!(go(window, router::back), px(500.));
+    assert_eq!(go(window, |cx| router::navigate("/c", cx)), px(0.));
+}
+
+/// A scaffold whose body restores its scroll position, with a marker at the top of the
+/// content that records where it is drawn.
+struct ScaffoldPage(Rc<std::cell::Cell<Pixels>>);
+
+impl Render for ScaffoldPage {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let top = self.0.clone();
+        rok_ui::components::Scaffold::new("app")
+            .restore_scroll(true)
+            .h(px(300.))
+            .w(px(400.))
+            .child(
+                div().h(px(3000.)).child(
+                    gpui::canvas(
+                        move |bounds, _, _| top.set(bounds.origin.y),
+                        |_, (), _, _| {},
+                    )
+                    .size(px(1.)),
+                ),
+            )
+    }
+}
+
+#[gpui::test]
+fn scaffold_bodies_restore_their_scroll_position(cx: &mut TestAppContext) {
+    use gpui::{point, Modifiers, ScrollDelta, ScrollWheelEvent, TouchPhase};
+
+    cx.update(rok_ui::init);
+    let top = Rc::new(std::cell::Cell::new(px(0.)));
+    let view_top = top.clone();
+    let (_, window) = cx.add_window_view(move |_, _| ScaffoldPage(view_top.clone()));
+    window.run_until_parked();
+    let start = top.get();
+    let scrolled = |window: &mut gpui::VisualTestContext| {
+        window.update(|window, _| window.refresh());
+        window.run_until_parked();
+        start - top.get()
+    };
+
+    window.simulate_event(ScrollWheelEvent {
+        position: point(px(200.), px(150.)),
+        delta: ScrollDelta::Pixels(point(px(0.), px(-400.))),
+        modifiers: Modifiers::none(),
+        touch_phase: TouchPhase::Moved,
+    });
+    let on_first = scrolled(window);
+    assert!(on_first > px(0.), "the wheel scrolls the body");
+
+    window.update(|_, cx| router::navigate("/next", cx));
+    assert_eq!(scrolled(window), px(0.), "a new page starts at the top");
+    window.update(|_, cx| router::back(cx));
+    assert_eq!(
+        scrolled(window),
+        on_first,
+        "back returns to where the page was left"
+    );
+}
+
+/// Links that preload when they come into view, one above the fold and one far below.
+struct VisibleLinks(Rc<RefCell<Vec<u64>>>, gpui::ScrollHandle);
+
+impl Render for VisibleLinks {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let loaded = self.0.clone();
+        div()
+            .child(
+                Router::new()
+                    .route_to(|note: NoteRoute, _, _| div().child(note.id.to_string()))
+                    .route("/", |_, _, _| div())
+                    .loader_to(move |note: &NoteRoute, _| loaded.borrow_mut().push(note.id)),
+            )
+            .child(
+                rok_ui::components::ScrollArea::new("list")
+                    .track_scroll(&self.1)
+                    .h(px(200.))
+                    .child(
+                        Link::to(&NoteRoute { id: 1 })
+                            .preload_visible(true)
+                            .child("First"),
+                    )
+                    .child(div().h(px(2000.)))
+                    .child(
+                        Link::to(&NoteRoute { id: 2 })
+                            .preload_visible(true)
+                            .child("Last"),
+                    ),
+            )
+    }
+}
+
+#[gpui::test]
+fn links_preload_when_they_come_into_view(cx: &mut TestAppContext) {
+    cx.update(rok_ui::init);
+    let loaded = Rc::new(RefCell::new(Vec::new()));
+    let handle = gpui::ScrollHandle::new();
+    let (view_loaded, view_handle) = (loaded.clone(), handle.clone());
+    let (_, window) =
+        cx.add_window_view(move |_, _| VisibleLinks(view_loaded.clone(), view_handle.clone()));
+    let frame = |window: &mut gpui::VisualTestContext| {
+        window.update(|window, _| window.refresh());
+        window.run_until_parked();
+    };
+    frame(window);
+    frame(window);
+    assert_eq!(*loaded.borrow(), [1], "only the visible link, once");
+
+    handle.set_offset(gpui::point(px(0.), px(-1900.)));
+    frame(window);
+    assert_eq!(
+        *loaded.borrow(),
+        [1, 2],
+        "the other one once it is scrolled into view"
+    );
+}
+
+/// Pages that slide in from above, with a marker recording where the page is drawn.
+struct SlidingPages(Rc<std::cell::Cell<Pixels>>);
+
+impl Render for SlidingPages {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let top = self.0.clone();
+        Router::new()
+            .route("/*page", move |_, _, _| {
+                let top = top.clone();
+                div().h(px(100.)).child(
+                    gpui::canvas(
+                        move |bounds, _, _| top.set(bounds.origin.y),
+                        |_, (), _, _| {},
+                    )
+                    .size(px(1.)),
+                )
+            })
+            .transition(
+                rok_ui::motion::presets::slide_in(rok_ui::motion::MotionSide::Top, 10.)
+                    .duration_ms(400),
+            )
+    }
+}
+
+#[gpui::test]
+fn route_transitions_play_when_the_location_changes(cx: &mut TestAppContext) {
+    cx.update(rok_ui::init);
+    let top = Rc::new(std::cell::Cell::new(px(0.)));
+    let view_top = top.clone();
+    let (_, window) = cx.add_window_view(move |_, _| SlidingPages(view_top.clone()));
+    let frame = |window: &mut gpui::VisualTestContext, wait: u64| {
+        std::thread::sleep(std::time::Duration::from_millis(wait));
+        window.update(|window, _| window.refresh());
+        window.run_until_parked();
+        top.get()
+    };
+    let rest = frame(window, 500);
+
+    window.update(|_, cx| router::navigate("/next", cx));
+    window.run_until_parked();
+    assert!(
+        frame(window, 0) < rest,
+        "the new page starts above its place"
+    );
+    assert_eq!(frame(window, 500), rest, "and slides into it");
+}
+
+static LOOKUPS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+#[rok_ui::memoize(scope = navigation)]
+async fn page_lookup(page: u32) -> u32 {
+    LOOKUPS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    page
+}
+
+#[gpui::test]
+fn navigating_forgets_navigation_scoped_memos(cx: &mut TestAppContext) {
+    use std::sync::atomic::Ordering;
+
+    cx.update(rok_ui::init);
+    let lookup = || rok_ui::runtime::block_on(page_lookup(1));
+    lookup();
+    lookup();
+    assert_eq!(LOOKUPS.load(Ordering::SeqCst), 1);
+    cx.update(|cx| router::navigate("/elsewhere", cx));
+    lookup();
+    assert_eq!(LOOKUPS.load(Ordering::SeqCst), 2);
+}

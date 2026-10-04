@@ -65,7 +65,7 @@ What exists now, by crate:
 | C.3 `#[shard]` | Deferred | An `async fn` that returns elements needs a macro that splits the body into a `Send` data phase and a UI phase; `Suspense` plus queries cover the use case. |
 | C.4 Procedures and mutations | Done | `use_mutation` (pending / success / error, optimistic updates with rollback, supersession), `#[procedure]` with typed input, output and error, `Procedure::call`, `provide` / `TaskCx`. |
 | C.4 Remote transport | Deferred | Waits on decision K.6. |
-| C.5 `#[memoize]` | Partial | App-wide scope with `memo::invalidate`; per-frame and per-navigation scopes are not implemented. |
+| C.5 `#[memoize]` | Done | App scope with `memo::invalidate`, `scope = navigation` (cleared by the router on every navigation) and `ttl_ms`. No per-frame scope: memoized functions are async, so their results arrive after the frame. |
 | C.6 Signals | Done | Unchanged foundation (`rok_ui::state`). |
 | C.7 Stores | Done | `#[derive(Store)]` (a signal per field); `persist` feature: `persisted_store` with versioned JSON, migrations, debounced atomic writes. |
 | C.8 Devtools | Partial | `devtools` feature: an overlay (Ctrl-Shift-D) with the router history, the query cache and recent mutation runs (`query::mutations`, `MutationOptions::key`). Forms and the signal graph are not shown yet. |
@@ -81,7 +81,7 @@ What exists now, by crate:
 | D.5 Array and nested fields | Done | Composable paths; list operations move each row's state, input and focus with the row. |
 | D.6 Bound inputs | Done | `BoundInput` / `TextField`, `TextareaField`, `CheckboxField`, `SwitchField`, `SelectField`, `RadioGroupField`, `ComboboxField`, `SliderField`, `DatePickerField`, `InputOtpField`, `SubmitButton`, `FormErrors`, and `field.change_handler()` for any other control whose `on_change` passes the value. Pickers sit behind their components' features. |
 | D.6 `create_form_hook!` | Deferred | The bound field components already make forms one line per field. |
-| D.7 Behavior | Partial | Enter submits, a failed submit focuses the first invalid field, `reset` / `reset_field` / `set_value` / `validate`, `is_dirty()` with `use_blocker`, drafts saved while editing (`FormOptions::persist_draft`, with `persist`). Not yet: scrolling the invalid field into view. |
+| D.7 Behavior | Done | Enter submits, a failed submit focuses the first invalid field and scrolls it into view (`FormOptions::scroll_handle` with `ScrollArea::track_scroll`), `reset` / `reset_field` / `set_value` / `validate`, `is_dirty()` with `use_blocker`, drafts saved while editing (`FormOptions::persist_draft`, with `persist`). |
 
 ## Part E: routing v2
 
@@ -91,12 +91,13 @@ What exists now, by crate:
 | E.2 Code-based routing | Done | The 0.5 `Router` stays and gained `route_to`, `guard`, `loader`. No `route_tree!` macro. |
 | E.3 Typed links and navigation | Done | `typed_route!` (checked at compile time), `Route::href` / `parse`, `Link::to`, `navigate_to`, `replace_to`, `use_params`. |
 | E.4 Typed search params | Done | `#[derive(Search)]`, `use_search`, `update_search`, `replace_search`, `Link::search`. No `loader_deps` (loaders run per location, query string included). |
-| E.5 Guards and control flow | Partial | `Router::guard`, `RouteControl`, `before_load` on route files. Guards are synchronous. |
-| E.6 Loaders and preloading | Partial | `Router::loader` / `loader_to`, `file_route! { loader }`, once per location; `Link::preload(true)`; `router::preload`; fetches a loader started are cancelled when the user navigates away. `router::load_state` and `router::use_pending(cx, delay, min)` (TanStack's `pendingMs` / `pendingMinMs`) for progress bars. Not yet: viewport preloading. |
+| E.5 Guards and control flow | Done | `Router::guard`, `RouteControl`, `before_load` on route files, and `Router::guard_async` with `Router::pending` for guards that decide in the background (once per visit). |
+| E.6 Loaders and preloading | Done | `Router::loader` / `loader_to`, `file_route! { loader }`, once per location; `Link::preload(true)`; `router::preload`; fetches a loader started are cancelled when the user navigates away. `router::load_state` and `router::use_pending(cx, delay, min)` (TanStack's `pendingMs` / `pendingMinMs`) for progress bars. `Link::preload_visible` preloads links once they are on screen. Preloading is set per link (no app-wide default). |
 | E.7 Blocking | Done | `use_blocker` with `proceed` / `reset`. |
 | E.7 Per-window history | Done | `set_per_window_history`, `with_window`; a router's subtree reads its window's history. App-wide stays the default. |
 | E.7 Persistence | Done | `router::persist_location` (router + persist). |
-| E.7 Scroll restoration, transitions | Not started | |
+| E.7 Scroll restoration | Done | `ScrollArea::restore_scroll` and `Scaffold::restore_scroll`: offsets kept per history entry (and window), restored on back / forward, dropped with an abandoned back stack. |
+| E.7 Transitions | Done | `Router::transition(motion)` animates each page in on location change (enter only; reduced motion skips it). |
 
 ## Part F: folder structure
 
@@ -161,10 +162,7 @@ The plan left these open. The work so far assumed the following; each can still 
 ## Still open
 
 - The workspace split (F.2, decision K.2) and remote procedures (C.4, decision K.6).
-- `#[shard]` (C.3); scoped `Cx` values (C.1); memoize scopes (C.5).
-- Router: async guards, viewport preloading, scroll
-  restoration, transitions.
-- Forms: scroll-into-view on a failed submit.
+- `#[shard]` (C.3); scoped `Cx` values (C.1).
 - Devtools: forms and the signal graph.
 - 1.0: an API review against the component contract and Part B conventions, and
   `cargo public-api` checks in CI.

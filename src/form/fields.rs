@@ -32,6 +32,36 @@ fn element_id<V: 'static>(form: &Entity<FormInner<V>>, role: &str, key: &str) ->
     ElementId::Name(format!("rok-form-{}-{role}:{key}", form.entity_id()).into())
 }
 
+/// `element` with its position recorded, so a failed submit can scroll to it, when the form
+/// knows its scroll container ([`FormOptions::scroll_handle`](super::FormOptions::scroll_handle)).
+fn anchored<V: FormValues, T: Clone + 'static>(
+    field: &FieldApi<V, T>,
+    element: impl IntoElement,
+    cx: &mut App,
+) -> AnyElement {
+    let Some(handle) = field.form.read(cx).scroll.clone() else {
+        return element.into_any_element();
+    };
+    let key = field.name().clone();
+    let anchor = field
+        .form
+        .update(cx, |inner, _| inner.anchors.entry(key).or_default().clone());
+    // A zero-size marker at the field's top-left corner records where it is.
+    let marker = gpui::canvas(
+        move |bounds, _, _| anchor.set(Some(bounds.origin - handle.offset())),
+        |_, (), _, _| {},
+    )
+    .absolute()
+    .top_0()
+    .left_0()
+    .size_0();
+    gpui::div()
+        .relative()
+        .child(marker)
+        .child(element)
+        .into_any_element()
+}
+
 fn errors<V: FormValues, T: Clone + 'static>(field: &FieldApi<V, T>) -> Vec<AnyElement> {
     if !field.should_show_errors() {
         return Vec::new();
@@ -257,16 +287,17 @@ impl<V: FormValues> TextField<V> {
 }
 
 impl<V: FormValues> RenderOnce for TextField<V> {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let field = self.input.field.clone();
         let invalid = field.should_show_errors();
-        Field::new()
+        let element = Field::new()
             .invalid(invalid)
             .child(FieldLabel::new(self.label))
             .child(self.input)
             .children(self.description.map(FieldDescription::new))
             .children(errors(&field))
-            .children(field.meta().is_validating.then(Spinner::new))
+            .children(field.meta().is_validating.then(Spinner::new));
+        anchored(&field, element, cx)
     }
 }
 
@@ -390,7 +421,7 @@ impl<V: FormValues> SelectField<V> {
 
 #[cfg(feature = "select")]
 impl<V: FormValues> RenderOnce for SelectField<V> {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let invalid = self.field.should_show_errors();
         let value = self
             .field
@@ -408,12 +439,13 @@ impl<V: FormValues> RenderOnce for SelectField<V> {
         for (value, label) in self.options {
             select = select.option(value, label);
         }
-        Field::new()
+        let element = Field::new()
             .invalid(invalid)
             .child(FieldLabel::new(self.label))
             .child(select)
             .children(self.description.map(FieldDescription::new))
-            .children(errors(&self.field))
+            .children(errors(&self.field));
+        anchored(&self.field, element, cx)
     }
 }
 
@@ -468,7 +500,7 @@ impl<V: FormValues> RadioGroupField<V> {
 
 #[cfg(feature = "radio-group")]
 impl<V: FormValues> RenderOnce for RadioGroupField<V> {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let value = self
             .field
             .value()
@@ -482,11 +514,12 @@ impl<V: FormValues> RenderOnce for RadioGroupField<V> {
         for (value, label) in self.options {
             group = group.option(value, label);
         }
-        Field::new()
+        let element = Field::new()
             .invalid(self.field.should_show_errors())
             .child(FieldLabel::new(self.label))
             .child(group)
-            .children(errors(&self.field))
+            .children(errors(&self.field));
+        anchored(&self.field, element, cx)
     }
 }
 
@@ -537,7 +570,7 @@ impl<V: FormValues> SliderField<V> {
 
 #[cfg(feature = "slider")]
 impl<V: FormValues> RenderOnce for SliderField<V> {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let pick = pick(&self.field);
         let mut slider = Slider::new(element_id(&self.field.form, "slider", self.field.name()))
             .range(self.range.0, self.range.1)
@@ -550,11 +583,12 @@ impl<V: FormValues> RenderOnce for SliderField<V> {
         if let Some(step) = self.step {
             slider = slider.step(step);
         }
-        Field::new()
+        let element = Field::new()
             .invalid(self.field.should_show_errors())
             .child(FieldLabel::new(self.label))
             .child(slider)
-            .children(errors(&self.field))
+            .children(errors(&self.field));
+        anchored(&self.field, element, cx)
     }
 }
 
@@ -618,7 +652,7 @@ impl<V: FormValues> ComboboxField<V> {
 
 #[cfg(feature = "combobox")]
 impl<V: FormValues> RenderOnce for ComboboxField<V> {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let value = self
             .field
             .value()
@@ -640,12 +674,13 @@ impl<V: FormValues> RenderOnce for ComboboxField<V> {
         for (value, label) in self.options {
             combobox = combobox.option(value, label);
         }
-        Field::new()
+        let element = Field::new()
             .invalid(self.field.should_show_errors())
             .child(FieldLabel::new(self.label))
             .child(combobox)
             .children(self.description.map(FieldDescription::new))
-            .children(errors(&self.field))
+            .children(errors(&self.field));
+        anchored(&self.field, element, cx)
     }
 }
 
@@ -696,7 +731,7 @@ impl<V: FormValues> DatePickerField<V> {
 
 #[cfg(feature = "date-picker")]
 impl<V: FormValues> RenderOnce for DatePickerField<V> {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let pick = pick(&self.field);
         let mut picker = DatePicker::new(element_id(&self.field.form, "date", self.field.name()))
             .date(self.field.value().copied().flatten())
@@ -704,12 +739,13 @@ impl<V: FormValues> RenderOnce for DatePickerField<V> {
         if let Some(placeholder) = self.placeholder {
             picker = picker.placeholder(placeholder);
         }
-        Field::new()
+        let element = Field::new()
             .invalid(self.field.should_show_errors())
             .child(FieldLabel::new(self.label))
             .child(picker)
             .children(self.description.map(FieldDescription::new))
-            .children(errors(&self.field))
+            .children(errors(&self.field));
+        anchored(&self.field, element, cx)
     }
 }
 
@@ -762,7 +798,7 @@ impl<V: FormValues> InputOtpField<V> {
 
 #[cfg(feature = "input-otp")]
 impl<V: FormValues> RenderOnce for InputOtpField<V> {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let invalid = self.field.should_show_errors();
         let (form, path) = (self.field.form.clone(), self.field.path.clone());
         let complete = pick(&self.field);
@@ -780,11 +816,12 @@ impl<V: FormValues> RenderOnce for InputOtpField<V> {
         if let Some(pattern) = self.pattern {
             input = input.pattern(pattern);
         }
-        Field::new()
+        let element = Field::new()
             .invalid(invalid)
             .child(FieldLabel::new(self.label))
             .child(input)
-            .children(errors(&self.field))
+            .children(errors(&self.field));
+        anchored(&self.field, element, cx)
     }
 }
 
@@ -815,9 +852,9 @@ impl<V: FormValues> CheckboxField<V> {
 }
 
 impl<V: FormValues> RenderOnce for CheckboxField<V> {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let id = element_id(&self.field.form, "checkbox", self.field.name());
-        Field::new()
+        let element = Field::new()
             .invalid(self.field.should_show_errors())
             .child(
                 Checkbox::new(id)
@@ -825,7 +862,8 @@ impl<V: FormValues> RenderOnce for CheckboxField<V> {
                     .label(self.label)
                     .on_change(self.field.change_handler()),
             )
-            .children(errors(&self.field))
+            .children(errors(&self.field));
+        anchored(&self.field, element, cx)
     }
 }
 
@@ -855,9 +893,9 @@ impl<V: FormValues> SwitchField<V> {
 }
 
 impl<V: FormValues> RenderOnce for SwitchField<V> {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let id = element_id(&self.field.form, "switch", self.field.name());
-        Field::new()
+        let element = Field::new()
             .invalid(self.field.should_show_errors())
             .child(
                 Switch::new(id)
@@ -865,7 +903,8 @@ impl<V: FormValues> RenderOnce for SwitchField<V> {
                     .label(self.label)
                     .on_change(self.field.change_handler()),
             )
-            .children(errors(&self.field))
+            .children(errors(&self.field));
+        anchored(&self.field, element, cx)
     }
 }
 
