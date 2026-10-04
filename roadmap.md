@@ -65,7 +65,7 @@ What exists now, by crate:
 | C.3 `#[shard]` | Deferred | An `async fn` that returns elements needs a macro that splits the body into a `Send` data phase and a UI phase; `Suspense` plus queries cover the use case. |
 | C.4 Procedures and mutations | Done | `use_mutation` (pending / success / error, optimistic updates with rollback, supersession), `#[procedure]` with typed input, output and error, `Procedure::call`, `provide` / `TaskCx`. |
 | C.4 Remote transport | Deferred | Waits on decision K.6. |
-| C.5 `#[memoize]` | Partial | App-wide scope with `memo::invalidate`; per-frame and per-navigation scopes are not implemented. |
+| C.5 `#[memoize]` | Done | App scope with `memo::invalidate`, `scope = navigation` (cleared by the router on every navigation) and `ttl_ms`. No per-frame scope: memoized functions are async, so their results arrive after the frame. |
 | C.6 Signals | Done | Unchanged foundation (`rok_ui::state`). |
 | C.7 Stores | Done | `#[derive(Store)]` (a signal per field); `persist` feature: `persisted_store` with versioned JSON, migrations, debounced atomic writes. |
 | C.8 Devtools | Partial | `devtools` feature: an overlay (Ctrl-Shift-D) with the router history, the query cache and recent mutation runs (`query::mutations`, `MutationOptions::key`). Forms and the signal graph are not shown yet. |
@@ -162,7 +162,7 @@ The plan left these open. The work so far assumed the following; each can still 
 ## Still open
 
 - The workspace split (F.2, decision K.2) and remote procedures (C.4, decision K.6).
-- `#[shard]` (C.3); scoped `Cx` values (C.1); memoize scopes (C.5).
+- `#[shard]` (C.3); scoped `Cx` values (C.1).
 - Devtools: forms and the signal graph.
 - 1.0: an API review against the component contract and Part B conventions, and
   `cargo public-api` checks in CI.

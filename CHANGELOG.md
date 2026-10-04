@@ -11,6 +11,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ### Added
 
+- Memoize scopes: `#[memoize(scope = navigation)]` (forgotten on the next navigation) and
+  `#[memoize(ttl_ms = N)]`; `query::memo::{memoize_in, MemoScope, end_navigation}`.
 - `Router::transition(motion)`: animate each page in when the location changes.
 - `Link::preload_visible(true)`: run a link's loaders once it is on screen (TanStack Router's
   `preload: "viewport"`).

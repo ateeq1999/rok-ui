@@ -175,18 +175,53 @@ pub fn expand_procedure(arguments: TokenStream, item: TokenStream) -> syn::Resul
     })
 }
 
+/// The scope from `#[memoize(..)]` arguments: none, `scope = app | navigation`, or
+/// `ttl_ms = <milliseconds>`.
+fn memo_scope(arguments: TokenStream) -> syn::Result<TokenStream> {
+    let scope = quote!(::rok_ui::query::memo::MemoScope);
+    if arguments.is_empty() {
+        return Ok(quote!(#scope::App));
+    }
+    let setting: syn::MetaNameValue = syn::parse2(arguments)?;
+    let unknown = || {
+        syn::Error::new(
+            setting.span(),
+            "expected `scope = app`, `scope = navigation` or `ttl_ms = <milliseconds>`",
+        )
+    };
+    if setting.path.is_ident("scope") {
+        let syn::Expr::Path(value) = &setting.value else {
+            return Err(unknown());
+        };
+        if value.path.is_ident("app") {
+            Ok(quote!(#scope::App))
+        } else if value.path.is_ident("navigation") {
+            Ok(quote!(#scope::Navigation))
+        } else {
+            Err(unknown())
+        }
+    } else if setting.path.is_ident("ttl_ms") {
+        let syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Int(milliseconds),
+            ..
+        }) = &setting.value
+        else {
+            return Err(unknown());
+        };
+        let milliseconds: u64 = milliseconds.base10_parse()?;
+        Ok(quote!(#scope::For(::core::time::Duration::from_millis(#milliseconds))))
+    } else {
+        Err(unknown())
+    }
+}
+
 /// Expand `#[memoize]` on an `async fn`: the same function, returning a shared, cached future.
 ///
 /// # Errors
 ///
 /// Fails with a spanned error when the input does not parse or is invalid.
 pub fn expand_memoize(arguments: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
-    if !arguments.is_empty() {
-        return Err(syn::Error::new(
-            arguments.span(),
-            "#[memoize] takes no arguments",
-        ));
-    }
+    let scope = memo_scope(arguments)?;
     let function: ItemFn = syn::parse2(item)?;
     if function.sig.asyncness.is_none() {
         return Err(syn::Error::new(
@@ -233,7 +268,7 @@ pub fn expand_memoize(arguments: TokenStream, item: TokenStream) -> syn::Result<
         #(#attributes)*
         #visibility #signature {
             let #key = ::rok_ui::query::memo::key(::core::module_path!(), #name_text, &(#(&#names,)*));
-            ::rok_ui::query::memo::memoize(#key, move || async move #body)
+            ::rok_ui::query::memo::memoize_in(#key, #scope, move || async move #body)
         }
     })
 }

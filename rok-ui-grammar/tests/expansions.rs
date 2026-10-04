@@ -178,6 +178,34 @@ fn memoized_functions_return_shared_futures() {
         ),
     ));
     assert!(text.contains("MemoFuture < f64 >"));
+    assert!(text.contains("MemoScope :: App"));
+    let (_, navigation) = expand(procedure::expand_memoize(
+        quote!(scope = navigation),
+        quote!(
+            async fn f() -> u8 {
+                1
+            }
+        ),
+    ));
+    assert!(navigation.contains("MemoScope :: Navigation"));
+    let (_, timed) = expand(procedure::expand_memoize(
+        quote!(ttl_ms = 500),
+        quote!(
+            async fn f() -> u8 {
+                1
+            }
+        ),
+    ));
+    assert!(timed.contains("from_millis (500u64)"), "{timed}");
+    assert!(error(procedure::expand_memoize(
+        quote!(scope = forever),
+        quote!(
+            async fn f() -> u8 {
+                1
+            }
+        )
+    ))
+    .contains("scope = navigation"));
     assert!(error(procedure::expand_memoize(
         TokenStream::new(),
         quote!(

@@ -188,7 +188,8 @@ block_on}`):
   `set_query_data`, `update_query_data`, `cancel_queries`, `reset_queries`.
 - Writes: `MutationOptions::new(..).invalidates(key).optimistic(..).on_success(..)` with
   `use_mutation`; `#[procedure(invalidates = [..])]` typed commands with `use_procedure` and
-  `.call(cx, input)`; `#[memoize]` shares one future between concurrent callers.
+  `.call(cx, input)`; `#[memoize]` shares one future between concurrent callers
+  (`#[memoize(scope = navigation)]` until the next navigation, `#[memoize(ttl_ms = N)]`).
 - Background code reads app values through `query::provide(cx, value)` and `TaskCx::get`.
 
 ## Forms (`form` feature)

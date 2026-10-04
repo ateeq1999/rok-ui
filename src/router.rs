@@ -133,6 +133,8 @@ fn history(cx: &mut App) -> &mut History {
 
 /// Re-render every window and tell listeners where the app is now.
 fn changed(cx: &mut App) {
+    #[cfg(feature = "query")]
+    crate::query::memo::end_navigation();
     let location = location(cx);
     let listeners = cx.default_global::<Histories>().listeners.clone();
     for listener in listeners {
