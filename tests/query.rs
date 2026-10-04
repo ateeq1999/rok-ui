@@ -447,3 +447,99 @@ fn selected_values_are_derived_once_per_change(cx: &mut TestAppContext) {
     settle(window, |_| seen.borrow().last() == Some(&12));
     assert_eq!(*selects.borrow(), 2);
 }
+
+type SaveMutation = query::Mutation<String, String, QueryError>;
+type AddTodo = query::Mutation<NewTodo, usize, QueryError>;
+
+/// A named save mutation (slow for "slow", failing for "bad") and the `add_todo` procedure.
+struct Mutations(Rc<RefCell<Option<(SaveMutation, AddTodo)>>>);
+
+impl Render for Mutations {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let mut cx = Cx::new(window, cx);
+        let save = query::use_mutation(
+            &mut cx,
+            MutationOptions::new(|_, text: String| async move {
+                match text.as_str() {
+                    "slow" => {
+                        rok_ui::gpui::Timer::after(Duration::from_millis(100)).await;
+                        Ok(text)
+                    }
+                    "bad" => Err(QueryError::msg("rejected")),
+                    _ => Ok(text),
+                }
+            })
+            .key(query_key!["save"]),
+        );
+        let add = query::use_procedure(&mut cx, add_todo);
+        *self.0.borrow_mut() = Some((save, add));
+        div()
+    }
+}
+
+#[gpui::test]
+fn mutation_runs_are_logged_newest_first(cx: &mut TestAppContext) {
+    use rok_ui::query::MutationStatus::{Error, Idle, Pending, Success};
+
+    cx.update(rok_ui::init);
+    let slot = Rc::new(RefCell::new(None));
+    let view_slot = slot.clone();
+    let (_, window) = cx.add_window_view(move |_, _| Mutations(view_slot.clone()));
+    window.run_until_parked();
+    let (save, add) = slot.borrow().clone().expect("rendered");
+    let statuses = |window: &mut VisualTestContext| {
+        window.update(|_, cx| {
+            query::mutations(cx)
+                .into_iter()
+                .map(|run| (run.key.map(|key| key.to_string()), run.status))
+                .collect::<Vec<_>>()
+        })
+    };
+
+    // A run started while another is pending supersedes it.
+    window.update(|_, cx| save.mutate(cx, "slow".into()));
+    assert_eq!(statuses(window), [(Some("save".into()), Pending)]);
+    window.update(|_, cx| save.mutate(cx, "fast".into()));
+    settle(window, |cx| query::mutations(cx)[0].status == Success);
+    window.update(|_, cx| save.mutate(cx, "bad".into()));
+    settle(window, |cx| query::mutations(cx)[0].status == Error);
+    window.update(|_, cx| {
+        add.mutate(
+            cx,
+            NewTodo {
+                title: "five!".into(),
+            },
+        );
+    });
+    settle(window, |cx| query::mutations(cx)[0].status == Success);
+
+    let save_key = Some("save".to_string());
+    assert_eq!(
+        statuses(window),
+        [
+            (Some("add_todo".into()), Success),
+            (save_key.clone(), Error),
+            (save_key.clone(), Success),
+            (save_key, Idle),
+        ]
+    );
+    window.update(|_, cx| {
+        assert!(query::mutations(cx)
+            .iter()
+            .all(|run| run.duration.is_some()));
+    });
+
+    // The devtools overlay lists them.
+    #[cfg(feature = "devtools")]
+    {
+        struct Overlay;
+        impl Render for Overlay {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                rok_ui::components::AppRoot::new().child(rok_ui::devtools::Devtools::new())
+            }
+        }
+        cx.update(rok_ui::devtools::toggle);
+        let (_, overlay) = cx.add_window_view(|_, _| Overlay);
+        overlay.run_until_parked();
+    }
+}

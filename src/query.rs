@@ -18,7 +18,9 @@ pub use cache::{
 };
 pub use error::QueryError;
 pub use key::QueryKey;
-pub use mutation::{use_mutation, Mutation, MutationOptions, MutationStatus, Optimistic};
+pub use mutation::{
+    mutations, use_mutation, Mutation, MutationInfo, MutationOptions, MutationStatus, Optimistic,
+};
 pub use options::{BoxFuture, QueryOptions};
 pub use procedure::{use_procedure, Procedure};
 pub use services::{provide, task_cx, unprovide, TaskCx};

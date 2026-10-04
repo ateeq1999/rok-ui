@@ -144,6 +144,44 @@ pub(crate) struct FormInner<V> {
     mounted: HashSet<SharedString>,
     pub(crate) bindings: HashMap<SharedString, Binding<V>>,
     pub(crate) focus: HashMap<SharedString, FocusHandle>,
+    /// Bumped whenever the values change, so a draft is saved only after real edits.
+    revision: u64,
+    #[cfg(feature = "persist")]
+    draft: Option<DraftState>,
+}
+
+/// How [`FormOptions::persist_draft`] loads and saves a form's values.
+#[cfg(feature = "persist")]
+struct Draft<V> {
+    options: crate::persist::PersistOptions,
+    load: fn(&crate::persist::DraftFile) -> Option<V>,
+    save: fn(&crate::persist::DraftFile, &V, &App),
+}
+
+/// A form's draft file, the revision saved last, and the observer that saves edits.
+#[cfg(feature = "persist")]
+struct DraftState {
+    file: Rc<crate::persist::DraftFile>,
+    saved: u64,
+    _observer: Subscription,
+}
+
+#[cfg(feature = "persist")]
+impl<V> FormInner<V> {
+    /// The values were submitted or reset: delete the draft until the next edit.
+    fn discard_draft(&mut self) {
+        let revision = self.revision;
+        if let Some(draft) = &mut self.draft {
+            draft.file.clear();
+            draft.saved = revision;
+        }
+    }
+}
+
+#[cfg(not(feature = "persist"))]
+impl<V> FormInner<V> {
+    #[allow(clippy::unused_self)] // Mirrors the `persist` version.
+    fn discard_draft(&mut self) {}
 }
 
 impl<V: FormValues> FormInner<V> {
@@ -340,6 +378,8 @@ pub struct FormOptions<V> {
     validators: FormValidators<V>,
     fields: Vec<(SharedString, ErasedField<V>)>,
     on_submit: Option<SubmitHandler<V>>,
+    #[cfg(feature = "persist")]
+    draft: Option<Draft<V>>,
 }
 
 impl<V: FormValues> FormOptions<V> {
@@ -351,6 +391,8 @@ impl<V: FormValues> FormOptions<V> {
             validators: FormValidators::new(),
             fields: Vec::new(),
             on_submit: None,
+            #[cfg(feature = "persist")]
+            draft: None,
         }
     }
 
@@ -382,6 +424,24 @@ impl<V: FormValues> FormOptions<V> {
         submit: impl Fn(V, &mut App) -> Task<Result<(), FormError>> + 'static,
     ) -> Self {
         self.on_submit = Some(Rc::new(submit));
+        self
+    }
+
+    /// Save the values as a draft while the user edits (feature `persist`), so a form closed
+    /// half-filled opens where it was left. The form starts from the saved draft when there is
+    /// one; edits are written after `options`' debounce, and a successful submit or a `reset`
+    /// deletes the draft. `options` name the file and its version, like a persisted store.
+    #[cfg(feature = "persist")]
+    #[must_use]
+    pub fn persist_draft(mut self, options: crate::persist::PersistOptions) -> Self
+    where
+        V: serde::Serialize + serde::de::DeserializeOwned,
+    {
+        self.draft = Some(Draft {
+            options,
+            load: |file| file.load::<V>(),
+            save: |file, values, cx| file.save(values.clone(), cx),
+        });
         self
     }
 }
@@ -439,25 +499,51 @@ pub fn use_form<V: FormValues>(cx: &mut Cx, options: FormOptions<V>) -> Form<V> 
         validators,
         fields,
         on_submit,
+        #[cfg(feature = "persist")]
+        draft,
     } = options;
-    let entity = cx.window.use_state(cx.app, |_, _| FormInner {
-        values: defaults.clone(),
-        defaults,
-        meta: HashMap::new(),
-        order: Vec::new(),
-        fields: HashMap::new(),
-        form_validators: FormValidators::new(),
-        form_errors: BTreeMap::new(),
-        on_submit: None,
-        is_submitting: false,
-        is_submitted: false,
-        attempts: 0,
-        async_runs: HashMap::new(),
-        async_generation: 0,
-        mounted: HashSet::new(),
-        bindings: HashMap::new(),
-        focus: HashMap::new(),
+    let entity = cx.window.use_state(cx.app, |_, cx| {
+        // Only the draft reads the app.
+        #[cfg(not(feature = "persist"))]
+        let _ = cx;
+        FormInner {
+            // Read the draft once, when the form is created.
+            #[cfg(feature = "persist")]
+            values: draft
+                .as_ref()
+                .and_then(|draft| {
+                    (draft.load)(&crate::persist::DraftFile::new(cx, draft.options.clone()))
+                })
+                .unwrap_or_else(|| defaults.clone()),
+            #[cfg(not(feature = "persist"))]
+            values: defaults.clone(),
+            defaults,
+            meta: HashMap::new(),
+            order: Vec::new(),
+            fields: HashMap::new(),
+            form_validators: FormValidators::new(),
+            form_errors: BTreeMap::new(),
+            on_submit: None,
+            is_submitting: false,
+            is_submitted: false,
+            attempts: 0,
+            async_runs: HashMap::new(),
+            async_generation: 0,
+            mounted: HashSet::new(),
+            bindings: HashMap::new(),
+            focus: HashMap::new(),
+            revision: 0,
+            #[cfg(feature = "persist")]
+            draft: None,
+        }
     });
+    #[cfg(feature = "persist")]
+    if let Some(draft) = draft {
+        if entity.read(cx.app).draft.is_none() {
+            let file = Rc::new(crate::persist::DraftFile::new(cx.app, draft.options));
+            watch_draft(&entity, cx.app, file, draft.save);
+        }
+    }
     let mut new_fields = Vec::new();
     entity.update(cx.app, |inner, _| {
         inner.form_validators = validators;
@@ -471,6 +557,42 @@ pub fn use_form<V: FormValues>(cx: &mut Cx, options: FormOptions<V>) -> Form<V> 
     });
     mount(&entity, cx.app, &new_fields);
     Form::snapshot(entity, cx.app)
+}
+
+/// Save the form's values to its draft file after every edit.
+#[cfg(feature = "persist")]
+fn watch_draft<V: FormValues>(
+    entity: &Entity<FormInner<V>>,
+    cx: &mut App,
+    file: Rc<crate::persist::DraftFile>,
+    save: fn(&crate::persist::DraftFile, &V, &App),
+) {
+    let observer = {
+        let file = file.clone();
+        cx.observe(entity, move |entity, cx| {
+            let inner = entity.read(cx);
+            let Some(draft) = &inner.draft else {
+                return;
+            };
+            if draft.saved == inner.revision {
+                return;
+            }
+            save(&file, &inner.values, cx);
+            entity.update(cx, |inner, _| {
+                let revision = inner.revision;
+                if let Some(draft) = &mut inner.draft {
+                    draft.saved = revision;
+                }
+            });
+        })
+    };
+    entity.update(cx, |inner, _| {
+        inner.draft = Some(DraftState {
+            file,
+            saved: inner.revision,
+            _observer: observer,
+        });
+    });
 }
 
 /// Run mount validators for fields seen for the first time.
@@ -589,6 +711,8 @@ impl<V: FormValues> Form<V> {
     pub fn reset(&self, cx: &mut App) {
         self.entity.update(cx, |inner, cx| {
             inner.values = inner.defaults.clone();
+            inner.revision += 1;
+            inner.discard_draft();
             inner.meta.clear();
             inner.form_errors.clear();
             inner.async_runs.clear();
@@ -603,6 +727,7 @@ impl<V: FormValues> Form<V> {
         let path = path.into();
         self.entity.update(cx, |inner, cx| {
             if let Some(default) = path.get(&inner.defaults).cloned() {
+                inner.revision += 1;
                 if let Some(value) = path.get_mut(&mut inner.values) {
                     *value = default;
                 }
@@ -637,6 +762,7 @@ pub(crate) fn set_value<V: FormValues, T: 'static>(
             return false;
         };
         *slot = value;
+        inner.revision += 1;
         let meta = inner.meta_mut(&key);
         meta.is_dirty = true;
         meta.is_touched = true;
@@ -722,6 +848,7 @@ pub(crate) fn submit<V: FormValues>(
                 match result {
                     Ok(()) => {
                         inner.is_submitted = true;
+                        inner.discard_draft();
                         inner.apply_form_error(ValidationEvent::Server, FormError::default());
                     }
                     Err(errors) => inner.apply_form_error(ValidationEvent::Server, errors),
@@ -1020,6 +1147,7 @@ fn form_rekey_and_set<V: FormValues, E: 'static>(
     let changed = form.update(cx, |inner, _| {
         let list = path.get_mut(&mut inner.values)?;
         let rekey = change(list)?;
+        inner.revision += 1;
         rekey_map(&mut inner.meta, key, rekey);
         rekey_map(&mut inner.bindings, key, rekey);
         rekey_map(&mut inner.focus, key, rekey);

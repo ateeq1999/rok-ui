@@ -1,8 +1,15 @@
 //! Mutations: writes with pending / error / data state, invalidation and optimistic updates.
 
-use std::{fmt, future::Future, rc::Rc, sync::Arc, time::Instant};
+use std::{
+    collections::VecDeque,
+    fmt,
+    future::Future,
+    rc::Rc,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
-use gpui::{App, Entity, Task};
+use gpui::{App, Entity, Global, Task};
 
 use super::{
     cache::{cache, AnyData},
@@ -31,6 +38,7 @@ type OptimisticUpdate<I> = Rc<dyn Fn(&I, &mut Optimistic<'_>)>;
 /// ```
 pub struct MutationOptions<I, O, E> {
     run: Runner<I, O, E>,
+    key: Option<QueryKey>,
     invalidates: Vec<QueryKey>,
     on_success: Vec<SuccessHandler<I, O>>,
     on_error: Vec<ErrorHandler<I, E>>,
@@ -51,6 +59,7 @@ where
     {
         Self {
             run: Arc::new(move |cx, input| Box::pin(run(cx, input))),
+            key: None,
             invalidates: Vec::new(),
             on_success: Vec::new(),
             on_error: Vec::new(),
@@ -60,6 +69,14 @@ where
 }
 
 impl<I, O, E> MutationOptions<I, O, E> {
+    /// Name the mutation, like TanStack Query's `mutationKey`: [`mutations`] and the devtools
+    /// show it. Unnamed mutations show as `mutation`.
+    #[must_use]
+    pub fn key(mut self, key: QueryKey) -> Self {
+        self.key = Some(key);
+        self
+    }
+
     /// Invalidate every query whose key starts with `prefix` after a success.
     #[must_use]
     pub fn invalidates(mut self, prefix: QueryKey) -> Self {
@@ -94,6 +111,7 @@ impl<I, O, E> Clone for MutationOptions<I, O, E> {
     fn clone(&self) -> Self {
         Self {
             run: self.run.clone(),
+            key: self.key.clone(),
             invalidates: self.invalidates.clone(),
             on_success: self.on_success.clone(),
             on_error: self.on_error.clone(),
@@ -178,6 +196,8 @@ struct MutationState<O, E> {
     run: u64,
     submitted_at: Option<Instant>,
     task: Option<Task<()>>,
+    /// This call site's latest run in the [`MutationLog`].
+    logged: Option<u64>,
 }
 
 impl<O, E> Default for MutationState<O, E> {
@@ -189,6 +209,7 @@ impl<O, E> Default for MutationState<O, E> {
             run: 0,
             submitted_at: None,
             task: None,
+            logged: None,
         }
     }
 }
@@ -246,12 +267,16 @@ where
             None => Vec::new(),
         };
 
-        let run_id = self.state.update(cx, |state, _| {
+        let logged = log_start(cx, options.key.clone());
+        let (run_id, superseded) = self.state.update(cx, |state, _| {
             state.run += 1;
             state.status = MutationStatus::Pending;
             state.submitted_at = Some(Instant::now());
-            state.run
+            (state.run, state.logged.replace(logged))
         });
+        if let Some(superseded) = superseded {
+            log_finish(cx, superseded, MutationStatus::Idle);
+        }
         let services = task_cx(cx);
         let run = options.run.clone();
         let sent_input = input.clone();
@@ -263,6 +288,12 @@ where
                 if state.read(cx).run != run_id {
                     return;
                 }
+                let status = match &outcome {
+                    Ok(Ok(_)) => MutationStatus::Success,
+                    Ok(Err(_)) => MutationStatus::Error,
+                    Err(_) => MutationStatus::Idle,
+                };
+                log_finish(cx, logged, status);
                 match outcome {
                     Ok(Ok(data)) => {
                         let data = Rc::new(data);
@@ -383,12 +414,17 @@ impl<I, O: 'static, E: 'static> Mutation<I, O, E> {
 
     /// Forget the last result and return to idle. A pending run's result is dropped.
     pub fn reset(&self, cx: &mut App) {
-        self.state.update(cx, |state, _| {
+        let logged = self.state.update(cx, |state, _| {
+            let logged = state.logged;
             *state = MutationState {
                 run: state.run + 1,
                 ..MutationState::default()
             };
+            logged
         });
+        if let Some(logged) = logged {
+            log_finish(cx, logged, MutationStatus::Idle);
+        }
         cx.refresh_windows();
     }
 }
@@ -432,4 +468,73 @@ where
         data,
         error,
     }
+}
+
+/// How many finished runs [`mutations`] keeps.
+const LOG_LIMIT: usize = 50;
+
+/// Recent mutation runs, newest last, for [`mutations`] and the devtools.
+#[derive(Default)]
+struct MutationLog {
+    next: u64,
+    entries: VecDeque<MutationInfo>,
+}
+
+impl Global for MutationLog {}
+
+/// One mutation run, from [`mutations`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MutationInfo {
+    /// The mutation's [`key`](MutationOptions::key), if it has one.
+    pub key: Option<QueryKey>,
+    /// `Pending` while it runs; `Idle` when it was superseded, reset or cancelled.
+    pub status: MutationStatus,
+    /// When it started.
+    pub submitted_at: Instant,
+    /// How long it ran, once finished.
+    pub duration: Option<Duration>,
+    id: u64,
+}
+
+fn log_start(cx: &mut App, key: Option<QueryKey>) -> u64 {
+    let log = cx.default_global::<MutationLog>();
+    log.next += 1;
+    log.entries.push_back(MutationInfo {
+        key,
+        status: MutationStatus::Pending,
+        submitted_at: Instant::now(),
+        duration: None,
+        id: log.next,
+    });
+    // Drop the oldest finished runs; running ones stay until they finish.
+    while log.entries.len() > LOG_LIMIT {
+        let Some(finished) = log
+            .entries
+            .iter()
+            .position(|entry| entry.status != MutationStatus::Pending)
+        else {
+            break;
+        };
+        log.entries.remove(finished);
+    }
+    log.next
+}
+
+fn log_finish(cx: &mut App, id: u64, status: MutationStatus) {
+    let log = cx.default_global::<MutationLog>();
+    if let Some(entry) = log.entries.iter_mut().find(|entry| entry.id == id) {
+        if entry.status == MutationStatus::Pending {
+            entry.status = status;
+            entry.duration = Some(entry.submitted_at.elapsed());
+        }
+    }
+}
+
+/// Recent mutation runs across the app, newest first, like TanStack Query's mutation cache:
+/// running ones and up to 50 finished ones.
+#[must_use]
+pub fn mutations(cx: &App) -> Vec<MutationInfo> {
+    cx.try_global::<MutationLog>()
+        .map(|log| log.entries.iter().rev().cloned().collect())
+        .unwrap_or_default()
 }

@@ -197,6 +197,10 @@ fn AddTodo(cx: &mut Cx) -> impl IntoElement {
 A run started while another is pending supersedes it. `status()`, `data()`, `error()` and
 `reset(cx)` cover the rest of the lifecycle.
 
+Name a mutation with `.key(query_key![..])`, like TanStack's `mutationKey` (procedures are
+named after their function). [`mutations`] lists recent runs across the app, newest first,
+with their key, status and duration, and the devtools overlay shows them.
+
 ## Procedures
 
 A procedure is a typed command declared once with [`procedure`](crate::procedure): validation

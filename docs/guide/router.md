@@ -315,6 +315,26 @@ it finds the data cached or in flight. `router::preload(path, cx)` runs loaders 
 user navigates away before a loader's fetches finish, they are cancelled (with the `query`
 feature).
 
+### Showing that a route is loading
+
+`router::load_state(cx)` says whether the fetches the current location's loaders started are
+still running, and since when. For a progress bar, `router::use_pending(cx, delay, min)` is
+TanStack Router's `pendingMs` and `pendingMinMs`: it turns on once loading has taken `delay`,
+so fast loads never flash it, and stays on for at least `min`, so it never blinks:
+
+```rust,no_run
+# use std::time::Duration;
+# use rok_ui::{prelude::*, components::Progress, router};
+#[component]
+fn LoadingBar(cx: &mut Cx) -> impl IntoElement {
+    let pending = router::use_pending(cx, Duration::from_millis(300), Duration::from_millis(500));
+    div().when(pending, |bar| bar.child(Progress::new(60.)))
+}
+```
+
+Only fetches a loader starts through the query cache count; a route whose data is fresh in the
+cache loads nothing and shows no indicator.
+
 ## Blocking navigation
 
 `router::use_blocker(cx, dirty)` holds back navigation while `dirty` is true, so a form can ask
@@ -498,6 +518,7 @@ together in an `AdaptiveScaffold`.
 | `navigate_to`, `replace_to`, `use_params` | Navigate to and read typed routes |
 | `#[derive(Search)]`, `use_search`, `update_search`, `replace_search` | Typed search params |
 | `.loader(pattern, ..)`, `.loader_to(..)`, `preload(path, cx)`, `Link::preload` | Load data before a route renders |
+| `load_state(cx)`, `use_pending(cx, delay, min)` | Whether the current location's loaders are fetching; a progress bar's on/off |
 | `use_blocker(cx, when)`, `Blocker` | Hold navigation until the user confirms |
 | `set_per_window_history`, `with_window`, `history_entries` | Per-window histories and inspection |
 | `file_route!`, `routes!()`, `rok_ui_build::routes` | File-based routes |

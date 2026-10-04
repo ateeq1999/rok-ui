@@ -191,6 +191,58 @@ where
     store
 }
 
+/// One value saved to a file on demand, debounced, and deleted when it is no longer wanted:
+/// a form draft.
+#[cfg(feature = "form")]
+pub(crate) struct DraftFile {
+    path: PathBuf,
+    options: PersistOptions,
+    /// Bumped by every save and clear, so only the latest pending write lands.
+    generation: Rc<std::cell::Cell<u64>>,
+}
+
+#[cfg(feature = "form")]
+impl DraftFile {
+    pub(crate) fn new(cx: &App, options: PersistOptions) -> Self {
+        Self {
+            path: options.path(cx),
+            options,
+            generation: Rc::default(),
+        }
+    }
+
+    /// The saved value, migrated to the current version.
+    pub(crate) fn load<T: DeserializeOwned>(&self) -> Option<T> {
+        load(&self.path, &self.options)
+    }
+
+    /// Write `value` once the draft has been still for the debounce time.
+    pub(crate) fn save<T: Serialize + 'static>(&self, value: T, cx: &App) {
+        let run = self.generation.get() + 1;
+        self.generation.set(run);
+        let (path, version, generation) = (
+            self.path.clone(),
+            self.options.version,
+            self.generation.clone(),
+        );
+        let timer = cx.background_executor().timer(self.options.debounce);
+        cx.foreground_executor()
+            .spawn(async move {
+                timer.await;
+                if generation.get() == run {
+                    save(&path, version, &value).ok();
+                }
+            })
+            .detach();
+    }
+
+    /// Delete the draft and drop pending writes.
+    pub(crate) fn clear(&self) {
+        self.generation.set(self.generation.get() + 1);
+        std::fs::remove_file(&self.path).ok();
+    }
+}
+
 fn load<T: DeserializeOwned>(path: &Path, options: &PersistOptions) -> Option<T> {
     let text = std::fs::read_to_string(path).ok()?;
     let saved: Value = serde_json::from_str(&text).ok()?;

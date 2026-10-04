@@ -68,7 +68,7 @@ What exists now, by crate:
 | C.5 `#[memoize]` | Partial | App-wide scope with `memo::invalidate`; per-frame and per-navigation scopes are not implemented. |
 | C.6 Signals | Done | Unchanged foundation (`rok_ui::state`). |
 | C.7 Stores | Done | `#[derive(Store)]` (a signal per field); `persist` feature: `persisted_store` with versioned JSON, migrations, debounced atomic writes. |
-| C.8 Devtools | Partial | `devtools` feature: an overlay (Ctrl-Shift-D) with the router history and the query cache. Mutations, forms and the signal graph are not shown yet. |
+| C.8 Devtools | Partial | `devtools` feature: an overlay (Ctrl-Shift-D) with the router history, the query cache and recent mutation runs (`query::mutations`, `MutationOptions::key`). Forms and the signal graph are not shown yet. |
 
 ## Part D: forms
 
@@ -81,7 +81,7 @@ What exists now, by crate:
 | D.5 Array and nested fields | Done | Composable paths; list operations move each row's state, input and focus with the row. |
 | D.6 Bound inputs | Done | `BoundInput` / `TextField`, `TextareaField`, `CheckboxField`, `SwitchField`, `SelectField`, `RadioGroupField`, `ComboboxField`, `SliderField`, `DatePickerField`, `InputOtpField`, `SubmitButton`, `FormErrors`, and `field.change_handler()` for any other control whose `on_change` passes the value. Pickers sit behind their components' features. |
 | D.6 `create_form_hook!` | Deferred | The bound field components already make forms one line per field. |
-| D.7 Behavior | Partial | Enter submits, a failed submit focuses the first invalid field, `reset` / `reset_field` / `set_value` / `validate`, `is_dirty()` with `use_blocker`. Not yet: scrolling the invalid field into view, persisted drafts. |
+| D.7 Behavior | Partial | Enter submits, a failed submit focuses the first invalid field, `reset` / `reset_field` / `set_value` / `validate`, `is_dirty()` with `use_blocker`, drafts saved while editing (`FormOptions::persist_draft`, with `persist`). Not yet: scrolling the invalid field into view. |
 
 ## Part E: routing v2
 
@@ -92,7 +92,7 @@ What exists now, by crate:
 | E.3 Typed links and navigation | Done | `typed_route!` (checked at compile time), `Route::href` / `parse`, `Link::to`, `navigate_to`, `replace_to`, `use_params`. |
 | E.4 Typed search params | Done | `#[derive(Search)]`, `use_search`, `update_search`, `replace_search`, `Link::search`. No `loader_deps` (loaders run per location, query string included). |
 | E.5 Guards and control flow | Partial | `Router::guard`, `RouteControl`, `before_load` on route files. Guards are synchronous. |
-| E.6 Loaders and preloading | Partial | `Router::loader` / `loader_to`, `file_route! { loader }`, once per location; `Link::preload(true)`; `router::preload`; fetches a loader started are cancelled when the user navigates away. Not yet: `pending_ms` / `pending_min_ms`, viewport preloading, a `router::state` for progress bars. |
+| E.6 Loaders and preloading | Partial | `Router::loader` / `loader_to`, `file_route! { loader }`, once per location; `Link::preload(true)`; `router::preload`; fetches a loader started are cancelled when the user navigates away. `router::load_state` and `router::use_pending(cx, delay, min)` (TanStack's `pendingMs` / `pendingMinMs`) for progress bars. Not yet: viewport preloading. |
 | E.7 Blocking | Done | `use_blocker` with `proceed` / `reset`. |
 | E.7 Per-window history | Done | `set_per_window_history`, `with_window`; a router's subtree reads its window's history. App-wide stays the default. |
 | E.7 Persistence | Done | `router::persist_location` (router + persist). |
@@ -162,10 +162,10 @@ The plan left these open. The work so far assumed the following; each can still 
 
 - The workspace split (F.2, decision K.2) and remote procedures (C.4, decision K.6).
 - `#[shard]` (C.3); scoped `Cx` values (C.1); memoize scopes (C.5).
-- Router: async guards, pending timing (`pending_ms`), viewport preloading, scroll
+- Router: async guards, viewport preloading, scroll
   restoration, transitions.
-- Forms: scroll-into-view on a failed submit, persisted drafts.
-- Devtools: mutations, forms and the signal graph.
+- Forms: scroll-into-view on a failed submit.
+- Devtools: forms and the signal graph.
 - 1.0: an API review against the component contract and Part B conventions, and
   `cargo public-api` checks in CI.
 
