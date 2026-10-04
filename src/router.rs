@@ -847,6 +847,28 @@ pub fn use_pending(
     show
 }
 
+/// Links preloaded because they were on screen, and the location they were seen on.
+#[derive(Default)]
+struct VisiblePreloads {
+    location: SharedString,
+    done: std::collections::HashSet<SharedString>,
+}
+
+impl Global for VisiblePreloads {}
+
+/// Preload `target` once per location the window shows, after this frame is drawn.
+fn preload_once_visible(target: SharedString, window: &Window, cx: &mut App) {
+    let shown = with_window(window.window_handle(), || location(cx).href());
+    let seen = cx.default_global::<VisiblePreloads>();
+    if seen.location != shown {
+        seen.location = shown;
+        seen.done.clear();
+    }
+    if seen.done.insert(target.clone()) {
+        cx.defer(move |cx| preload(&target, cx));
+    }
+}
+
 /// Run the loaders of routes matching `path` (a link the user is about to follow), so its data
 /// starts loading early. `Link::preload(true)` calls this on hover.
 pub fn preload(path: &str, cx: &mut App) {
@@ -1400,6 +1422,7 @@ pub struct Link {
     to: SharedString,
     replace: bool,
     preload: bool,
+    preload_visible: bool,
     exact: bool,
     children: Vec<AnyElement>,
     sx: Sx,
@@ -1416,6 +1439,7 @@ impl Link {
             to: to.into(),
             replace: false,
             preload: false,
+            preload_visible: false,
             exact: false,
             children: Vec::new(),
             sx: Sx::new(),
@@ -1453,6 +1477,15 @@ impl Link {
         self
     }
 
+    /// Run the target route's loaders as soon as the link is on screen (TanStack Router's
+    /// `preload: "viewport"`), for links the user is likely to follow, such as the next page
+    /// of a list. Each link preloads once per location the user visits. Default: off.
+    #[must_use]
+    pub fn preload_visible(mut self, preload: bool) -> Self {
+        self.preload_visible = preload;
+        self
+    }
+
     /// Replace the current history entry instead of adding one.
     #[must_use]
     pub fn replace(mut self, replace: bool) -> Self {
@@ -1479,9 +1512,25 @@ impl RenderOnce for Link {
         let active = is_active(&self.to, self.exact, cx);
         let (to, replace_entry) = (self.to, self.replace);
         let preload_target = self.preload.then(|| to.clone());
+        let visible_target = self.preload_visible.then(|| to.clone());
         let element = div()
             .id(self.id)
             .tab_index(0)
+            .when_some(visible_target, |element, target| {
+                // A marker the size of the link notices when the link is drawn on screen.
+                element.relative().child(
+                    gpui::canvas(
+                        move |bounds, window, cx| {
+                            if window.content_mask().bounds.intersects(&bounds) {
+                                preload_once_visible(target, window, cx);
+                            }
+                        },
+                        |_, (), _, _| {},
+                    )
+                    .absolute()
+                    .size_full(),
+                )
+            })
             .when_some(preload_target, |element, target| {
                 element.on_hover(move |hovered, _, cx| {
                     if *hovered {

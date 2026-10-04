@@ -11,6 +11,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ### Added
 
+- `Link::preload_visible(true)`: run a link's loaders once it is on screen (TanStack Router's
+  `preload: "viewport"`).
 - Scroll restoration: `ScrollArea::restore_scroll(true)` and `Scaffold::restore_scroll(true)`
   return to where each page was left on back and forward (feature `router`).
 - `FormOptions::scroll_handle` and `ScrollArea::track_scroll`: a failed submit scrolls the

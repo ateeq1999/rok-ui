@@ -710,3 +710,60 @@ fn scaffold_bodies_restore_their_scroll_position(cx: &mut TestAppContext) {
         "back returns to where the page was left"
     );
 }
+
+/// Links that preload when they come into view, one above the fold and one far below.
+struct VisibleLinks(Rc<RefCell<Vec<u64>>>, gpui::ScrollHandle);
+
+impl Render for VisibleLinks {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let loaded = self.0.clone();
+        div()
+            .child(
+                Router::new()
+                    .route_to(|note: NoteRoute, _, _| div().child(note.id.to_string()))
+                    .route("/", |_, _, _| div())
+                    .loader_to(move |note: &NoteRoute, _| loaded.borrow_mut().push(note.id)),
+            )
+            .child(
+                rok_ui::components::ScrollArea::new("list")
+                    .track_scroll(&self.1)
+                    .h(px(200.))
+                    .child(
+                        Link::to(&NoteRoute { id: 1 })
+                            .preload_visible(true)
+                            .child("First"),
+                    )
+                    .child(div().h(px(2000.)))
+                    .child(
+                        Link::to(&NoteRoute { id: 2 })
+                            .preload_visible(true)
+                            .child("Last"),
+                    ),
+            )
+    }
+}
+
+#[gpui::test]
+fn links_preload_when_they_come_into_view(cx: &mut TestAppContext) {
+    cx.update(rok_ui::init);
+    let loaded = Rc::new(RefCell::new(Vec::new()));
+    let handle = gpui::ScrollHandle::new();
+    let (view_loaded, view_handle) = (loaded.clone(), handle.clone());
+    let (_, window) =
+        cx.add_window_view(move |_, _| VisibleLinks(view_loaded.clone(), view_handle.clone()));
+    let frame = |window: &mut gpui::VisualTestContext| {
+        window.update(|window, _| window.refresh());
+        window.run_until_parked();
+    };
+    frame(window);
+    frame(window);
+    assert_eq!(*loaded.borrow(), [1], "only the visible link, once");
+
+    handle.set_offset(gpui::point(px(0.), px(-1900.)));
+    frame(window);
+    assert_eq!(
+        *loaded.borrow(),
+        [1, 2],
+        "the other one once it is scrolled into view"
+    );
+}

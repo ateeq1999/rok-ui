@@ -92,7 +92,7 @@ What exists now, by crate:
 | E.3 Typed links and navigation | Done | `typed_route!` (checked at compile time), `Route::href` / `parse`, `Link::to`, `navigate_to`, `replace_to`, `use_params`. |
 | E.4 Typed search params | Done | `#[derive(Search)]`, `use_search`, `update_search`, `replace_search`, `Link::search`. No `loader_deps` (loaders run per location, query string included). |
 | E.5 Guards and control flow | Done | `Router::guard`, `RouteControl`, `before_load` on route files, and `Router::guard_async` with `Router::pending` for guards that decide in the background (once per visit). |
-| E.6 Loaders and preloading | Partial | `Router::loader` / `loader_to`, `file_route! { loader }`, once per location; `Link::preload(true)`; `router::preload`; fetches a loader started are cancelled when the user navigates away. `router::load_state` and `router::use_pending(cx, delay, min)` (TanStack's `pendingMs` / `pendingMinMs`) for progress bars. Not yet: viewport preloading. |
+| E.6 Loaders and preloading | Done | `Router::loader` / `loader_to`, `file_route! { loader }`, once per location; `Link::preload(true)`; `router::preload`; fetches a loader started are cancelled when the user navigates away. `router::load_state` and `router::use_pending(cx, delay, min)` (TanStack's `pendingMs` / `pendingMinMs`) for progress bars. `Link::preload_visible` preloads links once they are on screen. Preloading is set per link (no app-wide default). |
 | E.7 Blocking | Done | `use_blocker` with `proceed` / `reset`. |
 | E.7 Per-window history | Done | `set_per_window_history`, `with_window`; a router's subtree reads its window's history. App-wide stays the default. |
 | E.7 Persistence | Done | `router::persist_location` (router + persist). |
@@ -163,7 +163,7 @@ The plan left these open. The work so far assumed the following; each can still 
 
 - The workspace split (F.2, decision K.2) and remote procedures (C.4, decision K.6).
 - `#[shard]` (C.3); scoped `Cx` values (C.1); memoize scopes (C.5).
-- Router: viewport preloading, transitions.
+- Router: transitions.
 - Devtools: forms and the signal graph.
 - 1.0: an API review against the component contract and Part B conventions, and
   `cargo public-api` checks in CI.

@@ -334,6 +334,10 @@ let router = Router::new()
 let link = Link::to(&NoteRoute { id: 3 }).preload(true).child("Open");
 ```
 
+`Link::preload_visible(true)` preloads as soon as the link is on screen instead (TanStack
+Router's `preload: "viewport"`), for links the user is likely to follow, such as the next page
+of a list; each link preloads once per location the user visits.
+
 The page reads the same query (with `use_suspense_query` in a `Suspense`, or `use_query`), so
 it finds the data cached or in flight. `router::preload(path, cx)` runs loaders by hand. If the
 user navigates away before a loader's fetches finish, they are cancelled (with the `query`
