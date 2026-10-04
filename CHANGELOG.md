@@ -9,6 +9,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-10-04
+
 ### Added
 
 - Memoize scopes: `#[memoize(scope = navigation)]` (forgotten on the next navigation) and
@@ -283,7 +285,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - Light and dark themes with the Rok and Neutral presets.
 - Keyboard focus navigation and text inputs with IME, selection and clipboard support.
 
-[Unreleased]: https://github.com/ateeq1999/rok-ui/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/ateeq1999/rok-ui/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/ateeq1999/rok-ui/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/ateeq1999/rok-ui/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/ateeq1999/rok-ui/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/ateeq1999/rok-ui/compare/v0.4.0...v0.5.0

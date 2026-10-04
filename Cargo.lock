@@ -4939,7 +4939,7 @@ dependencies = [
 
 [[package]]
 name = "rok-ui"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "env_logger",
  "futures",
@@ -4962,7 +4962,7 @@ dependencies = [
 
 [[package]]
 name = "rok-ui-build"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4971,7 +4971,7 @@ dependencies = [
 
 [[package]]
 name = "rok-ui-cli"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "rok-ui-build",
  "serde_json",
@@ -4988,7 +4988,7 @@ dependencies = [
 
 [[package]]
 name = "rok-ui-grammar"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5003,7 +5003,7 @@ checksum = "ff518a56759b7b99940d9fa9a728447f537017ac07897f2ef5d95812b4ac5ade"
 
 [[package]]
 name = "rok-ui-macros"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "proc-macro2",
  "rok-ui",
