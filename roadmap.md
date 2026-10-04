@@ -68,7 +68,7 @@ What exists now, by crate:
 | C.5 `#[memoize]` | Partial | App-wide scope with `memo::invalidate`; per-frame and per-navigation scopes are not implemented. |
 | C.6 Signals | Done | Unchanged foundation (`rok_ui::state`). |
 | C.7 Stores | Done | `#[derive(Store)]` (a signal per field); `persist` feature: `persisted_store` with versioned JSON, migrations, debounced atomic writes. |
-| C.8 Devtools | Partial | `devtools` feature: an overlay (Ctrl-Shift-D) with the router history and the query cache. Mutations, forms and the signal graph are not shown yet. |
+| C.8 Devtools | Partial | `devtools` feature: an overlay (Ctrl-Shift-D) with the router history, the query cache and recent mutation runs (`query::mutations`, `MutationOptions::key`). Forms and the signal graph are not shown yet. |
 
 ## Part D: forms
 
@@ -165,7 +165,7 @@ The plan left these open. The work so far assumed the following; each can still 
 - Router: async guards, viewport preloading, scroll
   restoration, transitions.
 - Forms: scroll-into-view on a failed submit, persisted drafts.
-- Devtools: mutations, forms and the signal graph.
+- Devtools: forms and the signal graph.
 - 1.0: an API review against the component contract and Part B conventions, and
   `cargo public-api` checks in CI.
 

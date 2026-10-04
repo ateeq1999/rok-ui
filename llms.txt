@@ -141,6 +141,8 @@ rok-ui-hooks signals re-exported as `rok_ui::state`: `create_signal`, `create_me
 - `persist::persisted_store(cx, "settings", Settings::default)` saves a store as versioned
   JSON in the config directory (feature `persist`; `PersistOptions` for migrations).
 - Devtools (feature `devtools`): add `devtools::Devtools::new()` to the root; Ctrl-Shift-D.
+  Shows router history, queries and mutations (`query::mutations(cx)`; name one with
+  `MutationOptions::key(query_key![..])`).
 
 ## Router (`router` feature)
 

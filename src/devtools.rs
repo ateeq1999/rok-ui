@@ -1,4 +1,5 @@
-//! Devtools (feature `devtools`): an overlay that shows the router and the query cache.
+//! Devtools (feature `devtools`): an overlay that shows the router history, the query cache
+//! and recent mutation runs.
 //!
 //! Add [`Devtools`] once, last in the window's root, and toggle it with Ctrl-Shift-D:
 //!
@@ -180,6 +181,59 @@ fn query_section(_: &mut App) -> gpui::AnyElement {
     div().into_any_element()
 }
 
+#[cfg(feature = "query")]
+fn mutation_section(cx: &mut App) -> gpui::AnyElement {
+    use crate::query::MutationStatus;
+
+    let mutations = crate::query::mutations(cx);
+    if mutations.is_empty() {
+        return div().into_any_element();
+    }
+    let running = mutations
+        .iter()
+        .filter(|mutation| mutation.status == MutationStatus::Pending)
+        .count();
+    div()
+        .sx(&DEVTOOLS.section)
+        .child(
+            div()
+                .sx(&DEVTOOLS.heading)
+                .child(format!("Mutations ({running} running)")),
+        )
+        .children(mutations.into_iter().take(10).map(|mutation| {
+            let status = match mutation.status {
+                MutationStatus::Pending => "running",
+                MutationStatus::Success => "done",
+                MutationStatus::Error => "failed",
+                MutationStatus::Idle => "dropped",
+            };
+            let time = mutation
+                .duration
+                .map(|duration| format!(" in {:.1}s", duration.as_secs_f32()))
+                .unwrap_or_default();
+            let name = mutation
+                .key
+                .map_or_else(|| "mutation".to_string(), |key| key.to_string());
+            div()
+                .sx(&DEVTOOLS.row)
+                .child(line(name, &DEVTOOLS.mono))
+                .child(line(
+                    format!("{status}{time}"),
+                    if mutation.status == MutationStatus::Error {
+                        &DEVTOOLS.bad
+                    } else {
+                        &DEVTOOLS.muted
+                    },
+                ))
+        }))
+        .into_any_element()
+}
+
+#[cfg(not(feature = "query"))]
+fn mutation_section(_: &mut App) -> gpui::AnyElement {
+    div().into_any_element()
+}
+
 impl RenderOnce for Devtools {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         if !is_open(cx) {
@@ -191,6 +245,7 @@ impl RenderOnce for Devtools {
             .child(div().sx(&DEVTOOLS.title).child("rok-ui devtools"))
             .child(router_section(cx))
             .child(query_section(cx))
+            .child(mutation_section(cx))
             .into_any_element()
     }
 }

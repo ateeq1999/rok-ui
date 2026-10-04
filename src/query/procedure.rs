@@ -48,11 +48,17 @@ pub trait Procedure: Copy + Send + Sync + 'static {
         Vec::new()
     }
 
-    /// The procedure as [`MutationOptions`].
+    /// The procedure as [`MutationOptions`], keyed by the procedure's name (`["create_note"]`)
+    /// for [`mutations`](super::mutations) and the devtools.
     fn mutation_options(&self) -> MutationOptions<Self::Input, Self::Output, Self::Error> {
         let procedure = *self;
+        let name = std::any::type_name::<Self>()
+            .rsplit("::")
+            .next()
+            .unwrap_or("procedure");
         self.invalidates().into_iter().fold(
-            MutationOptions::new(move |cx, input| procedure.run(cx, input)),
+            MutationOptions::new(move |cx, input| procedure.run(cx, input))
+                .key(crate::query_key![name]),
             MutationOptions::invalidates,
         )
     }
