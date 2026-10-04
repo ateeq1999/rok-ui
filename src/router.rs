@@ -5,7 +5,7 @@ use std::{cell::Cell, collections::HashMap, rc::Rc};
 use gpui::{
     actions, div, prelude::*, AnyElement, AnyWindowHandle, App, Bounds, ElementId, Global,
     GlobalElementId, InspectorElementId, KeyBinding, LayoutId, Pixels, SharedString,
-    StyleRefinement, Window,
+    StyleRefinement, Task, Window,
 };
 
 use crate::{
@@ -624,6 +624,23 @@ type RouteBuilder = Rc<dyn Fn(&RouteMatch, &mut Window, &mut App) -> Option<AnyE
 type NotFoundBuilder = Rc<dyn Fn(&RouteMatch, &mut Window, &mut App) -> AnyElement>;
 /// A guard: `Ok(())` lets the route render.
 pub type Guard = Rc<dyn Fn(&Location, &mut App) -> Result<(), RouteControl>>;
+/// A guard that decides in the background (a session check, a permission lookup).
+pub type AsyncGuard = Rc<dyn Fn(&Location, &mut App) -> Task<Result<(), RouteControl>>>;
+
+/// Async guard checks per window: the location each guard checked and what it decided.
+#[derive(Default)]
+struct GuardChecks {
+    checks: HashMap<(Option<AnyWindowHandle>, SharedString), GuardCheck>,
+}
+
+impl Global for GuardChecks {}
+
+struct GuardCheck {
+    href: SharedString,
+    /// `None` while the guard runs.
+    outcome: Option<Result<(), RouteControl>>,
+    _task: Task<()>,
+}
 
 /// Starts loading a route's data before it renders (prefetching queries).
 pub type Loader = Rc<dyn Fn(&RouteMatch, &mut App)>;
@@ -840,7 +857,9 @@ pub struct Router {
     routes: Vec<RouteEntry>,
     redirects: Vec<(Pattern, SharedString)>,
     guards: Vec<(Pattern, Guard)>,
+    async_guards: Vec<(Pattern, SharedString, AsyncGuard)>,
     not_found: Option<NotFoundBuilder>,
+    pending: Option<NotFoundBuilder>,
     sx: Sx,
     style_overrides: StyleRefinement,
 }
@@ -855,7 +874,9 @@ impl Router {
             routes: Vec::new(),
             redirects: Vec::new(),
             guards: Vec::new(),
+            async_guards: Vec::new(),
             not_found: None,
+            pending: None,
             sx: Sx::new(),
             style_overrides: StyleRefinement::default(),
         }
@@ -926,6 +947,56 @@ impl Router {
     ) -> Self {
         let pattern = format!("{}/*__rok_rest", prefix.trim_end_matches('/'));
         self.guards.push((Pattern::parse(&pattern), Rc::new(guard)));
+        self
+    }
+
+    /// Like [`Router::guard`], for a guard that decides in the background: checking a session
+    /// with a server, loading permissions. While it runs the router renders
+    /// [`Router::pending`] (or nothing), never the guarded route. It runs once each time the
+    /// window arrives at a location below `prefix`, and again after the user leaves and comes
+    /// back.
+    ///
+    /// ```no_run
+    /// # use rok_ui::{prelude::*, router::{Router, RouteControl}};
+    /// # async fn session_is_valid() -> bool { true }
+    /// let router = Router::new()
+    ///     .route("/login", |_, _, _| div().child("Sign in"))
+    ///     .route("/account", |_, _, _| div().child("Your account"))
+    ///     .guard_async("/account", |_, cx| {
+    ///         cx.spawn(async |_| {
+    ///             if session_is_valid().await {
+    ///                 Ok(())
+    ///             } else {
+    ///                 Err(RouteControl::redirect("/login"))
+    ///             }
+    ///         })
+    ///     })
+    ///     .pending(|_, _, _| div().child("Checking your session"));
+    /// # let _ = router;
+    /// ```
+    #[must_use]
+    pub fn guard_async(
+        mut self,
+        prefix: &str,
+        guard: impl Fn(&Location, &mut App) -> Task<Result<(), RouteControl>> + 'static,
+    ) -> Self {
+        let pattern = format!("{}/*__rok_rest", prefix.trim_end_matches('/'));
+        let key = format!("{}#{}", pattern, self.async_guards.len()).into();
+        self.async_guards
+            .push((Pattern::parse(&pattern), key, Rc::new(guard)));
+        self
+    }
+
+    /// What to render while an async guard decides (TanStack Router's `pendingComponent`).
+    /// Default: nothing.
+    #[must_use]
+    pub fn pending<E: IntoElement>(
+        mut self,
+        build: impl Fn(&RouteMatch, &mut Window, &mut App) -> E + 'static,
+    ) -> Self {
+        self.pending = Some(Rc::new(move |route, window, cx| {
+            build(route, window, cx).into_any_element()
+        }));
         self
     }
 
@@ -1071,6 +1142,70 @@ impl Router {
         Ok(())
     }
 
+    /// What the async guards over `location` decided: `None` while one still runs.
+    fn check_async_guards(
+        &self,
+        location: &Location,
+        cx: &mut App,
+    ) -> Option<Result<(), RouteControl>> {
+        if self.async_guards.is_empty() {
+            return Some(Ok(()));
+        }
+        let window = CURRENT_WINDOW.with(Cell::get);
+        let href = location.href();
+        // A check holds for one visit: leaving the location forgets it.
+        cx.default_global::<GuardChecks>()
+            .checks
+            .retain(|(owner, _), check| *owner != window || check.href == href);
+        let mut pending = false;
+        for (pattern, key, guard) in &self.async_guards {
+            if pattern.matches(location.path()).is_none() {
+                continue;
+            }
+            let id = (window, key.clone());
+            let outcome = cx
+                .default_global::<GuardChecks>()
+                .checks
+                .get(&id)
+                .map(|check| check.outcome.clone());
+            match outcome {
+                Some(Some(Ok(()))) => {}
+                Some(Some(Err(control))) => {
+                    // Decided once: a later visit checks again.
+                    cx.default_global::<GuardChecks>().checks.remove(&id);
+                    return Some(Err(control));
+                }
+                Some(None) => pending = true,
+                None => {
+                    let deciding = guard(location, cx);
+                    let task_id = id.clone();
+                    let task = cx.spawn(async move |cx| {
+                        let outcome = deciding.await;
+                        cx.update(|cx| {
+                            if let Some(check) =
+                                cx.default_global::<GuardChecks>().checks.get_mut(&task_id)
+                            {
+                                check.outcome = Some(outcome);
+                            }
+                            cx.refresh_windows();
+                        })
+                        .ok();
+                    });
+                    cx.default_global::<GuardChecks>().checks.insert(
+                        id,
+                        GuardCheck {
+                            href: href.clone(),
+                            outcome: None,
+                            _task: task,
+                        },
+                    );
+                    pending = true;
+                }
+            }
+        }
+        (!pending).then_some(Ok(()))
+    }
+
     /// The target of the first redirect matching `location`, parameters filled in.
     fn redirect_for(&self, location: &Location) -> Option<SharedString> {
         self.redirects.iter().find_map(|(pattern, to)| {
@@ -1107,15 +1242,24 @@ impl Router {
     fn render_content(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let mut location = location(cx);
         let mut not_found = false;
+        let mut guarding = false;
         // Follow redirects and guard redirects (a few hops at most, so a cycle cannot hang
         // the app).
         for _ in 0..8 {
             let target = match self.redirect_for(&location) {
                 Some(target) => Some(target),
-                None => match self.check_guards(&location, cx) {
-                    Ok(()) => None,
-                    Err(RouteControl::Redirect(target)) => Some(target),
-                    Err(RouteControl::NotFound) => {
+                None => match self
+                    .check_guards(&location, cx)
+                    .map(|()| self.check_async_guards(&location, cx))
+                {
+                    Ok(Some(Ok(()))) => None,
+                    Ok(None) => {
+                        guarding = true;
+                        None
+                    }
+                    Err(RouteControl::Redirect(target))
+                    | Ok(Some(Err(RouteControl::Redirect(target)))) => Some(target),
+                    Err(RouteControl::NotFound) | Ok(Some(Err(RouteControl::NotFound))) => {
                         not_found = true;
                         None
                     }
@@ -1130,6 +1274,27 @@ impl Router {
         self.register_loaders(cx);
         #[cfg(feature = "query")]
         cancel_stale_loads(&location, cx);
+        if guarding {
+            let content = match &self.pending {
+                Some(build) => build(
+                    &RouteMatch {
+                        pattern: SharedString::default(),
+                        params: HashMap::new(),
+                        location,
+                    },
+                    window,
+                    cx,
+                ),
+                None => div().into_any_element(),
+            };
+            return div()
+                .flex()
+                .flex_col()
+                .size_full()
+                .child(content)
+                .sx(&self.sx)
+                .apply_style_overrides(&self.style_overrides);
+        }
         let content =
             match self
                 .resolve(&location)

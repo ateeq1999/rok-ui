@@ -234,6 +234,30 @@ let router = Router::new()
     });
 ```
 
+### Guards that wait
+
+`.guard_async(prefix, guard)` is for a decision that takes time, like asking a server whether
+the session is still valid. The guard returns a GPUI `Task` with the same `Result`. While it
+runs, the router renders `.pending(..)` (TanStack Router's `pendingComponent`; nothing by
+default), never the guarded route:
+
+```rust,no_run
+# use rok_ui::{prelude::*, router::RouteControl};
+# async fn session_is_valid() -> bool { true }
+let router = Router::new()
+    .route("/login", |_, _, _| div().child("Sign in"))
+    .route("/account", |_, _, _| div().child("Your account"))
+    .guard_async("/account", |_, cx| {
+        cx.spawn(async |_| {
+            if session_is_valid().await { Ok(()) } else { Err(RouteControl::redirect("/login")) }
+        })
+    })
+    .pending(|_, _, _| div().child("Checking your session"));
+```
+
+It runs once each time a window arrives at a guarded location; later renders of that visit
+reuse the decision, and leaving and coming back checks again. Synchronous guards run first.
+
 ## Typed routes
 
 A typed route is a struct whose fields are the pattern's parameters. Links and navigation
@@ -514,6 +538,7 @@ together in an `AdaptiveScaffold`.
 | `on_navigate(listener, cx)` | Run code after each navigation |
 | `Link::new(id, to)`, `Link::to(&route)` | Navigates on click, Enter or Space; `.search(..)`, `.replace(..)`, `.exact(..)` |
 | `.guard(prefix, guard)`, `RouteControl` | Redirect or "not found" before a route renders |
+| `.guard_async(prefix, guard)`, `.pending(..)` | A guard that decides in the background, and what shows meanwhile |
 | `typed_route!`, `Route`, `.route_to(..)` | Typed routes: `href()`, `parse(path)` |
 | `navigate_to`, `replace_to`, `use_params` | Navigate to and read typed routes |
 | `#[derive(Search)]`, `use_search`, `update_search`, `replace_search` | Typed search params |

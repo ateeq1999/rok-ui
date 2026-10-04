@@ -11,6 +11,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ### Added
 
+- `Router::guard_async` and `Router::pending`: guards that decide in the background (once per
+  visit), with what to render meanwhile.
 - `FormOptions::persist_draft` (with `persist`): forms save their values while the user edits
   and start from the saved draft; a successful submit or `reset` deletes it.
 - `query::mutations(cx)` lists recent mutation runs (key, status, duration), and the devtools

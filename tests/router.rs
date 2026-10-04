@@ -501,3 +501,106 @@ fn pending_indicators_wait_before_showing_and_stay_a_minimum(cx: &mut TestAppCon
     window.update(|_, cx| router::navigate_to(&NoteRoute { id: 7 }, cx));
     assert_eq!(frame(window, 300), (false, false));
 }
+
+/// An account page behind a guard that asks a (slow) session check.
+struct SessionShell {
+    valid: Rc<RefCell<bool>>,
+    checks: Rc<RefCell<u32>>,
+    rendered: Rc<RefCell<Vec<String>>>,
+}
+
+impl Render for SessionShell {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let (valid, checks) = (self.valid.clone(), self.checks.clone());
+        let (login, account, pending) = (
+            self.rendered.clone(),
+            self.rendered.clone(),
+            self.rendered.clone(),
+        );
+        Router::new()
+            .route("/", |_, _, _| div())
+            .route("/login", move |_, _, _| {
+                login.borrow_mut().push("login".into());
+                div()
+            })
+            .route("/account", move |_, _, _| {
+                account.borrow_mut().push("account".into());
+                div()
+            })
+            .guard_async("/account", move |_, cx| {
+                *checks.borrow_mut() += 1;
+                let valid = *valid.borrow();
+                let delay = cx
+                    .background_executor()
+                    .timer(std::time::Duration::from_millis(50));
+                cx.spawn(async move |_| {
+                    delay.await;
+                    if valid {
+                        Ok(())
+                    } else {
+                        Err(RouteControl::redirect("/login"))
+                    }
+                })
+            })
+            .pending(move |_, _, _| {
+                pending.borrow_mut().push("checking".into());
+                div()
+            })
+    }
+}
+
+#[gpui::test]
+fn async_guards_hold_the_route_until_they_decide(cx: &mut TestAppContext) {
+    cx.update(rok_ui::init);
+    let valid = Rc::new(RefCell::new(false));
+    let checks = Rc::new(RefCell::new(0));
+    let rendered = Rc::new(RefCell::new(Vec::new()));
+    let (view_valid, view_checks, view_rendered) =
+        (valid.clone(), checks.clone(), rendered.clone());
+    let (_, window) = cx.add_window_view(move |_, _| SessionShell {
+        valid: view_valid,
+        checks: view_checks,
+        rendered: view_rendered,
+    });
+    let decide = |window: &mut gpui::VisualTestContext| {
+        window
+            .executor()
+            .advance_clock(std::time::Duration::from_millis(60));
+        window.run_until_parked();
+    };
+
+    // A refused check redirects; the account page never renders.
+    window.update(|_, cx| router::navigate("/account", cx));
+    window.run_until_parked();
+    assert_eq!(
+        rendered.borrow().last().map(String::as_str),
+        Some("checking")
+    );
+    decide(window);
+    window.update(|_, cx| assert_eq!(router::location(cx).path(), "/login"));
+    assert!(!rendered.borrow().iter().any(|page| page == "account"));
+
+    // Coming back checks again; an accepted check renders the route.
+    *valid.borrow_mut() = true;
+    window.update(|_, cx| router::navigate("/account", cx));
+    window.run_until_parked();
+    assert_eq!(
+        rendered.borrow().last().map(String::as_str),
+        Some("checking")
+    );
+    decide(window);
+    assert_eq!(
+        rendered.borrow().last().map(String::as_str),
+        Some("account")
+    );
+    assert_eq!(*checks.borrow(), 2);
+
+    // Later renders of the same visit reuse the decision.
+    window.update(|window, _| window.refresh());
+    window.run_until_parked();
+    assert_eq!(
+        rendered.borrow().last().map(String::as_str),
+        Some("account")
+    );
+    assert_eq!(*checks.borrow(), 2);
+}

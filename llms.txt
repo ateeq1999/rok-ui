@@ -148,6 +148,7 @@ rok-ui-hooks signals re-exported as `rok_ui::state`: `create_signal`, `create_me
 
 - Code-based: `Router::new().route("/notes/:id", |route, window, cx| ..).redirect(from, to)
   .not_found(..).guard("/admin", |location, cx| Ok(()) or Err(RouteControl::redirect(path)))
+  .guard_async("/account", |location, cx| cx.spawn(async |_| Ok(()))).pending(|_, w, cx| ..)
   .loader("/notes/:id", |route, cx| ..)`.
 - Typed: `typed_route! { pub struct NoteRoute = "/notes/:id" { pub id: u64 } }` (checked at
   compile time); `Link::to(&NoteRoute { id })`, `router::navigate_to(&route, cx)`,

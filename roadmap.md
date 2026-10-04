@@ -91,7 +91,7 @@ What exists now, by crate:
 | E.2 Code-based routing | Done | The 0.5 `Router` stays and gained `route_to`, `guard`, `loader`. No `route_tree!` macro. |
 | E.3 Typed links and navigation | Done | `typed_route!` (checked at compile time), `Route::href` / `parse`, `Link::to`, `navigate_to`, `replace_to`, `use_params`. |
 | E.4 Typed search params | Done | `#[derive(Search)]`, `use_search`, `update_search`, `replace_search`, `Link::search`. No `loader_deps` (loaders run per location, query string included). |
-| E.5 Guards and control flow | Partial | `Router::guard`, `RouteControl`, `before_load` on route files. Guards are synchronous. |
+| E.5 Guards and control flow | Done | `Router::guard`, `RouteControl`, `before_load` on route files, and `Router::guard_async` with `Router::pending` for guards that decide in the background (once per visit). |
 | E.6 Loaders and preloading | Partial | `Router::loader` / `loader_to`, `file_route! { loader }`, once per location; `Link::preload(true)`; `router::preload`; fetches a loader started are cancelled when the user navigates away. `router::load_state` and `router::use_pending(cx, delay, min)` (TanStack's `pendingMs` / `pendingMinMs`) for progress bars. Not yet: viewport preloading. |
 | E.7 Blocking | Done | `use_blocker` with `proceed` / `reset`. |
 | E.7 Per-window history | Done | `set_per_window_history`, `with_window`; a router's subtree reads its window's history. App-wide stays the default. |
@@ -162,7 +162,7 @@ The plan left these open. The work so far assumed the following; each can still 
 
 - The workspace split (F.2, decision K.2) and remote procedures (C.4, decision K.6).
 - `#[shard]` (C.3); scoped `Cx` values (C.1); memoize scopes (C.5).
-- Router: async guards, viewport preloading, scroll
+- Router: viewport preloading, scroll
   restoration, transitions.
 - Forms: scroll-into-view on a failed submit.
 - Devtools: forms and the signal graph.
