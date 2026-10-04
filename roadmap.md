@@ -81,7 +81,7 @@ What exists now, by crate:
 | D.5 Array and nested fields | Done | Composable paths; list operations move each row's state, input and focus with the row. |
 | D.6 Bound inputs | Done | `BoundInput` / `TextField`, `TextareaField`, `CheckboxField`, `SwitchField`, `SelectField`, `RadioGroupField`, `ComboboxField`, `SliderField`, `DatePickerField`, `InputOtpField`, `SubmitButton`, `FormErrors`, and `field.change_handler()` for any other control whose `on_change` passes the value. Pickers sit behind their components' features. |
 | D.6 `create_form_hook!` | Deferred | The bound field components already make forms one line per field. |
-| D.7 Behavior | Partial | Enter submits, a failed submit focuses the first invalid field, `reset` / `reset_field` / `set_value` / `validate`, `is_dirty()` with `use_blocker`. Not yet: scrolling the invalid field into view, persisted drafts. |
+| D.7 Behavior | Partial | Enter submits, a failed submit focuses the first invalid field, `reset` / `reset_field` / `set_value` / `validate`, `is_dirty()` with `use_blocker`, drafts saved while editing (`FormOptions::persist_draft`, with `persist`). Not yet: scrolling the invalid field into view. |
 
 ## Part E: routing v2
 
@@ -164,7 +164,7 @@ The plan left these open. The work so far assumed the following; each can still 
 - `#[shard]` (C.3); scoped `Cx` values (C.1); memoize scopes (C.5).
 - Router: async guards, viewport preloading, scroll
   restoration, transitions.
-- Forms: scroll-into-view on a failed submit, persisted drafts.
+- Forms: scroll-into-view on a failed submit.
 - Devtools: forms and the signal graph.
 - 1.0: an API review against the component contract and Part B conventions, and
   `cargo public-api` checks in CI.

@@ -563,3 +563,87 @@ fn code_inputs_fill_their_field_and_check_it_when_complete(cx: &mut TestAppConte
     let values = window.update(|_, _| slot.borrow().clone().expect("rendered").values().clone());
     assert_eq!((values.language.as_str(), values.due), ("zig", date));
 }
+
+#[cfg(feature = "persist")]
+mod drafts {
+    use super::*;
+    use rok_ui::persist::PersistOptions;
+
+    #[derive(
+        FormValues, Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize,
+    )]
+    struct Note {
+        title: String,
+    }
+
+    type NoteSlot = Rc<RefCell<Option<Form<Note>>>>;
+
+    struct NoteView(NoteSlot, PersistOptions);
+
+    impl Render for NoteView {
+        fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let mut cx = Cx::new(window, cx);
+            let form = form::use_form(
+                &mut cx,
+                FormOptions::new(Note::default())
+                    .persist_draft(self.1.clone())
+                    .on_submit(|_, _| gpui::Task::ready(Ok(()))),
+            );
+            let title = form.field(&mut cx, Note::TITLE);
+            *self.0.borrow_mut() = Some(form);
+            div().child(TextField::new(&title, "Title"))
+        }
+    }
+
+    fn open(cx: &mut TestAppContext, options: &PersistOptions) -> NoteSlot {
+        let slot: NoteSlot = Rc::new(RefCell::new(None));
+        let (view_slot, options) = (slot.clone(), options.clone());
+        let (_, window) =
+            cx.add_window_view(move |_, _| NoteView(view_slot.clone(), options.clone()));
+        window.run_until_parked();
+        slot
+    }
+
+    fn form(slot: &NoteSlot) -> Form<Note> {
+        slot.borrow().clone().expect("rendered")
+    }
+
+    #[gpui::test]
+    fn drafts_survive_closing_the_form_until_it_is_submitted(cx: &mut TestAppContext) {
+        cx.update(rok_ui::init);
+        let directory = std::env::temp_dir().join(format!("rok-ui-drafts-{}", std::process::id()));
+        std::fs::remove_dir_all(&directory).ok();
+        let file = directory.join("note-draft.json");
+        let options = PersistOptions::new("note-draft")
+            .directory(&directory)
+            .debounce(Duration::from_millis(50));
+        let wait = |cx: &mut TestAppContext| {
+            cx.executor().advance_clock(Duration::from_millis(60));
+            cx.run_until_parked();
+        };
+
+        let first = open(cx, &options);
+        wait(cx);
+        assert!(!file.exists(), "nothing is saved before an edit");
+        cx.update(|cx| form(&first).set_value(cx, Note::TITLE, "Groceries".to_string()));
+        wait(cx);
+        assert!(file.exists(), "edits are saved");
+
+        // The same form opened again starts from the draft.
+        let second = open(cx, &options);
+        assert_eq!(form(&second).values().title, "Groceries");
+
+        // A successful submit deletes it, and nothing writes it back.
+        cx.update(|cx| {
+            let window = cx.windows()[1];
+            window
+                .update(cx, |_, window, cx| form(&second).submit(window, cx))
+                .unwrap();
+        });
+        wait(cx);
+        assert!(!file.exists(), "submitting deletes the draft");
+        let third = open(cx, &options);
+        assert_eq!(form(&third).values().title, "");
+        std::fs::remove_dir_all(directory).ok();
+    }
+}

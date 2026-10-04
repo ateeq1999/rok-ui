@@ -195,6 +195,8 @@ block_on}`):
   .on_change_async_debounce(d, |v| async ..).listen_to(&SignUp::PASSWORD))
   .validators(FormValidators::new().on_submit(|v| Some(FormError::field(&SignUp::CONFIRM, ".."))))
   .on_submit(|values, cx| Task<Result<(), FormError>>)`.
+- Drafts (with `persist`): `.persist_draft(PersistOptions::new("sign-up"))` restores and saves
+  the values (Serialize + Deserialize); a successful submit or `reset` deletes the draft.
 - `let form = form::use_form(cx, opts); let email = form.field(cx, SignUp::EMAIL);`
   `TextField::new(&email, "Email")`, `TextareaField`, `CheckboxField`, `SwitchField`,
   `SelectField::new(&f, "Plan").option("pro", "Pro")`, `RadioGroupField`, `ComboboxField`, `SliderField`,

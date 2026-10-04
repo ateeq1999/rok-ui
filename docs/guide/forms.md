@@ -181,3 +181,31 @@ move the rows' touched, dirty and error state (and their inputs) along with them
 
 `form.is_dirty()` plugs into the router's blocker: `router::use_blocker(cx, form.is_dirty())`
 asks before navigating away from a changed form.
+
+### Drafts
+
+With the `persist` feature, `FormOptions::persist_draft(PersistOptions::new("new-note"))` saves
+the values while the user edits, so a form closed half-filled (or an app that quit) opens where
+it was left. The values type derives `Serialize` and `Deserialize`:
+
+```rust,no_run
+# use rok_ui::{prelude::*, form::{self, FormOptions, FormValues, TextField}, persist::PersistOptions};
+#[derive(FormValues, Clone, Default, serde::Serialize, serde::Deserialize)]
+struct NewNote { title: String, body: String }
+
+#[component]
+fn NewNoteForm(cx: &mut Cx) -> impl IntoElement {
+    let form = form::use_form(
+        cx,
+        FormOptions::new(NewNote::default()).persist_draft(PersistOptions::new("new-note")),
+    );
+    let title = form.field(cx, NewNote::TITLE);
+    TextField::new(&title, "Title")
+}
+```
+
+The form starts from the saved draft when there is one. Edits are written after the options'
+debounce (300 ms by default) to `<config dir>/<app name>/new-note.json`, and a successful
+submit or `form.reset(cx)` deletes the file. A restored draft does not mark fields as changed,
+so `is_dirty()` starts false. Bump `PersistOptions::version` and add a `migrate` when the
+values type changes shape, as with persisted stores.

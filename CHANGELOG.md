@@ -11,6 +11,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ### Added
 
+- `FormOptions::persist_draft` (with `persist`): forms save their values while the user edits
+  and start from the saved draft; a successful submit or `reset` deletes it.
 - `query::mutations(cx)` lists recent mutation runs (key, status, duration), and the devtools
   overlay shows them. `MutationOptions::key` names a mutation; procedures are named after
   their function.
