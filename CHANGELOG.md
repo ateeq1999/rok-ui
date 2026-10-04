@@ -9,8 +9,48 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-04
+
 ### Added
 
+- **Forms** (`form` feature, in the `forms` group and `full`): `rok_ui::form`, a headless
+  form library modeled on TanStack Form. `#[derive(FormValues)]` adds typed field constants;
+  `use_form` with `FormOptions`; field validators per event (`on_mount`, `on_change`,
+  `on_blur`, `on_submit`) with errors kept per event, debounced async validators,
+  `listen_to` for linked fields; form validators and schemas (`GardeSchema` behind
+  `form-garde`); nested paths and list fields whose operations keep each row's state; submit
+  with server errors mapped onto fields and focus on the first invalid field; bound
+  `TextField`, `BoundInput`, `CheckboxField`, `SwitchField`, `SubmitButton` and `FormErrors`.
+  `examples/sign_up.rs` puts it together.
+- **Stores:** `#[derive(Store)]` generates a store with one signal per field; the `persist`
+  feature saves stores as versioned JSON in the config directory (`persisted_store`,
+  `PersistOptions` with migrations).
+- **`cargo rok-ui`** (the new `rok-ui-cli` crate): `new` creates an app from the `minimal`,
+  `full` (file-based routes, features, queries, a test) or `db` template; `add` copies
+  components' source into the app with paths rewritten and lists crates the copies need;
+  `routes` writes a checked-in route tree. CI builds every template. Component helpers the
+  copies use are now `#[doc(hidden)] pub`.
+- **Devtools** (`devtools` feature): `Devtools`, an overlay toggled with Ctrl-Shift-D that
+  shows the router history and every cached query with its status and age;
+  `router::history_entries`.
+- **Components:** `#[default]` / `#[default(expr)]` props, and `#[key(..)]` on `view!` /
+  `children!` loops (the new `Keyed` element) so hook state follows reordered items.
+- **Router v2** (`router` feature): typed routes with `typed_route!` (fields checked against
+  the pattern at compile time), `Link::to`, `navigate_to`, `use_params` and
+  `Router::route_to`; typed search params with `#[derive(Search)]`, `use_search`,
+  `update_search` and `Link::search`; guards with `Router::guard` and `RouteControl`;
+  `use_blocker` to hold navigation away from unsaved work; loaders (`Router::loader`,
+  `loader_to`, `file_route! { loader }`) that run once per location and on
+  `Link::preload(true)` hover, with their fetches cancelled when the user navigates away;
+  per-window histories (`set_per_window_history`, `with_window`); `persist_location` (with `persist`) restores the location on the next
+  launch.
+- **File-based routes:** the new `rok-ui-build` crate generates a typed route tree from
+  `src/routes/` (TanStack Router's conventions: `$param`, `$` splats, `index`, flat
+  `a.b.rs` files, `_pathless` and `layout:` layouts, `(group)` folders, `-ignored` entries,
+  `__root.rs`, `__not_found.rs`), included with `rok_ui::routes!()`. Route files declare
+  `file_route! { params, search, component | layout, before_load }`.
+  `examples/file_routes` is a complete app.
+- `refetch_on_window_focus` for queries.
 - `FormOptions::persist_draft` (with `persist`): forms save their values while the user edits
   and start from the saved draft; a successful submit or `reset` deletes it.
 - `query::mutations(cx)` lists recent mutation runs (key, status, duration), and the devtools
@@ -39,10 +79,12 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
   composite keys, soft deletes, optimistic locking, validation and change feeds. Two rok-db
   changes can break app code: `Column` predicates need `M: Model`, and `find` takes
   `impl IntoKey`. rok-ui itself needed no changes.
+- `rok-ui-macros` builds on the new `rok-ui-grammar` crate, which holds the macro syntax
+  trees and code generation (no API change).
 
 ### Fixed
 
-- `SECURITY.md` lists 0.6 as the supported version and mentions the `db` feature's network
+- `SECURITY.md` lists 0.7 as the supported version and mentions the `db` feature's network
   access.
 
 ## [0.6.0] - 2026-10-03
@@ -52,55 +94,18 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - **Data layer** (`query` feature, opt-in; enabled by `db`): `rok_ui::query` with
   `QueryOptions`, hierarchical `query_key!` keys, `use_query` / `use_suspense_query`, one
   cache per app with shared in-flight fetches, stale and gc times, retries, placeholder and
-  previous data, refetch intervals, refetch on window focus, prefix `invalidate`, and `fetch_query`,
+  previous data, refetch intervals, prefix `invalidate`, and `fetch_query`,
   `ensure_query_data`, `prefetch_query`, `set_query_data`, `update_query_data`,
   `cancel_queries`, `reset_queries`.
 - **Mutations and procedures:** `use_mutation` with pending / success / error state,
   invalidation and optimistic updates that roll back on failure; `#[procedure]` typed commands
   with `use_procedure` and `.call(cx, input)`; `query::provide` and `TaskCx` for values that
   background work reads.
-- **Forms** (`form` feature, in the `forms` group and `full`): `rok_ui::form`, a headless
-  form library modeled on TanStack Form. `#[derive(FormValues)]` adds typed field constants;
-  `use_form` with `FormOptions`; field validators per event (`on_mount`, `on_change`,
-  `on_blur`, `on_submit`) with errors kept per event, debounced async validators,
-  `listen_to` for linked fields; form validators and schemas (`GardeSchema` behind
-  `form-garde`); nested paths and list fields whose operations keep each row's state; submit
-  with server errors mapped onto fields and focus on the first invalid field; bound
-  `TextField`, `BoundInput`, `CheckboxField`, `SwitchField`, `SubmitButton` and `FormErrors`.
-  `examples/sign_up.rs` puts it together.
 - **`Suspense` and `ErrorBoundary`**, and `#[memoize]` for async helpers whose concurrent
   callers share one future.
 - **`Cx`**: one context handle (window and app). `#[component]` functions can take
   `cx: &mut Cx` instead of `window` and `cx`.
 - **`rok_ui::runtime`**: one shared tokio runtime for every async feature.
-- **Stores:** `#[derive(Store)]` generates a store with one signal per field; the `persist`
-  feature saves stores as versioned JSON in the config directory (`persisted_store`,
-  `PersistOptions` with migrations).
-- **`cargo rok-ui`** (the new `rok-ui-cli` crate): `new` creates an app from the `minimal`,
-  `full` (file-based routes, features, queries, a test) or `db` template; `add` copies
-  components' source into the app with paths rewritten and lists crates the copies need;
-  `routes` writes a checked-in route tree. CI builds every template. Component helpers the
-  copies use are now `#[doc(hidden)] pub`.
-- **Devtools** (`devtools` feature): `Devtools`, an overlay toggled with Ctrl-Shift-D that
-  shows the router history and every cached query with its status and age;
-  `router::history_entries`.
-- **Components:** `#[default]` / `#[default(expr)]` props, and `#[key(..)]` on `view!` /
-  `children!` loops (the new `Keyed` element) so hook state follows reordered items.
-- **Router v2** (`router` feature): typed routes with `typed_route!` (fields checked against
-  the pattern at compile time), `Link::to`, `navigate_to`, `use_params` and
-  `Router::route_to`; typed search params with `#[derive(Search)]`, `use_search`,
-  `update_search` and `Link::search`; guards with `Router::guard` and `RouteControl`;
-  `use_blocker` to hold navigation away from unsaved work; loaders (`Router::loader`,
-  `loader_to`, `file_route! { loader }`) that run once per location and on
-  `Link::preload(true)` hover, with their fetches cancelled when the user navigates away; per-window histories (`set_per_window_history`,
-  `with_window`); `persist_location` (with `persist`) restores the location on the next
-  launch.
-- **File-based routes:** the new `rok-ui-build` crate generates a typed route tree from
-  `src/routes/` (TanStack Router's conventions: `$param`, `$` splats, `index`, flat
-  `a.b.rs` files, `_pathless` and `layout:` layouts, `(group)` folders, `-ignored` entries,
-  `__root.rs`, `__not_found.rs`), included with `rok_ui::routes!()`. Route files declare
-  `file_route! { params, search, component | layout, before_load }`.
-  `examples/file_routes` is a complete app.
 - `db::db_query` and `db::db_mutation` build query and mutation options on the app's
   connection; `db::invalidate` also invalidates matching queries.
 - `AGENTS.md` and `.agents/skills` for coding agents.
@@ -264,7 +269,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - Light and dark themes with the Rok and Neutral presets.
 - Keyboard focus navigation and text inputs with IME, selection and clipboard support.
 
-[Unreleased]: https://github.com/ateeq1999/rok-ui/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/ateeq1999/rok-ui/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/ateeq1999/rok-ui/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/ateeq1999/rok-ui/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/ateeq1999/rok-ui/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/ateeq1999/rok-ui/compare/v0.3.1...v0.4.0

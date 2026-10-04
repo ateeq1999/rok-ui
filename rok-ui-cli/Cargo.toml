@@ -19,5 +19,5 @@ name = "cargo-rok-ui"
 path = "src/main.rs"
 
 [dependencies]
-rok-ui-build = { version = "0.6.0", path = "../rok-ui-build" }
+rok-ui-build = { version = "0.7.0", path = "../rok-ui-build" }
 serde_json = "1"

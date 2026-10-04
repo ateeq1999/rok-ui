@@ -6,8 +6,8 @@ rok-ui is pre-1.0. Security fixes go into the latest release only.
 
 | Version | Supported |
 |---|---|
-| 0.6.x | Yes |
-| < 0.6 | No |
+| 0.7.x | Yes |
+| < 0.7 | No |
 
 ## Reporting a vulnerability
 
