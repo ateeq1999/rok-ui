@@ -1,0 +1,3 @@
+//! Data providers: databases, APIs and files. Only repositories use them.
+
+pub mod notes_memory_provider;

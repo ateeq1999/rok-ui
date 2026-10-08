@@ -11,7 +11,7 @@ Every rok-ui app, small or large, is built in three layers (the BLoC pattern, fr
 
 This module (feature `bloc`) has the pieces: [`Bloc`], [`Cubit`], [`Emitter`],
 [`BlocProvider`], [`RepositoryProvider`], [`BlocBuilder`], [`BlocListener`], [`BlocConsumer`],
-[`BlocSelector`], and the [`test`] helpers.
+[`BlocSelector`], and the [`test`](mod@test) helpers.
 
 ## A bloc
 

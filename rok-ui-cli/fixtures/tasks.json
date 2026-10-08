@@ -1,0 +1,41 @@
+{
+  "feature": "tasks",
+  "kind": "cubit",
+  "concurrency": "restartable",
+  "events": [
+    { "name": "TasksRequested" },
+    { "name": "TaskAdded", "fields": [{ "name": "title", "type": "String" }] },
+    {
+      "name": "TaskRenamed",
+      "fields": [
+        { "name": "id", "type": "TaskId" },
+        { "name": "title", "type": "String" }
+      ]
+    },
+    { "name": "TaskRemoved", "fields": [{ "name": "id", "type": "TaskId" }] },
+    {
+      "name": "FilterChanged",
+      "fields": [{ "name": "filter", "type": "String" }]
+    }
+  ],
+  "state": {
+    "style": "enum",
+    "status": ["initial", "loading", "success", "failure"],
+    "fields": [
+      { "name": "tasks", "type": "Vec<Task>" },
+      { "name": "filter", "type": "String", "default": "String::from(\"all\")" }
+    ]
+  },
+  "models": [
+    {
+      "name": "Task",
+      "fields": [
+        { "name": "id", "type": "TaskId" },
+        { "name": "title", "type": "String" },
+        { "name": "done", "type": "bool" }
+      ]
+    }
+  ],
+  "provider": { "name": "TasksFileProvider", "kind": "file" },
+  "view": { "form": { "event": "TaskAdded" } }
+}

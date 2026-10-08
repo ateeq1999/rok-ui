@@ -247,7 +247,9 @@ required-features = ["full"]
 
 [[example]]
 name = "notes"
-required-features = ["full", "router"]
+required-features = ["full", "router", "bloc"]
+# Its bloc tests run with `cargo test`.
+test = true
 
 [[example]]
 name = "sign_up"

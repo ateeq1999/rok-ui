@@ -1,4 +1,4 @@
-//! Test helpers: events in, states out (`bloc_test`).
+//! Test helpers: events (or cubit calls) in, states out, like `bloc_test`.
 //!
 //! ```
 //! use rok_ui_bloc::{test, Bloc, Emitter};
@@ -23,7 +23,7 @@
 
 use std::sync::{Arc, Mutex, PoisonError};
 
-use crate::{Bloc, BlocHandle, Observable};
+use crate::{Bloc, BlocHandle, Cubit, CubitHandle, Observable};
 
 fn runtime() -> tokio::runtime::Runtime {
     tokio::runtime::Builder::new_multi_thread()
@@ -64,6 +64,62 @@ pub fn run_settled<B: Bloc>(bloc: B, events: impl IntoIterator<Item = B::Event>)
         runtime.block_on(handle.idle());
     }
     handle.close();
+    take(&states)
+}
+
+/// Start `cubit`, call its methods in `act`, wait until the work they spawned finishes, and
+/// return the states it emitted (not the initial one). Runs on a runtime of its own.
+///
+/// ```
+/// use rok_ui_bloc::{test, Cubit, Emitter};
+///
+/// struct Counter(Emitter<u32>);
+///
+/// impl Counter {
+///     fn increment(&self) {
+///         let emit = self.0.clone();
+///         self.0.spawn(async move {
+///             emit.update(|count| *count += 1);
+///         });
+///     }
+/// }
+///
+/// impl Cubit for Counter {
+///     type State = u32;
+///
+///     fn emitter(&self) -> &Emitter<u32> {
+///         &self.0
+///     }
+/// }
+///
+/// let states = test::run_cubit(Counter(Emitter::new(0)), |counter| {
+///     counter.increment();
+///     counter.increment();
+/// });
+/// assert_eq!(states.last(), Some(&2));
+/// ```
+///
+/// # Panics
+///
+/// Panics if the test runtime cannot start.
+pub fn run_cubit<C: Cubit>(cubit: C, act: impl FnOnce(&C)) -> Vec<C::State> {
+    let runtime = runtime();
+    let handle = CubitHandle::start(cubit, runtime.handle());
+    let states: Recorded<C::State> = Arc::default();
+    let recorder = states.clone();
+    let subscription = handle.subscribe(move |state| {
+        recorder
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(state.clone());
+    });
+    {
+        let _context = runtime.enter();
+        act(&handle);
+    }
+    runtime.block_on(handle.emitter().idle());
+    handle.close();
+    drop(subscription);
     take(&states)
 }
 

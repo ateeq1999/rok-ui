@@ -44,5 +44,25 @@ mod emitter;
 pub mod test;
 
 pub use bloc::{Bloc, BlocHandle, Concurrency};
+
+/// A boxed, sendable future: what repository traits return, since `async fn` in a trait used
+/// as `dyn Trait` is not object-safe.
+///
+/// ```
+/// use rok_ui_bloc::BoxFuture;
+///
+/// trait Clock: Send + Sync {
+///     fn now(&self) -> BoxFuture<'_, u64>;
+/// }
+///
+/// struct Fixed;
+///
+/// impl Clock for Fixed {
+///     fn now(&self) -> BoxFuture<'_, u64> {
+///         Box::pin(async { 42 })
+///     }
+/// }
+/// ```
+pub type BoxFuture<'a, T> = std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>;
 pub use cubit::{Cubit, CubitHandle};
 pub use emitter::{Emitter, Observable, Subscription};

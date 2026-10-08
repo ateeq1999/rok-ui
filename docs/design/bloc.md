@@ -120,9 +120,8 @@ In a workspace app the bloc crates simply do not depend on `rok-ui`, only on `ro
   the bloc up by type: one widget type then serves blocs and cubits.
 - `BlocProvider::bloc(..)` and `BlocProvider::cubit(..)` instead of one overloaded `new`: Rust
   cannot tell the two traits apart in one blanket implementation.
-- Snapshot tests use a small in-repo helper instead of `insta`, and the JSON Schema is written
-  by the CLI's own types instead of `schemars`, to keep the dependency tree as it is (see
-  `docs/guide/cli.md`).
+- Snapshot tests use a small in-repo helper instead of `insta`. The JSON Schema is derived with
+  `schemars`, which GPUI already brings into the dependency tree.
 
 ## Open questions
 

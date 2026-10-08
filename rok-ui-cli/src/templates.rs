@@ -58,6 +58,29 @@ const DB_ONLY: &[TemplateFile] = &[
     ),
 ];
 
+const BLOC: &[TemplateFile] = &[
+    file!("Cargo.toml", "bloc/Cargo.toml.tmpl"),
+    file!("build.rs", "bloc/build.rs"),
+    file!("clippy.toml", "bloc/clippy.toml"),
+    file!("rok-ui.toml", "bloc/rok-ui.toml"),
+    file!("src/main.rs", "bloc/src/main.rs"),
+    file!("src/lib.rs", "bloc/src/lib.rs"),
+    file!("src/app.rs", "bloc/src/app.rs"),
+    file!("src/data.rs", "bloc/src/data.rs"),
+    file!("src/features.rs", "bloc/src/features.rs"),
+    file!("src/shared.rs", "bloc/src/shared.rs"),
+    file!("src/shared/widgets.rs", "bloc/src/shared/widgets.rs"),
+    file!("src/routes/__root.rs", "bloc/src/routes/__root.rs"),
+    file!(
+        "src/routes/__not_found.rs",
+        "bloc/src/routes/__not_found.rs"
+    ),
+    file!("src/routes/index.rs", "bloc/src/routes/index.rs"),
+];
+
+/// The feature the `bloc` template generates into a new app.
+pub const BLOC_FEATURE: &str = include_str!("../fixtures/notes.json");
+
 /// A project template.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Template {
@@ -67,6 +90,9 @@ pub enum Template {
     Full,
     /// `Full` with `PostgreSQL` through rok-db.
     Db,
+    /// The BLoC architecture: data, features (bloc + view) and thin routes, with a generated
+    /// `notes` feature.
+    Bloc,
 }
 
 impl Template {
@@ -76,6 +102,7 @@ impl Template {
             "minimal" => Some(Self::Minimal),
             "full" => Some(Self::Full),
             "db" => Some(Self::Db),
+            "bloc" => Some(Self::Bloc),
             _ => None,
         }
     }
@@ -86,6 +113,7 @@ impl Template {
             Self::Minimal => &[],
             Self::Full => &["router", "query"],
             Self::Db => &["router", "query", "db"],
+            Self::Bloc => &["router", "bloc", "form", "typography", "empty"],
         }
     }
 
@@ -100,6 +128,7 @@ impl Template {
             Self::Minimal => MINIMAL.iter().collect(),
             Self::Full => FULL_SHARED.iter().chain(FULL_ONLY).collect(),
             Self::Db => FULL_SHARED.iter().chain(DB_ONLY).collect(),
+            Self::Bloc => BLOC.iter().collect(),
         }
     }
 }
