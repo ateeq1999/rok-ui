@@ -159,6 +159,18 @@ The plan left these open. The work so far assumed the following; each can still 
 | K.8 rok-db helpers | rok-db stays one data source (`db_query`, `db_mutation`, `watch_changes`). |
 | K.9 Formatting | Stable rustfmt. |
 
+## Part L: BLoC architecture
+
+The standard for building apps on rok-ui: data, business logic and presentation layers, a
+fixed folder structure, and a generator. Design: `docs/design/bloc.md`.
+
+| Item | Status | Notes |
+|---|---|---|
+| L.1 Primitives | Done | `rok-ui-bloc` crate (GPUI-free): `Bloc`, `Cubit`, `Emitter`, `BlocHandle`, `CubitHandle`, `Concurrency` (sequential, droppable, restartable, concurrent), `test::run`. `rok_ui::bloc` (feature `bloc`): `BlocProvider` / `MultiBlocProvider`, `RepositoryProvider` / `MultiRepositoryProvider`, `BlocBuilder` (`build_when`), `BlocListener` (`listen_when`), `BlocConsumer`, `BlocSelector`, `cx.bloc` / `cx.watch_bloc` / `cx.cubit` / `cx.repository`. |
+| L.2 Standard and template | Not started | |
+| L.3 Generator CLI | Not started | |
+| L.4 Agent skill and docs | Not started | |
+
 ## Still open
 
 - The workspace split (F.2, decision K.2) and remote procedures (C.4, decision K.6).

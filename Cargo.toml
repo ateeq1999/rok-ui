@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "macros", "rok-ui-grammar", "rok-ui-build", "rok-ui-cli", "examples/file_routes"]
+members = [".", "macros", "rok-ui-grammar", "rok-ui-build", "rok-ui-bloc", "rok-ui-cli", "examples/file_routes"]
 resolver = "2"
 
 [workspace.lints.rust]
@@ -66,6 +66,7 @@ ttf-parser = "0.25"
 jiff = { version = "0.2", optional = true }
 rok-ui-hooks = { version = "0.3", optional = true }
 rok-db = { version = "0.3", optional = true }
+rok-ui-bloc = { version = "0.7.1", path = "rok-ui-bloc", optional = true }
 tokio = { version = "1", features = ["rt-multi-thread", "time"], optional = true }
 futures = { version = "0.3", optional = true }
 garde = { version = "0.23", optional = true }
@@ -120,6 +121,8 @@ font-noto-sans-arabic = []
 # App infrastructure.
 # Reactive state from rok-ui-hooks (signals, memos, effects, stores), wired into GPUI.
 state = ["dep:rok-ui-hooks"]
+# The BLoC architecture (`rok_ui::bloc`): blocs, cubits, providers, builders and listeners.
+bloc = ["runtime", "dep:rok-ui-bloc", "dep:futures"]
 # Queries, mutations, procedures, Suspense (`rok_ui::query`), on the shared runtime.
 query = ["runtime", "dep:futures"]
 # Headless, type-safe forms (`rok_ui::form`) with bound fields. Part of the `forms` group.
@@ -269,6 +272,10 @@ required-features = ["full"]
 [[test]]
 name = "query"
 required-features = ["full", "query"]
+
+[[test]]
+name = "bloc"
+required-features = ["bloc"]
 
 [[test]]
 name = "router"

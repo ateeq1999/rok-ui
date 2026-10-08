@@ -1,2 +1,2 @@
 # Names that are not code, for `doc_markdown`. ".." keeps clippy's defaults.
-doc-valid-idents = ["TanStack", "StyleX", "..", ]
+doc-valid-idents = ["TanStack", "StyleX", "BLoC", "..", ]

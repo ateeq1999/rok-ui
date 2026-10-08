@@ -38,6 +38,8 @@
 extern crate self as rok_ui;
 
 pub mod bidi;
+#[cfg(feature = "bloc")]
+pub mod bloc;
 pub mod components;
 pub mod cx;
 #[cfg(feature = "db")]

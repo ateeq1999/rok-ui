@@ -4947,6 +4947,7 @@ dependencies = [
  "gpui",
  "jiff",
  "rok-db",
+ "rok-ui-bloc",
  "rok-ui-build",
  "rok-ui-hooks",
  "rok-ui-macros",
@@ -4958,6 +4959,14 @@ dependencies = [
  "unicode-bidi",
  "unicode-segmentation",
  "windows 0.62.2",
+]
+
+[[package]]
+name = "rok-ui-bloc"
+version = "0.7.1"
+dependencies = [
+ "tokio",
+ "trybuild",
 ]
 
 [[package]]
