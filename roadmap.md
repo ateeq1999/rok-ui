@@ -171,6 +171,20 @@ fixed folder structure, and a generator. Design: `docs/design/bloc.md`.
 | L.3 Generator CLI | Done | `cargo rok-ui generate` (`g`): `feature`, `bloc`, `cubit`, `repository`, `provider`, `view`, `schema`; flags over `-j` JSON (inline, `@file`, `-`) over defaults; JSON errors name the path; names normalized and keywords rejected; types parsed with syn; rustfmt output; sorted barrels and `app.rs` / `__root.rs` marker wiring, idempotent; conflicts exit 2 and write nothing; `--dry-run`, `--force`, `--no-wire`. Snapshot, idempotency and conflict tests; CI builds the template plus a JSON and a flags-only feature under clippy pedantic. |
 | L.4 Agent skill and docs | Not started | |
 
+## Part M: HTTP
+
+A JSON API client for the data layer, its errors on forms, and the generator and template
+that use it. Design: `docs/design/http.md`.
+
+| Item | Status | Notes |
+|---|---|---|
+| M.1 Client | Done | `rok_ui::http` (feature `http`): `HttpClient` (builder: base URL or `ROK_API_URL`, default headers, timeout, session; `api_url`, `request::<T>`, `request_empty`, `request_bytes`), `Options` (method, JSON or raw body, headers that override, query values that skip `None` and `""`, `skip_expire`, `cancel`), `ApiError` (`status`, `code`, `message`, `details`) from the `{"error": ..}` envelope with fallbacks, `CancelToken`, `Session` (bearer token; a 401 expires it only for a non-skipping request that sent the session's current token; `Observable`, so views watch it like a bloc). reqwest 0.12 with rustls and ring (already built by GPUI). Mock-server tests. |
+| M.2 Forms bridge | Done | `form::to_server_errors` (422 details through a field map, 409 / 400 / 401 to chosen fields, 429 message, other statuses and network errors to the form, cancellations nowhere, non-API errors to a generic message), `Form::apply_server_errors`, `use_api_form` (`form_error`, `form_error_status`, `clear_form_error`, `on_success` only after a success). Fixed: a form-level server error no longer blocks the next submit. |
+| M.3 Generator | Not started | `g api`, endpoints, DTOs, mapped repositories, forms with server errors. |
+| M.4 Template | Not started | `new --template bloc --http`: `Session` and `HttpClient` in `main`, expiry guard. |
+| M.5 Token storage | Partial | In memory, or `Session::persisted(path)` (a plain JSON file; the tradeoff is documented). OS keychain storage: not started. |
+| M.6 Helpers | Not started | `copy_to_clipboard`, `save_bytes`, `describe_user_agent`; multipart uploads. |
+
 ## Still open
 
 - The workspace split (F.2, decision K.2) and remote procedures (C.4, decision K.6).

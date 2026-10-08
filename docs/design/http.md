@@ -1,7 +1,7 @@
 # Design: `rok_ui::http`
 
 Status: implemented (Part M of `roadmap.md`). This note records the decisions and where they
-differ from the request in `http-implementation-prompt.md`.
+differ from the request.
 
 ## Runtime
 
@@ -34,25 +34,25 @@ A cancelled request never reaches the session-expiry check.
 The request asked for a `#[derive(Store)]` store. Stores are rok-ui signals: single-threaded
 (`Rc`) and meant for the UI thread. Requests run on tokio worker threads and must read the
 token and call `expire()` there, so `Session` is `Send + Sync` (a mutex around the token and
-an expiry flag) and notifies subscribers on change. The UI side has `session.watch(cx)`
-(re-render windows when it changes) and `session.is_expired()` for guards; a root
-`BlocListener`-style hook is not needed.
+an expiry flag) and notifies subscribers on change. `Session` implements the bloc
+`Observable` trait, so views watch it with `BlocBuilder` / `BlocListener` like any bloc, and
+guards read `session.is_expired()`.
 
 Expiry rule, as in the reference client: a `401` expires the session only when the call did
 not pass `skip_expire`, a token was sent, and the session still holds that same token.
 
 ## Token storage
 
-In memory by default. `Session::persisted(PersistOptions)` (features `http` + `persist`) writes
-the token to a JSON file in the app's config directory: anyone who can read the user's files
-can read the token. There is no keychain dependency in the tree today; OS keychain storage is
+In memory by default. `Session::persisted(path)` writes the token to a JSON file (put it in
+the app's config directory, `rok_ui::persist::config_dir()`): anyone who can read the user's
+files can read the token. There is no keychain dependency in the tree today; OS keychain storage is
 listed in the roadmap as not started.
 
 ## Dependencies
 
 | Crate | Why | Features |
 |---|---|---|
-| `reqwest` 0.12 | The transport the request names | `default-features = false`, `json`, `rustls-tls-native-roots` (rustls, the OS trust store; no OpenSSL) |
+| `reqwest` 0.12 | The transport the request names. 0.13 defaults to aws-lc (a C build); 0.12 uses ring, which GPUI's own reqwest fork already builds | `default-features = false`, `json`, `rustls-tls-native-roots` (rustls, the OS trust store; no OpenSSL) |
 | `bytes` | `request_bytes` returns `Bytes` (already in the tree through reqwest and GPUI) | default |
 | `serde`, `serde_json` | DTOs and the error envelope (already optional dependencies) | |
 

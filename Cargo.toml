@@ -72,6 +72,9 @@ futures = { version = "0.3", optional = true }
 garde = { version = "0.23", optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
+# `http`: rustls with the ring provider and the OS trust store, as GPUI already builds them.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-native-roots"], optional = true }
+bytes = { version = "1", optional = true }
 
 # Reads which Arabic letter forms installed fonts have (the same crate GPUI uses).
 [target.'cfg(windows)'.dependencies]
@@ -123,6 +126,8 @@ font-noto-sans-arabic = []
 state = ["dep:rok-ui-hooks"]
 # The BLoC architecture (`rok_ui::bloc`): blocs, cubits, providers, builders and listeners.
 bloc = ["runtime", "dep:rok-ui-bloc", "dep:futures"]
+# A JSON API client (`rok_ui::http`): `HttpClient`, `ApiError`, `Session`, on the shared runtime.
+http = ["runtime", "dep:reqwest", "dep:bytes", "dep:serde", "dep:serde_json", "dep:futures", "dep:rok-ui-bloc"]
 # Queries, mutations, procedures, Suspense (`rok_ui::query`), on the shared runtime.
 query = ["runtime", "dep:futures"]
 # Headless, type-safe forms (`rok_ui::form`) with bound fields. Part of the `forms` group.
@@ -280,6 +285,14 @@ name = "bloc"
 required-features = ["bloc"]
 
 [[test]]
+name = "http"
+required-features = ["http"]
+
+[[test]]
+name = "http_form"
+required-features = ["full", "http"]
+
+[[test]]
 name = "router"
 required-features = ["full", "router", "query"]
 
@@ -305,3 +318,8 @@ trybuild = "1"
 # The router guide's build-script example.
 rok-ui-build = { path = "rok-ui-build" }
 garde = { version = "0.23", features = ["derive"] }
+# The HTTP tests' mock server, and a caller that is not on a tokio runtime.
+tokio = { version = "1", features = ["net", "io-util", "time", "rt-multi-thread"] }
+futures = { version = "0.3", features = ["executor"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

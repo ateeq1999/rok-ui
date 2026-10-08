@@ -50,6 +50,8 @@ pub mod fonts;
 #[cfg(feature = "form")]
 pub mod form;
 pub mod hooks;
+#[cfg(feature = "http")]
+pub mod http;
 pub mod icon;
 pub mod keyed;
 pub mod motion;
