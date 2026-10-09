@@ -283,6 +283,10 @@ name = "query"
 required-features = ["full", "query"]
 
 [[test]]
+name = "context"
+required-features = ["full"]
+
+[[test]]
 name = "bloc"
 required-features = ["bloc"]
 

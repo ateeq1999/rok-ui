@@ -73,6 +73,82 @@ impl<'a> Cx<'a> {
     pub fn refresh(&mut self) {
         self.window.refresh();
     }
+
+    /// The nearest `T` provided above this component with
+    /// [`Provide`](crate::context::Provide), or `None`.
+    #[must_use]
+    pub fn context<T: Clone + 'static>(&self) -> Option<T> {
+        crate::context::context::<T>()
+    }
+
+    /// The nearest `T` provided above this component.
+    ///
+    /// # Panics
+    ///
+    /// Panics, naming the type, when no `Provide` above provides a `T`.
+    #[must_use]
+    pub fn expect_context<T: Clone + 'static>(&self) -> T {
+        self.context::<T>().unwrap_or_else(|| {
+            panic!(
+                "no `{}` is provided here; wrap this part of the tree in \
+                 `Provide::new().value(..)`",
+                std::any::type_name::<T>()
+            )
+        })
+    }
+
+    /// State with a stable identity of your choosing, for rows in a list: the same key keeps
+    /// the same state when rows move, are inserted or are removed.
+    ///
+    /// ```no_run
+    /// use rok_ui::prelude::*;
+    ///
+    /// #[component]
+    /// fn Rows(ids: Vec<u64>, cx: &mut Cx) -> impl IntoElement {
+    ///     let rows: Vec<AnyElement> = ids
+    ///         .into_iter()
+    ///         .map(|id| {
+    ///             let expanded = cx.keyed(("row", id as usize)).use_state(|| false);
+    ///             div().child(format!("{id}: {}", expanded.get(cx))).into_any_element()
+    ///         })
+    ///         .collect();
+    ///     div().children(rows)
+    /// }
+    /// ```
+    pub fn keyed(&mut self, key: impl Into<ElementId>) -> KeyedCx<'_, 'a> {
+        KeyedCx {
+            cx: self,
+            key: key.into(),
+        }
+    }
+}
+
+/// A [`Cx`] with a key, from [`Cx::keyed`].
+pub struct KeyedCx<'c, 'a> {
+    cx: &'c mut Cx<'a>,
+    key: ElementId,
+}
+
+impl KeyedCx<'_, '_> {
+    /// State for this key, created on the first render with it.
+    pub fn use_state<T: 'static>(self, initial_value: impl FnOnce() -> T) -> State<T> {
+        use_keyed_state(self.key, self.cx.window, self.cx.app, initial_value)
+    }
+
+    /// The key.
+    #[must_use]
+    pub fn key(&self) -> &ElementId {
+        &self.key
+    }
+}
+
+impl std::fmt::Debug for KeyedCx<'_, '_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("KeyedCx")
+            .field("key", &self.key)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Deref for Cx<'_> {
