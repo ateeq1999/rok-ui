@@ -41,7 +41,7 @@ use crate::{Emitter, Observable};
 /// ```
 pub trait Cubit: Send + Sync + 'static {
     /// What the view shows: an immutable value.
-    type State: Clone + PartialEq + Send + Sync + 'static;
+    type State: Clone + PartialEq + std::fmt::Debug + Send + Sync + 'static;
 
     /// The cubit's emitter, created in its constructor with the initial state.
     fn emitter(&self) -> &Emitter<Self::State>;
@@ -77,6 +77,7 @@ impl<C: Cubit> CubitHandle<C> {
     #[must_use]
     pub fn start(cubit: C, runtime: &Handle) -> Self {
         cubit.emitter().attach(runtime.clone());
+        cubit.emitter().observe(std::any::type_name::<C>());
         Self {
             cubit: Arc::new(cubit),
             _not_send: PhantomData,

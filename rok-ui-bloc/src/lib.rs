@@ -11,6 +11,7 @@
 //! #[derive(Clone, Debug, PartialEq)]
 //! struct Count(u32);
 //!
+//! #[derive(Debug)]
 //! enum CounterEvent {
 //!     Incremented,
 //! }
@@ -41,6 +42,7 @@
 mod bloc;
 mod cubit;
 mod emitter;
+mod observer;
 pub mod test;
 
 pub use bloc::{Bloc, BlocHandle, Concurrency};
@@ -66,3 +68,4 @@ pub use bloc::{Bloc, BlocHandle, Concurrency};
 pub type BoxFuture<'a, T> = std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>;
 pub use cubit::{Cubit, CubitHandle};
 pub use emitter::{Emitter, Observable, Subscription};
+pub use observer::{clear_observer, set_observer, BlocObserver, LogObserver};

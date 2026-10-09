@@ -157,6 +157,7 @@ pub trait NotesRepository: Send + Sync {
 }
 
 /// What happened (past tense).
+#[derive(Debug)]
 pub enum NotesEvent {
     NotesRequested,
 }
@@ -222,12 +223,12 @@ the same instances. Views read a bloc with `cx.bloc::<B>()` and re-render throug
 ```rust,no_run
 # use std::sync::Arc;
 # use rok_ui::{prelude::*, bloc::{Bloc, BlocBuilder, BlocProvider, BoxFuture, Emitter, RepositoryProvider}};
-# #[derive(Clone, PartialEq)] pub struct Note { pub title: String }
+# #[derive(Clone, Debug, PartialEq)] pub struct Note { pub title: String }
 # pub trait NotesRepository: Send + Sync { fn list(&self) -> BoxFuture<'_, Vec<Note>>; }
 # struct Fixed;
 # impl NotesRepository for Fixed { fn list(&self) -> BoxFuture<'_, Vec<Note>> { Box::pin(async { Vec::new() }) } }
-# pub enum NotesEvent { NotesRequested }
-# #[derive(Clone, PartialEq)] pub enum NotesState { Initial, Loaded(Vec<Note>) }
+# #[derive(Debug)] pub enum NotesEvent { NotesRequested }
+# #[derive(Clone, Debug, PartialEq)] pub enum NotesState { Initial, Loaded(Vec<Note>) }
 # pub struct NotesBloc { repository: Arc<dyn NotesRepository> }
 # impl Bloc for NotesBloc {
 #     type Event = NotesEvent; type State = NotesState;

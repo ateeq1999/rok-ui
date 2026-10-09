@@ -2,15 +2,17 @@
 
 use std::{
     collections::HashMap,
+    fmt::Debug,
     future::Future,
     marker::PhantomData,
     mem::Discriminant,
     sync::{Arc, Mutex, PoisonError},
+    time::{Duration, Instant},
 };
 
 use tokio::{runtime::Handle, sync::mpsc};
 
-use crate::{Emitter, Observable};
+use crate::{observer, Emitter, Observable};
 
 /// How a bloc handles an event that arrives while others run (`bloc_concurrency`'s
 /// transformers). Picked per event by [`Bloc::concurrency`].
@@ -27,6 +29,26 @@ pub enum Concurrency {
     Restartable,
     /// Handle it at once, alongside anything else.
     Concurrent,
+    /// Wait this long after the last event of the same variant, then handle it; a newer event
+    /// cancels the waiting (or running) one (search as you type, without a call per key).
+    Debounce(Duration),
+    /// Handle the event, then ignore events of the same variant until this long has passed
+    /// since it started (a save button, a scroll handler).
+    Throttle(Duration),
+}
+
+impl Concurrency {
+    /// [`Concurrency::Debounce`] for `delay`.
+    #[must_use]
+    pub const fn debounce(delay: Duration) -> Self {
+        Self::Debounce(delay)
+    }
+
+    /// [`Concurrency::Throttle`] for `window`.
+    #[must_use]
+    pub const fn throttle(window: Duration) -> Self {
+        Self::Throttle(window)
+    }
 }
 
 /// Business logic that turns events into states (the BLoC pattern).
@@ -44,6 +66,7 @@ pub enum Concurrency {
 ///     results: Vec<String>,
 /// }
 ///
+/// #[derive(Debug)]
 /// enum SearchEvent {
 ///     QueryChanged(String),
 /// }
@@ -73,10 +96,11 @@ pub enum Concurrency {
 /// # assert_eq!(states[0].results, ["rust (result)"]);
 /// ```
 pub trait Bloc: Send + Sync + 'static {
-    /// What happened (past tense: `NoteAdded`).
-    type Event: Send + 'static;
+    /// What happened (past tense: `NoteAdded`). `Debug`, so a [`BlocObserver`](crate::BlocObserver)
+    /// can log it.
+    type Event: Debug + Send + 'static;
     /// What the view shows: an immutable value.
-    type State: Clone + PartialEq + Send + Sync + 'static;
+    type State: Clone + PartialEq + Debug + Send + Sync + 'static;
 
     /// The state before any event.
     fn initial_state(&self) -> Self::State;
@@ -99,8 +123,11 @@ struct Core<B: Bloc> {
     bloc: Arc<B>,
     emitter: Emitter<B::State>,
     queue: mpsc::UnboundedSender<B::Event>,
-    /// The running task per event variant, for `Droppable` and `Restartable`.
+    /// The running task per event variant, for `Droppable`, `Restartable` and `Debounce`.
     running: Mutex<HashMap<Discriminant<B::Event>, u64>>,
+    /// When each variant last started, for `Throttle`.
+    started: Mutex<HashMap<Discriminant<B::Event>, Instant>>,
+    name: &'static str,
 }
 
 /// A running bloc: add events, read the state, close it. Cheap to clone; views get one from
@@ -132,11 +159,14 @@ impl<B: Bloc> std::fmt::Debug for BlocHandle<B> {
 }
 
 impl<B: Bloc> BlocHandle<B> {
-    /// Start `bloc` with its handlers running on `runtime`.
+    /// Start `bloc` with its handlers running on `runtime` (a runtime with time enabled, for
+    /// `Debounce`).
     #[must_use]
     pub fn start(bloc: B, runtime: &Handle) -> Self {
+        let name = std::any::type_name::<B>();
         let emitter = Emitter::new(bloc.initial_state());
         emitter.attach(runtime.clone());
+        emitter.observe(name);
         let bloc = Arc::new(bloc);
         let (queue, mut events) = mpsc::unbounded_channel::<B::Event>();
         // The sequential queue: one worker, events in arrival order.
@@ -144,7 +174,8 @@ impl<B: Bloc> BlocHandle<B> {
             let (bloc, worker_emitter) = (bloc.clone(), emitter.clone());
             emitter.spawn_task(async move {
                 while let Some(event) = events.recv().await {
-                    bloc.on(event, &worker_emitter).await;
+                    // A panicking handler is reported, and the queue keeps going.
+                    observer::guarded(name, bloc.on(event, &worker_emitter)).await;
                     worker_emitter.end();
                 }
             });
@@ -157,6 +188,8 @@ impl<B: Bloc> BlocHandle<B> {
                 emitter,
                 queue,
                 running: Mutex::new(HashMap::new()),
+                started: Mutex::new(HashMap::new()),
+                name,
             }),
             _not_send: PhantomData,
         }
@@ -167,6 +200,9 @@ impl<B: Bloc> BlocHandle<B> {
         let core = &self.core;
         if core.emitter.is_closed() {
             return;
+        }
+        if let Some(observer) = observer::current() {
+            observer.on_event(core.name, &event);
         }
         let variant = std::mem::discriminant(&event);
         match core.bloc.concurrency(&event) {
@@ -199,13 +235,44 @@ impl<B: Bloc> BlocHandle<B> {
                     running.insert(variant, id);
                 }
             }
+            Concurrency::Debounce(delay) => {
+                let mut running = core.running.lock().unwrap_or_else(PoisonError::into_inner);
+                if let Some(previous) = running.remove(&variant) {
+                    core.emitter.abort(previous);
+                }
+                if let Some(id) = self.spawn_after(delay, event) {
+                    running.insert(variant, id);
+                }
+            }
+            Concurrency::Throttle(window) => {
+                let mut started = core.started.lock().unwrap_or_else(PoisonError::into_inner);
+                let now = Instant::now();
+                let recent = started
+                    .get(&variant)
+                    .is_some_and(|last| now.duration_since(*last) < window);
+                if !recent {
+                    started.insert(variant, now);
+                    self.spawn(event);
+                }
+            }
         }
     }
 
     fn spawn(&self, event: B::Event) -> Option<u64> {
-        let (bloc, emitter) = (self.core.bloc.clone(), self.core.emitter.clone());
+        self.spawn_after(Duration::ZERO, event)
+    }
+
+    fn spawn_after(&self, delay: Duration, event: B::Event) -> Option<u64> {
+        let (bloc, emitter, name) = (
+            self.core.bloc.clone(),
+            self.core.emitter.clone(),
+            self.core.name,
+        );
         self.core.emitter.spawn_task(async move {
-            bloc.on(event, &emitter).await;
+            if !delay.is_zero() {
+                tokio::time::sleep(delay).await;
+            }
+            observer::guarded(name, bloc.on(event, &emitter)).await;
         })
     }
 

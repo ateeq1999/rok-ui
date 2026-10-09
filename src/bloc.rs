@@ -634,7 +634,7 @@ impl<O: Observable> RenderOnce for BlocBuilder<O> {
 ///
 /// ```no_run
 /// # use rok_ui::{prelude::*, bloc::{Bloc, BlocSelector, Emitter}};
-/// # #[derive(Clone, PartialEq)] struct NotesState { notes: Vec<String> }
+/// # #[derive(Clone, Debug, PartialEq)] struct NotesState { notes: Vec<String> }
 /// # struct NotesBloc;
 /// # impl Bloc for NotesBloc {
 /// #     type Event = ();
@@ -701,7 +701,7 @@ struct Listening<S> {
 ///
 /// ```no_run
 /// # use rok_ui::{prelude::*, bloc::{Bloc, BlocListener, Emitter}};
-/// # #[derive(Clone, PartialEq)] enum AuthState { SignedIn, SignedOut }
+/// # #[derive(Clone, Debug, PartialEq)] enum AuthState { SignedIn, SignedOut }
 /// # struct AuthBloc;
 /// # impl Bloc for AuthBloc {
 /// #     type Event = ();
@@ -709,7 +709,7 @@ struct Listening<S> {
 /// #     fn initial_state(&self) -> AuthState { AuthState::SignedOut }
 /// #     async fn on(&self, _: (), _: &Emitter<AuthState>) {}
 /// # }
-/// # enum CartEvent { CartCleared }
+/// # #[derive(Debug)] enum CartEvent { CartCleared }
 /// # struct CartBloc;
 /// # impl Bloc for CartBloc {
 /// #     type Event = CartEvent;
@@ -831,7 +831,7 @@ impl<O: Observable> RenderOnce for BlocListener<O> {
 ///
 /// ```no_run
 /// # use rok_ui::{prelude::*, bloc::{Bloc, BlocConsumer, Emitter}};
-/// # #[derive(Clone, PartialEq)] enum SaveState { Idle, Saved }
+/// # #[derive(Clone, Debug, PartialEq)] enum SaveState { Idle, Saved }
 /// # struct SaveBloc;
 /// # impl Bloc for SaveBloc {
 /// #     type Event = ();

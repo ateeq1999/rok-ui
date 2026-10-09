@@ -12,7 +12,7 @@ struct Log {
     mode: Concurrency,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Step {
     label: &'static str,
     delay_ms: u64,
@@ -45,6 +45,33 @@ fn steps(steps: &[(&'static str, u64)]) -> Vec<Step> {
 
 fn last(states: &[Vec<&'static str>]) -> Vec<&'static str> {
     states.last().cloned().unwrap_or_default()
+}
+
+#[test]
+fn debounced_events_run_once_after_the_last() {
+    let mode = Concurrency::debounce(Duration::from_millis(40));
+    let states = test::run(Log { mode }, steps(&[("a", 1), ("ab", 1), ("abc", 1)]));
+    assert_eq!(states, [vec!["abc"]], "only the last event is handled");
+    // Events further apart than the delay each run.
+    let settled = test::run_settled(Log { mode }, steps(&[("a", 1), ("b", 1)]));
+    assert_eq!(last(&settled), ["a", "b"]);
+}
+
+#[test]
+fn throttled_events_are_dropped_inside_the_window() {
+    let mode = Concurrency::throttle(Duration::from_secs(5));
+    let states = test::run_settled(
+        Log { mode },
+        steps(&[("first", 1), ("second", 1), ("third", 1)]),
+    );
+    assert_eq!(last(&states), ["first"]);
+    let mode = Concurrency::throttle(Duration::ZERO);
+    let states = test::run_settled(Log { mode }, steps(&[("first", 1), ("second", 1)]));
+    assert_eq!(
+        last(&states),
+        ["first", "second"],
+        "an elapsed window lets events through"
+    );
 }
 
 #[test]

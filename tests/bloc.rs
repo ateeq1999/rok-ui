@@ -32,6 +32,7 @@ impl StepRepository for FixedStep {
     }
 }
 
+#[derive(Debug)]
 enum CounterEvent {
     Incremented,
     Set(u32),
@@ -71,6 +72,7 @@ impl Bloc for CounterBloc {
     }
 }
 
+#[derive(Debug)]
 enum LogEvent {
     Logged(&'static str),
 }
