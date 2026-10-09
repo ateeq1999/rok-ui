@@ -9,6 +9,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-09
+
 ### Added
 
 - The BLoC architecture as the standard way to build apps (`docs/guide/architecture.md`):
@@ -22,6 +24,13 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - `cargo rok-ui generate` (`g`): features, blocs, cubits, repositories, providers, views and
   HTTP APIs from flags or JSON, wired into barrels and `app.rs`; `g schema`.
 - `cargo rok-ui new --template bloc [--http]`.
+- New crate `rok-ui-bloc` (published with this release; `rok-ui` depends on it through the
+  `bloc` and `http` features).
+
+### Dependencies
+
+- `http` adds reqwest 0.12 (rustls with ring and the OS trust store, which GPUI already
+  builds) and `bytes`.
 
 ### Fixed
 
@@ -303,7 +312,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - Light and dark themes with the Rok and Neutral presets.
 - Keyboard focus navigation and text inputs with IME, selection and clipboard support.
 
-[Unreleased]: https://github.com/ateeq1999/rok-ui/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/ateeq1999/rok-ui/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/ateeq1999/rok-ui/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/ateeq1999/rok-ui/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/ateeq1999/rok-ui/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/ateeq1999/rok-ui/compare/v0.5.0...v0.6.0

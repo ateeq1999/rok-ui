@@ -4,7 +4,7 @@ The `router` feature adds client-side routing to rok-ui apps: paths mapped to pa
 parameters, query strings, redirects, back and forward history, and links. It is opt-in:
 
 ```toml
-rok-ui = { version = "0.7", features = ["router"] }
+rok-ui = { version = "0.8", features = ["router"] }
 ```
 
 `rok_ui::init` registers the router's key bindings: Alt+Left goes back and Alt+Right goes
