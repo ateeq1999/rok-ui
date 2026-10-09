@@ -19,7 +19,7 @@ name = "cargo-rok-ui"
 path = "src/main.rs"
 
 [dependencies]
-rok-ui-build = { version = "0.8.0", path = "../rok-ui-build" }
+rok-ui-build = { version = "0.8.1", path = "../rok-ui-build" }
 # The `generate` JSON payload: parsed with serde, described with schemars (already in the
 # dependency tree through GPUI), types validated with syn.
 schemars = "1"
