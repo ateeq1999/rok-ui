@@ -6,8 +6,8 @@ and stores with a React-flavoured API. It is re-exported as `rok_ui::state::sign
 `rok_ui::state` adds the glue that makes GPUI re-render when the values your UI reads change.
 
 ```toml
-rok-ui = "0.7"                                                    # `full` includes `state`
-rok-ui = { version = "0.7", default-features = false, features = ["state", "button"] }
+rok-ui = "0.8"                                                    # `full` includes `state`
+rok-ui = { version = "0.8", default-features = false, features = ["state", "button"] }
 ```
 
 ## Which state tool to use
