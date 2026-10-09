@@ -1,2 +1,7 @@
 # Keep shell scripts runnable when checked out on Windows.
 *.sh text eol=lf
+# The generator's snapshots, templates and fixtures are compared byte for byte (and the
+# templates are compiled in): keep them LF on every platform.
+rok-ui-cli/tests/snapshots/** text eol=lf
+rok-ui-cli/templates/** text eol=lf
+rok-ui-cli/fixtures/** text eol=lf

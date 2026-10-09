@@ -7,7 +7,6 @@
 [workspace]
 changelog_update = true
 git_release_enable = true
-git_tag_enable = true
 # Keep the hand-written CHANGELOG.md format; release-plz adds a section per release.
 changelog_config = "cliff.toml"
 # cargo-semver-checks builds the previous release's rustdoc with every feature, which fails on
