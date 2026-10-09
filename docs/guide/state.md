@@ -19,6 +19,11 @@ rok-ui has three ways to hold state. They work together.
 | A value local to one component, like React's `useState` | `rok_ui::hooks::use_state` | The component's window |
 | A value shared across views, windows or background tasks | A signal or `Store` from `rok_ui::state` | Views that `track` it, or windows that `use_tracked` it |
 | A whole screen with methods and lifecycle | A GPUI view (`Entity<T>` with `cx.notify()`) | That view |
+| A value every component in a subtree can read (the current account, a theme variant) | `rok_ui::context::Provide` and `cx.context::<T>()` | Whatever reads it, when the provider re-renders |
+| Business logic with events and states | A bloc (`rok_ui::bloc`, see the architecture guide) | `BlocBuilder`s of that bloc |
+
+For per-row state in a list, `cx.keyed(("row", id)).use_state(..)` keeps each row's state
+with its id when rows move.
 
 Signals win when the same data is read in many places: a cart, the signed-in user, settings,
 a document being edited. Every reader updates when it changes, and nobody has to pass

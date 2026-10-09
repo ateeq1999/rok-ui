@@ -20,8 +20,10 @@ generator is documented in `docs/guide/cli.md`; decisions are in `docs/design/bl
    barrel files, no `mod.rs`.
 3. Business logic goes in the bloc's `on` handler (async, on the shared runtime). Views read
    with `cx.bloc::<B>()` and render with `BlocBuilder`; side effects use `BlocListener`.
-4. Test each event with `rok_ui::bloc::test::run` (`run_cubit` for cubits) and a fake
-   repository in `tests/features/<feature>/`.
+4. Test each event with `bloc_test!` or `rok_ui::bloc::test::run` (`run_cubit` for cubits)
+   and a fake repository in `tests/features/<feature>/`. Events and states derive `Debug`.
+   Use `Concurrency::debounce` for search fields and `throttle` for repeated clicks; log
+   with `set_observer(LogObserver)` while debugging.
 5. Check: `cargo clippy --all-targets -- -D warnings` must pass; the template's `clippy.toml`
    fails the build if a GPUI type reaches the bloc layer.
 

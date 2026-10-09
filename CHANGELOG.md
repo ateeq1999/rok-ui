@@ -9,6 +9,32 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- Blocs: `Concurrency::debounce(delay)` and `Concurrency::throttle(window)`;
+  `set_observer` with a `BlocObserver` that sees every bloc's creation, events, changes,
+  panics and closing (`LogObserver` prints them); `bloc_test!` for one-block bloc tests.
+- HTTP: `HttpClientBuilder::retry(Retry::idempotent(n))`, `on_response` and `log_requests`,
+  and `refresh_token` (a 401 refreshes the token once and retries instead of signing out).
+- `http::testing::MockServer` (feature `http-testing`): a mock API server for app tests.
+- `context::Provide` and `cx.context::<T>()` / `cx.expect_context::<T>()`: values scoped to
+  a subtree; `cx.keyed(key).use_state(..)` for per-row state.
+- Devtools: a Forms section listing live forms with their status and errors;
+  `form::live_forms`.
+
+### Changed
+
+- **Breaking:** `Bloc::Event`, `Bloc::State` and `Cubit::State` must implement `Debug`. See
+  `docs/migration/0.9.md`.
+- A bloc handler that panics is reported to the observer and the bloc keeps running (before,
+  the bloc's event queue stopped).
+
+### Fixed
+
+- Forms with text fields were never freed after their page closed (a reference cycle
+  between the form and its inputs' subscriptions).
+- The Release workflow's config and the generator's snapshot tests on Windows.
+
 ## [0.8.0] - 2026-10-09
 
 ### Added
