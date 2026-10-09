@@ -538,12 +538,17 @@ mod tests {
         let update = std::env::var_os("UPDATE_SNAPSHOTS").is_some();
         let mut mismatches = Vec::new();
         for path in &written {
+            // Compared without regard to line endings: a Windows checkout may have CRLF.
             let text = fs::read_to_string(root.join(path)).unwrap();
             let snapshot = snapshots.join(path);
             if update {
                 fs::create_dir_all(snapshot.parent().unwrap()).unwrap();
                 fs::write(&snapshot, &text).unwrap();
-            } else if fs::read_to_string(&snapshot).ok().as_deref() != Some(text.as_str()) {
+            } else if fs::read_to_string(&snapshot)
+                .ok()
+                .map(|expected| expected.replace("\r\n", "\n"))
+                != Some(text.replace("\r\n", "\n"))
+            {
                 mismatches.push(path.clone());
             }
         }
