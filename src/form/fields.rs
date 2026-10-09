@@ -155,9 +155,14 @@ fn bind<V: FormValues>(
     });
     let path = Rc::new(RefCell::new(field.path.clone()));
     let focus_handle = input.read(cx).focus_handle_ref().clone();
+    // The form owns these subscriptions, so they hold it weakly: a strong handle would be a
+    // cycle that keeps every form alive after its page is gone.
     let changes = {
-        let (form, path) = (form.clone(), path.clone());
+        let (form, path) = (form.downgrade(), path.clone());
         window.subscribe(&input, cx, move |_, event: &InputEvent, window, cx| {
+            let Some(form) = form.upgrade() else {
+                return;
+            };
             let path = path.borrow().clone();
             match event {
                 InputEvent::Changed(text) => {
@@ -171,8 +176,11 @@ fn bind<V: FormValues>(
         })
     };
     let blurs = {
-        let (form, path) = (form.clone(), path.clone());
+        let (form, path) = (form.downgrade(), path.clone());
         window.on_focus_out(&focus_handle, cx, move |_, _, cx| {
+            let Some(form) = form.upgrade() else {
+                return;
+            };
             let key = path.borrow().key().clone();
             blur(&form, cx, &key);
         })
