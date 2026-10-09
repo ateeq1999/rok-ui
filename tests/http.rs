@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use rok_ui::http::{ApiError, CancelToken, HttpClient, Options, Session};
+use rok_ui::http::{ApiError, CancelToken, HttpClient, Options, Retry, Session};
 use serde::Deserialize;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -382,4 +382,107 @@ fn requests_work_outside_a_tokio_runtime() {
     // Like a GPUI task: an executor without a tokio reactor.
     let note: Note = futures::executor::block_on(client.request("/note", Options::get())).unwrap();
     assert_eq!(note.id, 7);
+}
+
+#[test]
+fn idempotent_requests_are_retried_and_posts_are_not() {
+    let calls = Arc::new(Mutex::new(0_u32));
+    let counter = calls.clone();
+    let (url, received) = serve(move |_| {
+        let mut calls = counter.lock().unwrap();
+        *calls += 1;
+        if *calls <= 2 {
+            Reply::json(503, "")
+        } else {
+            Reply::json(200, r#"{"id": 1, "title": "Third time"}"#)
+        }
+    });
+    let attempts = Arc::new(Mutex::new(Vec::new()));
+    let seen = attempts.clone();
+    let client = HttpClient::builder()
+        .base_url(url)
+        .retry(Retry::idempotent(3).backoff(Duration::from_millis(5)))
+        .on_response(move |info| seen.lock().unwrap().push((info.attempt, info.status)))
+        .build();
+    let note: Note = block_on(client.request("/note", Options::get())).unwrap();
+    assert_eq!(note.title, "Third time");
+    assert_eq!(*attempts.lock().unwrap(), [(1, 503), (2, 503), (3, 200)]);
+
+    *calls.lock().unwrap() = 0;
+    received.lock().unwrap().clear();
+    let error = block_on(client.request_empty("/notes", Options::post())).unwrap_err();
+    assert_eq!(error.status, 503);
+    assert_eq!(received.lock().unwrap().len(), 1, "a POST is sent once");
+}
+
+#[derive(Deserialize)]
+struct TokenDto {
+    token: String,
+}
+
+#[test]
+fn a_401_refreshes_the_token_once_and_retries() {
+    let refreshes = Arc::new(Mutex::new(0_u32));
+    let refresh_count = refreshes.clone();
+    let (url, _) = serve(move |request| {
+        if request.target == "/sessions/refresh" {
+            *refresh_count.lock().unwrap() += 1;
+            return Reply::json(200, r#"{"token": "fresh"}"#).delayed(Duration::from_millis(50));
+        }
+        match request.header("authorization") {
+            Some("Bearer fresh") => Reply::json(200, r#"{"id": 1, "title": "Fresh"}"#),
+            _ => Reply::json(
+                401,
+                r#"{"error": {"code": "expired", "message": "Expired"}}"#,
+            ),
+        }
+    });
+    let session = Session::with_token("stale");
+    let client = HttpClient::builder()
+        .base_url(url)
+        .session(session.clone())
+        .refresh_token(|client| async move {
+            let fresh: TokenDto = client
+                .request("/sessions/refresh", Options::post().skip_expire(true))
+                .await?;
+            Ok(fresh.token)
+        })
+        .build();
+    // Three requests fail together; they share one refresh.
+    let notes: Vec<Result<Note, ApiError>> = block_on(async {
+        let (a, b, c) = futures::join!(
+            client.request::<Note>("/a", Options::get()),
+            client.request::<Note>("/b", Options::get()),
+            client.request::<Note>("/c", Options::get()),
+        );
+        vec![a, b, c]
+    });
+    assert!(notes
+        .iter()
+        .all(|note| note.as_ref().is_ok_and(|note| note.title == "Fresh")));
+    assert_eq!(*refreshes.lock().unwrap(), 1);
+    assert_eq!(session.token().as_deref(), Some("fresh"));
+    assert!(!session.is_expired());
+}
+
+#[test]
+fn a_failed_refresh_expires_the_session() {
+    let (url, _) = serve(|_| Reply::json(401, ""));
+    let session = Session::with_token("stale");
+    let client = HttpClient::builder()
+        .base_url(url)
+        .session(session.clone())
+        .refresh_token(|client| async move {
+            client
+                .request_empty("/sessions/refresh", Options::post())
+                .await?;
+            Ok("never".to_string())
+        })
+        .build();
+    let error = block_on(client.request_empty("/me", Options::get())).unwrap_err();
+    assert_eq!(error.status, 401);
+    assert!(
+        session.is_expired(),
+        "the refresh failed, so the session ends"
+    );
 }

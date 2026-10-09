@@ -5,7 +5,10 @@ use std::{fmt, fmt::Write as _, sync::Arc, time::Duration};
 use bytes::Bytes;
 use serde::de::DeserializeOwned;
 
-use super::{ApiError, Options, Session};
+use super::{
+    middleware::{Refresh, RefreshFuture, ResponseHook, REFRESHING},
+    ApiError, Options, ResponseInfo, Retry, Session,
+};
 
 /// The base URL when neither the builder nor `ROK_API_URL` sets one.
 pub const DEFAULT_BASE_URL: &str = "http://localhost:8080";
@@ -26,12 +29,27 @@ pub fn path_segment(value: &impl fmt::Display) -> String {
 }
 
 /// Builds an [`HttpClient`].
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct HttpClientBuilder {
     base_url: Option<String>,
     headers: Vec<(String, String)>,
     timeout: Option<Duration>,
     session: Option<Session>,
+    retry: Option<Retry>,
+    on_response: Vec<ResponseHook>,
+    refresh: Option<Refresh>,
+}
+
+impl std::fmt::Debug for HttpClientBuilder {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("HttpClientBuilder")
+            .field("base_url", &self.base_url)
+            .field("timeout", &self.timeout)
+            .field("retry", &self.retry)
+            .field("refresh", &self.refresh.is_some())
+            .finish_non_exhaustive()
+    }
 }
 
 impl HttpClientBuilder {
@@ -64,6 +82,78 @@ impl HttpClientBuilder {
         self
     }
 
+    /// Retry idempotent requests that fail for a transient reason (see [`Retry`]).
+    ///
+    /// ```
+    /// use std::time::Duration;
+    ///
+    /// use rok_ui::http::{HttpClient, Retry};
+    ///
+    /// let client = HttpClient::builder()
+    ///     .retry(Retry::idempotent(3).backoff(Duration::from_millis(250)))
+    ///     .build();
+    /// # let _ = client;
+    /// ```
+    #[must_use]
+    pub fn retry(mut self, retry: Retry) -> Self {
+        self.retry = Some(retry);
+        self
+    }
+
+    /// Call `hook` after every attempt, with its method, URL, status and timing (for logging
+    /// and metrics). Hooks run in the order they were added.
+    #[must_use]
+    pub fn on_response(mut self, hook: impl Fn(&ResponseInfo) + Send + Sync + 'static) -> Self {
+        self.on_response.push(Arc::new(hook));
+        self
+    }
+
+    /// Print every attempt to standard error: `GET https://.../notes -> 200 (31 ms)`.
+    #[must_use]
+    pub fn log_requests(self) -> Self {
+        self.on_response(|info| eprintln!("[http] {info}"))
+    }
+
+    /// When a request gets a 401 with the session's token, call `refresh` for a new token,
+    /// store it in the session and send the request again; expire the session only if the
+    /// refresh fails. Concurrent 401s share one refresh.
+    ///
+    /// `refresh` gets the client to make its call. That call should use
+    /// [`Options::skip_expire`] (a 401 there means the refresh token is gone too); it never
+    /// triggers another refresh.
+    ///
+    /// ```no_run
+    /// use rok_ui::http::{HttpClient, Options, Session};
+    ///
+    /// #[derive(serde::Deserialize)]
+    /// struct TokenDto {
+    ///     token: String,
+    /// }
+    ///
+    /// let session = Session::new();
+    /// let client = HttpClient::builder()
+    ///     .session(session)
+    ///     .refresh_token(|client| async move {
+    ///         let fresh: TokenDto = client
+    ///             .request("/sessions/refresh", Options::post().skip_expire(true))
+    ///             .await?;
+    ///         Ok(fresh.token)
+    ///     })
+    ///     .build();
+    /// # let _ = client;
+    /// ```
+    #[must_use]
+    pub fn refresh_token<F, Fut>(mut self, refresh: F) -> Self
+    where
+        F: Fn(HttpClient) -> Fut + Send + Sync + 'static,
+        Fut: std::future::Future<Output = Result<String, ApiError>> + Send + 'static,
+    {
+        self.refresh = Some(Arc::new(move |client| -> RefreshFuture {
+            Box::pin(refresh(client))
+        }));
+        self
+    }
+
     /// The client.
     ///
     /// # Panics
@@ -90,6 +180,10 @@ impl HttpClientBuilder {
                 base_url: base_url.trim_end_matches('/').to_string(),
                 headers: self.headers,
                 session: self.session,
+                retry: self.retry,
+                on_response: self.on_response,
+                refresh: self.refresh,
+                refreshing: tokio::sync::Mutex::new(()),
             }),
         }
     }
@@ -100,6 +194,17 @@ struct Inner {
     base_url: String,
     headers: Vec<(String, String)>,
     session: Option<Session>,
+    retry: Option<Retry>,
+    on_response: Vec<ResponseHook>,
+    refresh: Option<Refresh>,
+    /// Held while a token refresh runs, so concurrent 401s share it.
+    refreshing: tokio::sync::Mutex<()>,
+}
+
+/// Why one attempt failed, and the token it sent.
+struct Failure {
+    error: ApiError,
+    sent_token: Option<String>,
 }
 
 /// A client for one JSON API. Cheap to clone; build it once (in `main`) and share it with the
@@ -270,7 +375,83 @@ impl HttpClient {
         }
     }
 
+    /// Send with retries and token refresh, reporting each attempt.
     async fn send_now(&self, url: String, options: Options) -> Result<Response, ApiError> {
+        let inner = &self.inner;
+        let mut attempt = 1;
+        let mut refreshed = false;
+        loop {
+            let started = std::time::Instant::now();
+            let outcome = self.attempt(&url, &options).await;
+            if !inner.on_response.is_empty() {
+                let info = ResponseInfo {
+                    method: options.method,
+                    url: url.clone(),
+                    status: match &outcome {
+                        Ok(response) => response.status,
+                        Err(failure) => failure.error.status,
+                    },
+                    elapsed: started.elapsed(),
+                    attempt,
+                };
+                for hook in &inner.on_response {
+                    hook(&info);
+                }
+            }
+            let Failure { error, sent_token } = match outcome {
+                Ok(response) => return Ok(response),
+                Err(failure) => failure,
+            };
+            if let Some(retry) = &inner.retry {
+                if retry.allows(options.method, &error, attempt) {
+                    tokio::time::sleep(retry.delay(attempt)).await;
+                    attempt += 1;
+                    continue;
+                }
+            }
+            if error.status == 401 && !options.skip_expire {
+                if let (Some(session), Some(token)) = (&inner.session, &sent_token) {
+                    if !refreshed && self.refresh(token).await {
+                        refreshed = true;
+                        attempt += 1;
+                        continue;
+                    }
+                    session.expire_if_current(token);
+                }
+            }
+            return Err(error);
+        }
+    }
+
+    /// Get a new token after `rejected` got a 401. Returns whether the session now holds a
+    /// different token to retry with.
+    async fn refresh(&self, rejected: &str) -> bool {
+        let inner = &self.inner;
+        let (Some(refresh), Some(session)) = (&inner.refresh, &inner.session) else {
+            return false;
+        };
+        // The refresh's own request never refreshes again.
+        if REFRESHING.try_with(|()| ()).is_ok() {
+            return false;
+        }
+        let _guard = inner.refreshing.lock().await;
+        match session.token() {
+            // Another request refreshed while this one waited.
+            Some(current) if current != rejected => return true,
+            None => return false,
+            Some(_) => {}
+        }
+        match REFRESHING.scope((), refresh(self.clone())).await {
+            Ok(token) => {
+                session.set_token(token);
+                true
+            }
+            Err(_) => false,
+        }
+    }
+
+    /// One attempt: build the request, send it, read the answer.
+    async fn attempt(&self, url: &str, options: &Options) -> Result<Response, Failure> {
         let inner = &self.inner;
         let method = reqwest::Method::from_bytes(options.method.as_str().as_bytes())
             .unwrap_or(reqwest::Method::GET);
@@ -286,7 +467,10 @@ impl HttpClient {
         if let Some(token) = &token {
             set("Authorization", format!("Bearer {token}"));
         }
-        let body = options.body_bytes()?;
+        let body = options.body_bytes().map_err(|error| Failure {
+            error,
+            sent_token: None,
+        })?;
         if let Some((_, content_type)) = &body {
             set("Content-Type", content_type.clone());
         }
@@ -299,7 +483,11 @@ impl HttpClient {
                 name.eq_ignore_ascii_case("Authorization") && *value == format!("Bearer {token}")
             })
         });
-        let mut request = inner.client.request(method, &url);
+        let failure = |error| Failure {
+            error,
+            sent_token: sent_token.clone(),
+        };
+        let mut request = inner.client.request(method, url);
         if !options.query.is_empty() {
             request = request.query(&options.query);
         }
@@ -309,22 +497,26 @@ impl HttpClient {
         if let Some((bytes, _)) = body {
             request = request.body(bytes);
         }
-        let response = request.send().await.map_err(|_| ApiError::network())?;
+        let response = request
+            .send()
+            .await
+            .map_err(|_| failure(ApiError::network()))?;
         let status = response.status();
-        let body = response.bytes().await.map_err(|_| ApiError::network())?;
+        let body = response
+            .bytes()
+            .await
+            .map_err(|_| failure(ApiError::network()))?;
         if status.is_success() {
             return Ok(Response {
                 status: status.as_u16(),
                 body,
             });
         }
-        let error = ApiError::from_response(status.as_u16(), status.canonical_reason(), &body);
-        if status.as_u16() == 401 && !options.skip_expire {
-            if let (Some(session), Some(token)) = (&inner.session, &sent_token) {
-                session.expire_if_current(token);
-            }
-        }
-        Err(error)
+        Err(failure(ApiError::from_response(
+            status.as_u16(),
+            status.canonical_reason(),
+            &body,
+        )))
     }
 }
 
