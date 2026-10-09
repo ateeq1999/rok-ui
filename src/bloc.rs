@@ -14,8 +14,8 @@ use gpui::{
     LayoutId, Pixels, Task, Window,
 };
 pub use rok_ui_bloc::{
-    test, Bloc, BlocHandle, BoxFuture, Concurrency, Cubit, CubitHandle, Emitter, Observable,
-    Subscription,
+    bloc_test, clear_observer, set_observer, test, Bloc, BlocHandle, BlocObserver, BoxFuture,
+    Concurrency, Cubit, CubitHandle, Emitter, LogObserver, Observable, Subscription,
 };
 
 use crate::hooks::use_keyed_state;

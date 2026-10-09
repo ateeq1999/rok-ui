@@ -6,6 +6,8 @@ mod error;
 mod middleware;
 mod options;
 mod session;
+#[cfg(feature = "http-testing")]
+pub mod testing;
 
 pub use bytes::Bytes;
 pub use cancel::CancelToken;

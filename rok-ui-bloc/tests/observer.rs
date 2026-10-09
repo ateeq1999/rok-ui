@@ -1,6 +1,9 @@
 //! The observer sees creation, events, changes, panics and closing. In its own test binary:
 //! the observer is process-wide.
 
+// Test blocs often emit without awaiting anything; `Bloc::on` is async regardless.
+#![allow(clippy::unused_async_trait_impl)]
+
 use std::{
     fmt::Debug,
     sync::{Arc, Mutex},

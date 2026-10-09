@@ -1,5 +1,8 @@
 //! `rok_ui::bloc` in GPUI: providers, builders, listeners and the bloc lifecycle.
 
+// Test blocs often emit without awaiting anything; `Bloc::on` is async regardless.
+#![allow(clippy::unused_async_trait_impl)]
+
 use std::{
     cell::RefCell,
     rc::Rc,

@@ -128,6 +128,8 @@ state = ["dep:rok-ui-hooks"]
 bloc = ["runtime", "dep:rok-ui-bloc", "dep:futures"]
 # A JSON API client (`rok_ui::http`): `HttpClient`, `ApiError`, `Session`, on the shared runtime.
 http = ["runtime", "dep:reqwest", "dep:bytes", "dep:serde", "dep:serde_json", "dep:futures", "dep:rok-ui-bloc"]
+# `rok_ui::http::testing::MockServer`, a mock API server for tests.
+http-testing = ["http", "tokio/net", "tokio/io-util"]
 # Queries, mutations, procedures, Suspense (`rok_ui::query`), on the shared runtime.
 query = ["runtime", "dep:futures"]
 # Headless, type-safe forms (`rok_ui::form`) with bound fields. Part of the `forms` group.
@@ -287,6 +289,10 @@ required-features = ["bloc"]
 [[test]]
 name = "http"
 required-features = ["http"]
+
+[[test]]
+name = "http_testing"
+required-features = ["http-testing"]
 
 [[test]]
 name = "http_form"

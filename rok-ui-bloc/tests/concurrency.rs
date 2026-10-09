@@ -1,5 +1,8 @@
 //! The concurrency modes, closing, and change-only notification.
 
+// Test blocs often emit without awaiting anything; `Bloc::on` is async regardless.
+#![allow(clippy::unused_async_trait_impl)]
+
 use std::{
     sync::{Arc, Mutex},
     time::Duration,
