@@ -18,6 +18,8 @@ Start here:
 | Add or change a component | `.agents/skills/component/SKILL.md` |
 | Add routes or change the router | `.agents/skills/route/SKILL.md` |
 | Use rok-db or change the `db` feature | `.agents/skills/db/SKILL.md` |
+| Build app features (BLoC), use or change `cargo rok-ui generate` | `.agents/skills/bloc/SKILL.md` |
+| Call APIs with `rok_ui::http`, API errors on forms | `.agents/skills/http/SKILL.md` |
 | Review a change for code quality | `.agents/skills/quality/SKILL.md` |
 | Cut a release | `.agents/skills/release/SKILL.md` |
 

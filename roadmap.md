@@ -167,9 +167,10 @@ fixed folder structure, and a generator. Design: `docs/design/bloc.md`.
 | Item | Status | Notes |
 |---|---|---|
 | L.1 Primitives | Done | `rok-ui-bloc` crate (GPUI-free): `Bloc`, `Cubit`, `Emitter`, `BlocHandle`, `CubitHandle`, `Concurrency` (sequential, droppable, restartable, concurrent), `test::run`. `rok_ui::bloc` (feature `bloc`): `BlocProvider` / `MultiBlocProvider`, `RepositoryProvider` / `MultiRepositoryProvider`, `BlocBuilder` (`build_when`), `BlocListener` (`listen_when`), `BlocConsumer`, `BlocSelector`, `cx.bloc` / `cx.watch_bloc` / `cx.cubit` / `cx.repository`. |
-| L.2 Standard and template | In progress | `cargo rok-ui new --template bloc`: `app.rs` composition root with `// rok-ui:` markers, `data` / `features` / `shared` / thin `routes`, `clippy.toml` keeping GPUI out of `features/<f>/bloc/` (enforced, checked in CI), a generated `notes` feature, feature tests in `tests/features/`. `examples/notes.rs` follows the standard. The architecture guide is still the phase-1 page. Workspace layout (`--layout workspace`): documented only. |
+| L.2 Standard and template | Done | `cargo rok-ui new --template bloc`: `app.rs` composition root with `// rok-ui:` markers, `data` / `features` / `shared` / thin `routes`, `clippy.toml` keeping GPUI out of `features/<f>/bloc/` (enforced, checked in CI), a generated `notes` feature, feature tests in `tests/features/`. `examples/notes.rs` follows the standard. `docs/guide/architecture.md` has the 15 rules, folder structure, naming, concurrency, testing and the workspace mapping. Workspace layout (`--layout workspace`): documented only. |
 | L.3 Generator CLI | Done | `cargo rok-ui generate` (`g`): `feature`, `bloc`, `cubit`, `repository`, `provider`, `view`, `schema`; flags over `-j` JSON (inline, `@file`, `-`) over defaults; JSON errors name the path; names normalized and keywords rejected; types parsed with syn; rustfmt output; sorted barrels and `app.rs` / `__root.rs` marker wiring, idempotent; conflicts exit 2 and write nothing; `--dry-run`, `--force`, `--no-wire`. Snapshot, idempotency and conflict tests; CI builds the template plus a JSON and a flags-only feature under clippy pedantic. |
-| L.4 Agent skill and docs | Not started | |
+| L.4 Agent skill and docs | Done | `.agents/skills/bloc` and `.agents/skills/http`, `docs/guide/{architecture,http,cli}.md`, AGENTS.md, llms.txt, guide index. |
+| L.5 Workspace layout | Not started | `cargo rok-ui new --layout workspace` (data, feature and app crates); the mapping is in the guide. |
 
 ## Part M: HTTP
 
