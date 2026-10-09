@@ -1,8 +1,19 @@
 name: Release
 
+# Every push to main (a merged pull request):
+#
+# 1. `release` publishes each crate whose version is not on crates.io yet, in dependency
+#    order, and tags `v<version>` with a GitHub release. A pull request that bumps the
+#    versions (by hand, or the release PR below) is therefore published when it is merged.
+# 2. `release-pr` then opens or updates a release PR that bumps versions and adds a
+#    CHANGELOG.md section from the Conventional Commits merged since the last release.
+#
+# Needs the repository secret CARGO_REGISTRY_TOKEN (a crates.io token with publish rights).
+
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -12,28 +23,12 @@ concurrency:
   group: release-plz-${{ github.ref }}
   cancel-in-progress: false
 
-jobs:
-  release-pr:
-    name: Open or update the release PR
-    runs-on: ubuntu-latest
-    if: github.repository_owner == 'ateeq1999'
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Install GPUI's Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev \
-            libvulkan-dev libfontconfig-dev libx11-xcb-dev libxcb1-dev
-      - uses: release-plz/action@v0.5
-        with:
-          command: release-pr
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+env:
+  GPUI_LINUX_PACKAGES: >-
+    libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libvulkan-dev libfontconfig-dev
+    libx11-xcb-dev libxcb1-dev
 
+jobs:
   release:
     name: Publish released versions
     runs-on: ubuntu-latest
@@ -44,13 +39,30 @@ jobs:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
       - name: Install GPUI's Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev \
-            libvulkan-dev libfontconfig-dev libx11-xcb-dev libxcb1-dev
+        run: sudo apt-get update && sudo apt-get install -y $GPUI_LINUX_PACKAGES
       - uses: release-plz/action@v0.5
         with:
           command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  release-pr:
+    name: Open or update the release PR
+    # After publishing, so the release PR compares against what is on crates.io now.
+    needs: release
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'ateeq1999'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install GPUI's Linux dependencies
+        run: sudo apt-get update && sudo apt-get install -y $GPUI_LINUX_PACKAGES
+      - uses: release-plz/action@v0.5
+        with:
+          command: release-pr
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

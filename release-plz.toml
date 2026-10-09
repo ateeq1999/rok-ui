@@ -10,10 +10,19 @@ git_release_enable = true
 git_tag_enable = true
 # Keep the hand-written CHANGELOG.md format; release-plz adds a section per release.
 changelog_config = "cliff.toml"
+# cargo-semver-checks builds the previous release's rustdoc with every feature, which fails on
+# a transitive dependency (`xattr`) on the CI runner and breaks the release PR. Version bumps
+# come from Conventional Commits instead; breaking changes need `!` or `BREAKING CHANGE:`.
+semver_check = false
+# One tag per release (`v0.8.0`), on rok-ui; the other crates share its version.
+git_tag_enable = false
 
 [[package]]
 name = "rok-ui"
 changelog_path = "CHANGELOG.md"
+git_tag_enable = true
+git_tag_name = "v{{ version }}"
+git_release_name = "v{{ version }}"
 
 [[package]]
 name = "rok-ui-macros"
