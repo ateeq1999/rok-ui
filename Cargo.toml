@@ -283,6 +283,10 @@ name = "query"
 required-features = ["full", "query"]
 
 [[test]]
+name = "devtools_forms"
+required-features = ["full", "devtools"]
+
+[[test]]
 name = "context"
 required-features = ["full"]
 

@@ -1,5 +1,5 @@
-//! Devtools (feature `devtools`): an overlay that shows the router history, the query cache
-//! and recent mutation runs.
+//! Devtools (feature `devtools`): an overlay that shows the router history, the query cache,
+//! recent mutation runs and the live forms (status, submits and errors).
 //!
 //! Add [`Devtools`] once, last in the window's root, and toggle it with Ctrl-Shift-D:
 //!
@@ -13,7 +13,7 @@
 //! }
 //! ```
 
-#[cfg(any(feature = "router", feature = "query"))]
+#[cfg(any(feature = "router", feature = "query", feature = "form"))]
 use gpui::SharedString;
 use gpui::{actions, div, prelude::*, App, Global, KeyBinding, Window};
 
@@ -98,7 +98,7 @@ impl Devtools {
     }
 }
 
-#[cfg(any(feature = "router", feature = "query"))]
+#[cfg(any(feature = "router", feature = "query", feature = "form"))]
 fn line(text: impl Into<SharedString>, style: &crate::sx::Sx) -> gpui::Div {
     div()
         .sx((&DEVTOOLS.mono, style))
@@ -234,6 +234,72 @@ fn mutation_section(_: &mut App) -> gpui::AnyElement {
     div().into_any_element()
 }
 
+#[cfg(feature = "form")]
+fn form_section(cx: &mut App) -> gpui::AnyElement {
+    let forms = crate::form::live_forms(cx);
+    if forms.is_empty() {
+        return div().into_any_element();
+    }
+    let count = forms.len();
+    div()
+        .sx(&DEVTOOLS.section)
+        .child(
+            div()
+                .sx(&DEVTOOLS.heading)
+                .child(format!("Forms ({count})")),
+        )
+        .children(forms.into_iter().take(10).map(|form| {
+            let status = if form.is_submitting {
+                "submitting".to_string()
+            } else if form.is_submitted {
+                "submitted".to_string()
+            } else if !form.is_valid {
+                "invalid".to_string()
+            } else if form.is_dirty {
+                "edited".to_string()
+            } else {
+                "pristine".to_string()
+            };
+            let attempts = if form.attempts > 0 {
+                format!(", {} submit(s)", form.attempts)
+            } else {
+                String::new()
+            };
+            let errors = form
+                .form_errors
+                .iter()
+                .map(ToString::to_string)
+                .chain(
+                    form.field_errors
+                        .iter()
+                        .map(|(key, message)| format!("{key}: {message}")),
+                )
+                .take(6)
+                .map(|error| line(error, &DEVTOOLS.bad));
+            div()
+                .child(
+                    div()
+                        .sx(&DEVTOOLS.row)
+                        .child(line(form.name.clone(), &DEVTOOLS.mono))
+                        .child(line(
+                            format!("{status}{attempts}"),
+                            if form.is_valid {
+                                &DEVTOOLS.muted
+                            } else {
+                                &DEVTOOLS.bad
+                            },
+                        )),
+                )
+                .children(errors)
+        }))
+        .into_any_element()
+}
+
+#[cfg(not(feature = "form"))]
+fn form_section(_: &mut App) -> gpui::AnyElement {
+    div().into_any_element()
+}
+
 impl RenderOnce for Devtools {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         if !is_open(cx) {
@@ -246,6 +312,7 @@ impl RenderOnce for Devtools {
             .child(router_section(cx))
             .child(query_section(cx))
             .child(mutation_section(cx))
+            .child(form_section(cx))
             .into_any_element()
     }
 }
