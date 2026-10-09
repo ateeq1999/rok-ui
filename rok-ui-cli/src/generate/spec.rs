@@ -167,6 +167,21 @@ pub struct MethodSpec {
     pub returns: Option<String>,
     /// The provider endpoint it calls (HTTP). Default: the endpoint with the same name.
     pub calls: Option<String>,
+    /// What the call does to the HTTP session: `sign_in` stores the response's token,
+    /// `sign_out` forgets it (even when the call fails).
+    pub session: Option<SessionAction>,
+    /// The response field holding the token, for `sign_in`. Default: `token`.
+    pub token_field: Option<String>,
+}
+
+/// What a repository method does to the HTTP session.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SessionAction {
+    /// Store the response's token: the user is signed in.
+    SignIn,
+    /// Forget the token: the user signed out.
+    SignOut,
 }
 
 /// Where data comes from.
@@ -251,8 +266,6 @@ pub struct FormSpec {
 }
 
 /// `rok_ui::form::ServerErrorOptions`.
-// Read by the HTTP form generator.
-#[allow(dead_code)]
 #[derive(Clone, Debug, Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ServerErrorsSpec {

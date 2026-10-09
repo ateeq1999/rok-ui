@@ -15,7 +15,7 @@ use std::{fs, io::Read as _, path::PathBuf, process::ExitCode};
 use output::{Options, Part};
 use spec::{
     ConcurrencyKind, EndpointSpec, EventSpec, FieldSpec, Kind, ProviderKind, ProviderSpec,
-    RepositorySpec, ServerErrorsSpec, Spec, StateSpec, StateStyle, ViewSpec,
+    RepositorySpec, ServerErrorsSpec, Spec, StateSpec, StateStyle, TypeSpec, ViewSpec,
 };
 
 use crate::Arguments;
@@ -44,7 +44,9 @@ FLAGS (flags win over JSON, JSON over defaults):
     --repository <Name>
     --provider <Name[:memory|db|http|file]>
     --api-base <path>                  the HTTP provider's path prefix
-    --endpoint <method:VERB:path:Response>   an HTTP endpoint (repeatable)
+    --endpoint <method:VERB:path:Response>   an HTTP endpoint (repeatable); typed path
+                                       parameters: /notes/{id:NoteId}
+    --dto <Name[:field:Type,...]>      a wire type for the endpoints (repeatable)
     --skip-expire                      the --endpoint ones do not expire the session on 401
     --server-errors                    the form maps API errors onto its fields
     --view / --no-view                 write the page (default: with `feature` only)
@@ -229,8 +231,8 @@ fn split_top(text: &str, separator: char) -> Vec<String> {
     let mut current = String::new();
     for character in text.chars() {
         match character {
-            '<' | '(' | '[' => depth += 1,
-            '>' | ')' | ']' => depth -= 1,
+            '<' | '(' | '[' | '{' => depth += 1,
+            '>' | ')' | ']' | '}' => depth -= 1,
             _ => {}
         }
         if character == separator && depth == 0 {
@@ -271,33 +273,56 @@ fn parse_event(value: &str) -> Result<EventSpec, String> {
 
 /// `--endpoint list_notes:GET:/notes:Vec<NoteDto>`.
 fn parse_endpoint(value: &str, skip_expire: bool) -> Result<EndpointSpec, String> {
-    let parts: Vec<&str> = value.splitn(4, ':').collect();
-    let [method, verb, path, response] = parts[..] else {
+    // Split at colons outside `{..}` and `<..>`; the response type keeps any `::`.
+    let parts = split_top(value, ':');
+    let [method, verb, path, response @ ..] = &parts[..] else {
         return Err(format!(
             "--endpoint {value}: use `method:VERB:/path:ResponseType`"
         ));
     };
-    let path_params = path
-        .split('/')
-        .filter_map(|segment| {
-            segment
-                .strip_prefix('{')
-                .and_then(|rest| rest.strip_suffix('}'))
-        })
-        .map(|name| FieldSpec {
-            name: name.to_string(),
-            ty: "String".into(),
-            ..FieldSpec::default()
-        })
-        .collect();
+    if response.is_empty() {
+        return Err(format!(
+            "--endpoint {value}: use `method:VERB:/path:ResponseType`"
+        ));
+    }
+    // `{id}` is a `String` parameter; `{id:NoteId}` names its type.
+    let mut path_params = Vec::new();
+    let mut clean_path = Vec::new();
+    for segment in path.split('/') {
+        match segment
+            .strip_prefix('{')
+            .and_then(|rest| rest.strip_suffix('}'))
+        {
+            Some(param) => {
+                let (name, ty) = param.split_once(':').unwrap_or((param, "String"));
+                path_params.push(FieldSpec {
+                    name: name.trim().to_string(),
+                    ty: ty.trim().to_string(),
+                    ..FieldSpec::default()
+                });
+                clean_path.push(format!("{{{}}}", name.trim()));
+            }
+            None => clean_path.push(segment.to_string()),
+        }
+    }
     Ok(EndpointSpec {
-        method: method.to_string(),
+        method: method.clone(),
         verb: verb.to_uppercase(),
-        path: path.to_string(),
+        path: clean_path.join("/"),
         path_params,
-        response: response.to_string(),
+        response: response.join("::"),
         skip_expire,
         ..EndpointSpec::default()
+    })
+}
+
+/// `--dto NoteDto:id:NoteId,title:String`.
+fn parse_dto(value: &str) -> Result<TypeSpec, String> {
+    let event = parse_event(value).map_err(|error| error.replace("--event", "--dto"))?;
+    Ok(TypeSpec {
+        name: event.name,
+        fields: event.fields,
+        variants: Vec::new(),
     })
 }
 
@@ -417,6 +442,10 @@ fn apply_flags(
         }
         provider.endpoints = parsed;
     }
+    let dtos = arguments.flags("dto");
+    if !dtos.is_empty() {
+        spec.dtos = dtos.into_iter().map(parse_dto).collect::<Result<_, _>>()?;
+    }
     if arguments.has("server-errors") {
         let form = spec
             .view
@@ -448,14 +477,19 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use super::*;
-    use crate::templates::{Template, BLOC_FEATURE};
+    use crate::templates::{Template, BLOC_FEATURE, BLOC_HTTP_FEATURES};
 
     /// A new app from the bloc template's skeleton, without its generated feature.
     fn skeleton(name: &str) -> PathBuf {
+        skeleton_of(Template::Bloc, name)
+    }
+
+    /// A new app from `template`'s skeleton, without its generated features.
+    fn skeleton_of(template: Template, name: &str) -> PathBuf {
         let root =
             std::env::temp_dir().join(format!("rok-ui-generate-{name}-{}", std::process::id()));
         fs::remove_dir_all(&root).ok();
-        for file in Template::Bloc.files() {
+        for file in template.files() {
             let path = root.join(file.path);
             fs::create_dir_all(path.parent().unwrap()).unwrap();
             let text = file
@@ -481,22 +515,29 @@ mod tests {
             .is_ok_and(|output| output.status.success())
     }
 
-    /// Compare every file the notes fixture writes with `tests/snapshots/notes/`. Run with
-    /// `UPDATE_SNAPSHOTS=1` to accept changes.
-    #[test]
-    fn notes_fixture_matches_its_snapshots() {
+    /// Generate `features` into a new `template` app and compare every file written with
+    /// `tests/snapshots/<name>/`. Run with `UPDATE_SNAPSHOTS=1` to accept changes.
+    fn check_snapshots(template: Template, name: &str, features: &[&str]) {
         if !rustfmt_installed() {
             eprintln!("skipped: the snapshots are formatted with rustfmt, which is not installed");
             return;
         }
-        let root = skeleton("snapshots");
-        let changes = generate(&root, BLOC_FEATURE, Part::Feature, Options::default());
-        output::write(&root, &changes).unwrap();
-        let snapshots = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/snapshots/notes");
+        let root = skeleton_of(template, name);
+        let mut written = std::collections::BTreeSet::new();
+        for feature in features {
+            let changes = generate(&root, feature, Part::Feature, Options::default());
+            for (path, (action, _)) in &changes.files {
+                assert_ne!(*action, output::Action::Conflict, "{path}");
+                written.insert(path.clone());
+            }
+            output::write(&root, &changes).unwrap();
+        }
+        let snapshots = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/snapshots")
+            .join(name);
         let update = std::env::var_os("UPDATE_SNAPSHOTS").is_some();
         let mut mismatches = Vec::new();
-        for (path, (action, _)) in &changes.files {
-            assert_ne!(*action, output::Action::Conflict, "{path}");
+        for path in &written {
             let text = fs::read_to_string(root.join(path)).unwrap();
             let snapshot = snapshots.join(path);
             if update {
@@ -509,8 +550,47 @@ mod tests {
         fs::remove_dir_all(&root).ok();
         assert!(
             mismatches.is_empty(),
-            "these files differ from tests/snapshots/notes (UPDATE_SNAPSHOTS=1 accepts them): {mismatches:?}"
+            "these files differ from tests/snapshots/{name} (UPDATE_SNAPSHOTS=1 accepts them): {mismatches:?}"
         );
+    }
+
+    #[test]
+    fn notes_fixture_matches_its_snapshots() {
+        check_snapshots(Template::Bloc, "notes", &[BLOC_FEATURE]);
+    }
+
+    #[test]
+    fn http_fixtures_match_their_snapshots() {
+        check_snapshots(Template::BlocHttp, "http", BLOC_HTTP_FEATURES);
+    }
+
+    #[test]
+    fn http_specs_are_checked() {
+        let invalid = resolve::resolve(
+            &from_json(
+                r#"{"feature": "auth",
+                    "repository": {"name": "AuthRepository", "methods": [
+                        {"name": "sign_in", "returns": "User", "session": "sign_in"},
+                        {"name": "gone"}]},
+                    "provider": {"name": "AuthApi", "kind": "http", "endpoints": [
+                        {"method": "sign_in", "verb": "POST", "path": "sessions", "response": "SignedInDto"},
+                        {"method": "me", "verb": "GET", "path": "/users/{id}", "response": "UserDto"}]},
+                    "dtos": [{"name": "SignedInDto", "fields": [{"name": "jwt", "type": "String"}]}],
+                    "view": {"form": {"event": "AuthRequested", "server_errors": {"conflict_field": "email"}}}}"#,
+            )
+            .unwrap(),
+        )
+        .unwrap_err()
+        .join("\n");
+        for expected in [
+            "repository.methods[0].session: `sign_in` needs the endpoint's response DTO to have a `token` field",
+            "repository.methods[1].name: there is no provider endpoint `gone`",
+            "provider.endpoints[0].path",
+            "provider.endpoints[1]",
+            "view.form.server_errors.conflict_field: the form has no field `email`",
+        ] {
+            assert!(invalid.contains(expected), "missing {expected:?} in:\n{invalid}");
+        }
     }
 
     #[test]
@@ -623,10 +703,14 @@ mod tests {
 
     #[test]
     fn endpoints_parse_from_flags() {
-        let endpoint = parse_endpoint("get_note:get:/notes/{id}:NoteDto", true).unwrap();
+        let endpoint = parse_endpoint("get_note:get:/notes/{id:NoteId}:NoteDto", true).unwrap();
         assert_eq!(endpoint.verb, "GET");
+        assert_eq!(endpoint.path, "/notes/{id}");
         assert_eq!(endpoint.path_params[0].name, "id");
+        assert_eq!(endpoint.path_params[0].ty, "NoteId");
         assert!(endpoint.skip_expire);
+        let endpoint = parse_endpoint("list:GET:/notes:Vec<NoteDto>", false).unwrap();
+        assert_eq!(endpoint.response, "Vec<NoteDto>");
         assert!(parse_endpoint("get_note:GET", false).is_err());
     }
 

@@ -1,0 +1,126 @@
+{
+  "feature": "notes",
+  "events": [
+    { "name": "NotesRequested", "calls": "list" },
+    {
+      "name": "NoteAdded",
+      "calls": "add",
+      "fields": [
+        { "name": "title", "type": "String" },
+        { "name": "body", "type": "String" }
+      ]
+    },
+    {
+      "name": "NoteDeleted",
+      "calls": "delete",
+      "fields": [{ "name": "id", "type": "NoteId" }]
+    }
+  ],
+  "repository": {
+    "name": "NotesRepository",
+    "methods": [
+      { "name": "list", "returns": "Vec<Note>", "calls": "list_notes" },
+      {
+        "name": "add",
+        "args": [
+          { "name": "title", "type": "String" },
+          { "name": "body", "type": "String" }
+        ],
+        "returns": "Note",
+        "calls": "create_note"
+      },
+      {
+        "name": "delete",
+        "args": [{ "name": "id", "type": "NoteId" }],
+        "calls": "delete_note"
+      }
+    ]
+  },
+  "provider": {
+    "name": "NotesApi",
+    "kind": "http",
+    "api_base": "/api",
+    "endpoints": [
+      {
+        "method": "list_notes",
+        "verb": "GET",
+        "path": "/notes",
+        "query": [{ "name": "search", "type": "Option<String>", "rename": "q" }],
+        "response": "Vec<NoteDto>"
+      },
+      {
+        "method": "create_note",
+        "verb": "POST",
+        "path": "/notes",
+        "body": "NewNoteDto",
+        "response": "NoteDto"
+      },
+      {
+        "method": "delete_note",
+        "verb": "DELETE",
+        "path": "/notes/{id}",
+        "path_params": [{ "name": "id", "type": "NoteId" }],
+        "response": "()"
+      },
+      {
+        "method": "upload_attachment",
+        "verb": "PUT",
+        "path": "/notes/{id}/attachment",
+        "path_params": [{ "name": "id", "type": "NoteId" }],
+        "raw_body": true,
+        "response": "AttachmentDto"
+      },
+      {
+        "method": "download_attachment",
+        "verb": "GET",
+        "path": "/notes/{id}/attachment",
+        "path_params": [{ "name": "id", "type": "NoteId" }],
+        "response": "bytes"
+      }
+    ]
+  },
+  "dtos": [
+    {
+      "name": "NoteDto",
+      "fields": [
+        { "name": "id", "type": "NoteId" },
+        { "name": "title", "type": "String" },
+        { "name": "body", "type": "String" },
+        { "name": "created_at", "type": "String", "rename": "createdAt" },
+        { "name": "attachments", "type": "Vec<AttachmentDto>" }
+      ]
+    },
+    {
+      "name": "NewNoteDto",
+      "fields": [
+        { "name": "title", "type": "String" },
+        { "name": "body", "type": "String" }
+      ]
+    },
+    {
+      "name": "AttachmentDto",
+      "variants": [
+        {
+          "name": "Image",
+          "fields": [
+            { "name": "url", "type": "String" },
+            { "name": "width", "type": "u32" }
+          ]
+        },
+        {
+          "name": "File",
+          "fields": [
+            { "name": "url", "type": "String" },
+            { "name": "file_name", "type": "String", "rename": "fileName" }
+          ]
+        }
+      ]
+    }
+  ],
+  "view": {
+    "form": {
+      "event": "NoteAdded",
+      "server_errors": { "field_map": { "noteTitle": "title" } }
+    }
+  }
+}

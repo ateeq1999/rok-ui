@@ -6,8 +6,8 @@ use std::collections::BTreeSet;
 use super::{
     names,
     spec::{
-        ConcurrencyKind, EndpointSpec, FieldSpec, FormSpec, Kind, MethodSpec, ProviderKind, Spec,
-        StateStyle, TypeSpec,
+        ConcurrencyKind, EndpointSpec, FieldSpec, FormSpec, Kind, MethodSpec, ProviderKind,
+        SessionAction, Spec, StateStyle, TypeSpec,
     },
 };
 
@@ -54,6 +54,8 @@ pub struct Method {
     pub args: Vec<Field>,
     pub returns: String,
     pub calls: Option<String>,
+    /// What the call does to the HTTP session, and the response's token field.
+    pub session: Option<(SessionAction, String)>,
 }
 
 /// The repository.
@@ -339,7 +341,63 @@ fn default_method(event: &Event, model: &str, list_type: &str) -> Method {
         args,
         returns,
         calls: None,
+        session: None,
     }
+}
+
+/// A repository method per HTTP endpoint: its parameters and body fields as arguments, its
+/// response with DTOs mapped to models.
+fn endpoint_methods(endpoints: &[EndpointSpec], dtos: &[Model]) -> Vec<Method> {
+    endpoints
+        .iter()
+        .map(|endpoint| {
+            let mut args: Vec<Field> = endpoint
+                .path_params
+                .iter()
+                .chain(&endpoint.query)
+                .map(field)
+                .collect();
+            if let Some(body) = &endpoint.body {
+                if let Some(dto) = dtos.iter().find(|dto| &dto.names.pascal == body) {
+                    for dto_field in &dto.fields {
+                        if !args.iter().any(|arg| arg.name == dto_field.name) {
+                            args.push(Field {
+                                name: dto_field.name.clone(),
+                                ty: dto_field.ty.replace("Dto", ""),
+                                default: None,
+                                rename: None,
+                            });
+                        }
+                    }
+                }
+            }
+            if endpoint.raw_body {
+                args.push(Field {
+                    name: "body".into(),
+                    ty: "Vec<u8>".into(),
+                    default: None,
+                    rename: None,
+                });
+                args.push(Field {
+                    name: "content_type".into(),
+                    ty: "String".into(),
+                    default: None,
+                    rename: None,
+                });
+            }
+            let returns = match endpoint.response.as_str() {
+                "bytes" => "Bytes".to_string(),
+                other => other.replace("Dto", ""),
+            };
+            Method {
+                name: endpoint.method.clone(),
+                args,
+                returns,
+                calls: None,
+                session: None,
+            }
+        })
+        .collect()
 }
 
 /// The method an event's handler calls when the payload does not say.
@@ -505,11 +563,20 @@ pub fn resolve(spec: &Spec) -> Result<Plan, Vec<String>> {
         errors.check_type("state.error", &error);
     }
 
+    // DTOs.
+    let mut dtos = Vec::new();
+    for (index, dto) in spec.dtos.iter().enumerate() {
+        dtos.push(type_spec(&format!("dtos[{index}]"), dto, &mut errors));
+    }
+
     // Repository.
     let repository = spec.repository.as_ref().map_or_else(
         || {
             let mut methods: Vec<Method> = Vec::new();
-            for event in &events {
+            if let Some(provider) = spec.provider.as_ref().filter(|_| is_http) {
+                methods = endpoint_methods(&provider.endpoints, &dtos);
+            }
+            for event in events.iter().filter(|_| !is_http) {
                 if event.calls.is_some() {
                     continue;
                 }
@@ -576,10 +643,42 @@ pub fn resolve(spec: &Spec) -> Result<Plan, Vec<String>> {
         }
     }
 
-    // DTOs.
-    let mut dtos = Vec::new();
-    for (index, dto) in spec.dtos.iter().enumerate() {
-        dtos.push(type_spec(&format!("dtos[{index}]"), dto, &mut errors));
+    // Session actions need an HTTP provider, and sign-in a response with the token.
+    for (index, method) in repository.methods.iter().enumerate() {
+        let Some((action, token_field)) = &method.session else {
+            continue;
+        };
+        let path = format!("repository.methods[{index}].session");
+        if !is_http {
+            errors.push(&path, "session actions need an `http` provider");
+            continue;
+        }
+        if *action == SessionAction::SignIn {
+            let call = method.calls.clone().unwrap_or_else(|| method.name.clone());
+            let response = provider
+                .as_ref()
+                .and_then(|provider| {
+                    provider
+                        .endpoints
+                        .iter()
+                        .find(|endpoint| endpoint.method == call)
+                })
+                .map(|endpoint| endpoint.response.clone());
+            let has_token = response.as_ref().is_some_and(|response| {
+                dtos.iter().any(|dto| {
+                    &dto.names.pascal == response
+                        && dto.fields.iter().any(|field| &field.name == token_field)
+                })
+            });
+            if response.is_some() && !has_token {
+                errors.push(
+                    &path,
+                    format!(
+                        "`sign_in` needs the endpoint's response DTO to have a `{token_field}` field (or set `token_field`)"
+                    ),
+                );
+            }
+        }
     }
 
     // HTTP endpoints.
@@ -700,6 +799,43 @@ pub fn resolve(spec: &Spec) -> Result<Plan, Vec<String>> {
             models.push(inferred_model(ident, &events, &repository.methods, &dtos));
         }
     }
+    // Types that models mention (`Vec<Attachment>` in `Note`) are models too.
+    loop {
+        let mut missing = Vec::new();
+        for model in &models {
+            let fields = model.fields.iter().chain(
+                model
+                    .variants
+                    .iter()
+                    .flat_map(|variant| variant.fields.iter()),
+            );
+            for field in fields {
+                for ident in idents_of(&field.ty) {
+                    let known = KNOWN.contains(&ident.as_str())
+                        || dto_names.contains(&ident)
+                        || models.iter().any(|model| model.names.pascal == ident)
+                        || ids.iter().any(|(alias, _)| *alias == ident)
+                        || missing.contains(&ident);
+                    if !known {
+                        missing.push(ident);
+                    }
+                }
+            }
+        }
+        if missing.is_empty() {
+            break;
+        }
+        for ident in missing {
+            if let Some(owner) = ident.strip_suffix("Id").filter(|owner| !owner.is_empty()) {
+                ids.push((ident.clone(), owner.to_string()));
+                if !models.iter().any(|model| model.names.pascal == owner) {
+                    models.push(inferred_model(owner, &events, &repository.methods, &dtos));
+                }
+            } else {
+                models.push(inferred_model(&ident, &events, &repository.methods, &dtos));
+            }
+        }
+    }
     let ids = ids
         .into_iter()
         .map(|(alias, owner)| {
@@ -745,6 +881,43 @@ pub fn resolve(spec: &Spec) -> Result<Plan, Vec<String>> {
         }
         for (index, spec_field) in form.fields.iter().enumerate() {
             errors.check_field(&format!("view.form.fields[{index}]"), spec_field);
+        }
+        // Server errors land on form fields: they must exist.
+        let form_fields: Vec<String> = if form.fields.is_empty() {
+            events
+                .iter()
+                .find(|event| event.name == form.event)
+                .map(|event| {
+                    event
+                        .fields
+                        .iter()
+                        .map(|field| field.name.clone())
+                        .collect()
+                })
+                .unwrap_or_default()
+        } else {
+            form.fields.iter().map(|field| field.name.clone()).collect()
+        };
+        if let Some(server_errors) = &form.server_errors {
+            let mut named: Vec<(String, &String)> = server_errors
+                .field_map
+                .iter()
+                .map(|(api, field)| (format!("view.form.server_errors.field_map.{api}"), field))
+                .collect();
+            for (key, field) in [
+                ("conflict_field", &server_errors.conflict_field),
+                ("bad_request_field", &server_errors.bad_request_field),
+                ("unauthorized_field", &server_errors.unauthorized_field),
+            ] {
+                if let Some(field) = field {
+                    named.push((format!("view.form.server_errors.{key}"), field));
+                }
+            }
+            for (path, field) in named {
+                if !form_fields.contains(field) {
+                    errors.push(&path, format!("the form has no field `{field}`"));
+                }
+            }
         }
     }
 
@@ -800,6 +973,12 @@ fn methods(specs: &[MethodSpec], errors: &mut Errors) -> Vec<Method> {
             args: method.args.iter().map(field).collect(),
             returns,
             calls: method.calls.clone(),
+            session: method.session.map(|action| {
+                (
+                    action,
+                    method.token_field.clone().unwrap_or_else(|| "token".into()),
+                )
+            }),
         });
     }
     methods
@@ -936,6 +1115,15 @@ fn inferred_model(name: &str, events: &[Event], methods: &[Method], dtos: &[Mode
         id: Some(id_type),
         variants: Vec::new(),
     }
+}
+
+/// The type names `ty` mentions (nothing when it does not parse; that is reported elsewhere).
+fn idents_of(ty: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    if let Ok(parsed) = syn::parse_str::<syn::Type>(ty) {
+        type_idents(&parsed, &mut found);
+    }
+    found
 }
 
 /// Whether `ty` is a primitive Rust type.

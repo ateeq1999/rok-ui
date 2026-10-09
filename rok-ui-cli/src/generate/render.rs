@@ -6,7 +6,7 @@ use std::{collections::BTreeSet, fmt::Write as _};
 use super::{
     names,
     resolve::{Event, Field, Method, Model, Plan},
-    spec::{ConcurrencyKind, Kind, ProviderKind, StateStyle},
+    spec::{ConcurrencyKind, Kind, ProviderKind, SessionAction, StateStyle},
 };
 
 /// `use` lines, sorted and deduplicated.
@@ -374,6 +374,17 @@ fn is_copy(ty: &str) -> bool {
     )
 }
 
+/// The submit button's label: "Add" for `NoteAdded`, "Sign in" for `SignInSubmitted`.
+fn submit_label(event: &Event) -> String {
+    let verb = names::event_verb(&event.name);
+    let subject = names::event_subject(&event.name);
+    if verb == "submit" && !subject.is_empty() {
+        sentence(&subject)
+    } else {
+        sentence(&verb)
+    }
+}
+
 /// The label of a page button for an event without fields: "Refresh" for the loader.
 fn action_label(plan: &Plan, event: &Event) -> String {
     let loads = event.calls.as_ref().is_some_and(|call| {
@@ -467,6 +478,14 @@ fn http_provider(plan: &Plan) -> String {
             imports.add("rok_ui::http::path_segment");
         }
     }
+    for each in &plan.dtos {
+        types.extend(each.fields.iter().map(|field| field.ty.as_str()));
+        types.extend(
+            each.variants
+                .iter()
+                .flat_map(|variant| variant.fields.iter().map(|field| field.ty.as_str())),
+        );
+    }
     let dto_names: Vec<&str> = plan
         .dtos
         .iter()
@@ -486,7 +505,7 @@ fn http_provider(plan: &Plan) -> String {
     out.push_str(&imports.render());
     let _ = write!(
         out,
-        "\n/// The `{}` endpoints, over the app's [`HttpClient`].\n#[derive(Clone, Debug)]\npub struct {name} {{\n    client: HttpClient,\n}}\n\nimpl {name} {{\n    /// The endpoints, called through `client`.\n    #[must_use]\n    pub fn new(client: HttpClient) -> Self {{\n        Self {{ client }}\n    }}\n",
+        "\n/// The `{}` endpoints, over the app's [`HttpClient`].\n#[derive(Clone, Debug)]\npub struct {name} {{\n    client: HttpClient,\n}}\n\nimpl {name} {{\n    /// The endpoints, called through `client`.\n    #[must_use]\n    pub fn new(client: HttpClient) -> Self {{\n        Self {{ client }}\n    }}\n\n    /// The client (and through it, the session).\n    #[must_use]\n    pub fn client(&self) -> &HttpClient {{\n        &self.client\n    }}\n",
         plan.feature.snake
     );
     for endpoint in &provider.endpoints {
@@ -515,7 +534,7 @@ fn http_provider(plan: &Plan) -> String {
             options.push_str(".json(&body)");
         }
         if endpoint.raw_body {
-            options.push_str(".raw_body(body, content_type)");
+            options.push_str(".raw_body(body).content_type(content_type)");
         }
         if endpoint.skip_expire {
             options.push_str(".skip_expire(true)");
@@ -571,10 +590,17 @@ pub fn repository(plan: &Plan) -> String {
     }
     if plan.is_http() {
         for endpoint in &provider.endpoints {
+            // Request bodies are built by name; responses are only converted.
             if let Some(body) = &endpoint.body {
                 types.push(body);
             }
-            types.push(&endpoint.response);
+        }
+        // The `From` impls at the end of the file.
+        for each in &plan.dtos {
+            if let Some(model) = plan.model(each.names.pascal.trim_end_matches("Dto")) {
+                types.push(&each.names.pascal);
+                types.push(&model.names.pascal);
+            }
         }
     }
     import_types(plan, &mut imports, &types, "crate");
@@ -774,18 +800,68 @@ fn http_method_body(plan: &Plan, method: &Method) -> String {
     let request = format!("self.provider.{call}({}).await", values.join(", "));
     let response = endpoint.response.replace(' ', "");
     let returns = method.returns.replace(' ', "");
-    let mapping = if response == returns || (response == "bytes" && returns == "Bytes") {
-        String::new()
+    // How a response value becomes the method's return value.
+    let convert = if response == returns || (response == "bytes" && returns == "Bytes") {
+        None
     } else if returns == "()" {
-        ".map(|_| ())".into()
+        Some(("()".to_string(), true))
     } else if response.starts_with("Vec<") && returns.starts_with("Vec<") {
-        ".map(|items| items.into_iter().map(Into::into).collect())".into()
+        Some((
+            "value.into_iter().map(Into::into).collect()".to_string(),
+            false,
+        ))
+    } else if let Some(field) = picked_field(plan, &response, &returns) {
+        // An envelope (`{ "token": .., "user": .. }`): take the field with the return type.
+        Some((field, false))
     } else if response.ends_with("Dto") {
-        ".map(Into::into)".into()
+        Some(("value.into()".to_string(), false))
     } else {
-        format!(".map(|_| {})", default_of(&method.returns))
+        Some((default_of(&method.returns), true))
     };
-    format!("{request}{mapping}")
+    let mapping = match &convert {
+        None => String::new(),
+        Some((value, true)) => format!(".map(|_| {value})"),
+        Some((value, false)) if value == "value.into()" => ".map(Into::into)".into(),
+        Some((value, false)) => format!(".map(|value| {value})"),
+    };
+    match &method.session {
+        Some((SessionAction::SignIn, token)) => {
+            let value = match &convert {
+                None => "value".to_string(),
+                Some((value, _)) => value.clone(),
+            };
+            format!(
+                "let value = {request}?;\nif let Some(session) = self.provider.client().session() {{ session.set_token(value.{token}.clone()); }}\nOk({value})"
+            )
+        }
+        Some((SessionAction::SignOut, _)) => format!(
+            "let result = {request}{mapping};\n// Signed out locally even when the server call fails.\nif let Some(session) = self.provider.client().session() {{ session.clear(); }}\nresult"
+        ),
+        None => format!("{request}{mapping}"),
+    }
+}
+
+/// `value.user.into()` when the `response` DTO has one field of the `returns` type (or its
+/// DTO).
+fn picked_field(plan: &Plan, response: &str, returns: &str) -> Option<String> {
+    let dto = plan.dtos.iter().find(|dto| dto.names.pascal == response)?;
+    let matching: Vec<&Field> = dto
+        .fields
+        .iter()
+        .filter(|field| {
+            let ty = field.ty.replace(' ', "");
+            ty == returns || ty == format!("{returns}Dto")
+        })
+        .collect();
+    let [field] = matching[..] else {
+        return None;
+    };
+    let ty = field.ty.replace(' ', "");
+    Some(if ty == returns {
+        format!("value.{}", field.name)
+    } else {
+        format!("value.{}.into()", field.name)
+    })
 }
 
 fn memory_method_body(plan: &Plan, method: &Method) -> String {
@@ -1159,22 +1235,46 @@ fn handler(plan: &Plan, event: &Event, repository: &str) -> String {
         method.name,
         arguments.join(", ")
     );
+    let returns = method.returns.replace(' ', "");
+    // The state field the result goes to: one of the same type, or an `Option` of it.
     let assigned = plan
         .state
         .fields
         .iter()
-        .find(|field| field.ty.replace(' ', "") == method.returns.replace(' ', ""));
-    let ignored = if method.returns.replace(' ', "") == "()" {
-        "()"
-    } else {
-        "_"
-    };
+        .find(|field| field.ty.replace(' ', "") == returns)
+        .map(|field| (field, "value"))
+        .or_else(|| {
+            plan.state
+                .fields
+                .iter()
+                .find(|field| field.ty.replace(' ', "") == format!("Option<{returns}>"))
+                .map(|field| (field, "Some(value)"))
+        });
+    let ignored = if returns == "()" { "()" } else { "_" };
+    if matches!(method.session, Some((SessionAction::SignOut, _))) {
+        // Signed out: back to the initial state.
+        let reset = match style {
+            StateStyle::Struct if has("Success") => {
+                format!("emit.emit({state} {{ status: {status}::Success, ..{state}::default() }});")
+            }
+            StateStyle::Struct => format!("emit.emit({state}::default());"),
+            StateStyle::Enum => format!(
+                "emit.emit({state}::Success({}Data::default()));",
+                plan.name.pascal
+            ),
+        };
+        let _ = write!(
+            out,
+            "match {call} {{\nOk({ignored}) => {{ {reset} }}\n{cancelled}Err(error) => {{ {failure} }}\n}}\n"
+        );
+        return out;
+    }
     match (assigned, plan.loader()) {
-        (Some(field), _) => {
+        (Some((field, value)), _) => {
             let _ = write!(
                 out,
                 "match {call} {{\nOk(value) => {{ {} }}\n{cancelled}Err(error) => {{ {failure} }}\n}}\n",
-                success(Some((&field.name, "value")))
+                success(Some((&field.name, value)))
             );
         }
         // A write: then reload what the state shows.
@@ -1446,6 +1546,15 @@ pub fn page(plan: &Plan) -> String {
         types.extend(fields.iter().map(|field| field.ty.as_str()));
         imports.add("rok_ui::form::{self, FormOptions, FormValues, SubmitButton}");
     }
+    let server_errors = plan
+        .form
+        .as_ref()
+        .and_then(|form| form.server_errors.clone())
+        .filter(|_| form.is_some());
+    if server_errors.is_some() {
+        imports.add("rok_ui::bloc::BlocListener");
+        imports.add("rok_ui::form::ServerErrorOptions");
+    }
     import_types(plan, &mut imports, &types, "crate");
     let status = status_name(plan);
     if plan.state.style == StateStyle::Struct {
@@ -1483,6 +1592,27 @@ pub fn page(plan: &Plan) -> String {
         let _ = write!(out, "\n/// What the `{}` form edits.\n#[derive(FormValues, Clone, Default)]\nstruct {values} {{\n", event.name);
         struct_fields(&mut out, fields, false, false);
         out.push_str("}\n");
+        if let Some(options) = &server_errors {
+            let constant =
+                |field: &str| format!("&{values}::{}", names::snake(field).to_uppercase());
+            let mut chain = String::from("ServerErrorOptions::new()");
+            for (api_field, field) in &options.field_map {
+                let _ = write!(chain, ".map({api_field:?}, {})", constant(field));
+            }
+            if let Some(field) = &options.conflict_field {
+                let _ = write!(chain, ".conflict_field({})", constant(field));
+            }
+            if let Some(field) = &options.bad_request_field {
+                let _ = write!(chain, ".bad_request_field({})", constant(field));
+            }
+            if let Some(field) = &options.unauthorized_field {
+                let _ = write!(chain, ".unauthorized_field({})", constant(field));
+            }
+            let _ = write!(
+                out,
+                "\n/// Where API errors from submitting the form are shown.\nfn server_errors() -> ServerErrorOptions {{\n    {chain}\n}}\n"
+            );
+        }
         let event_fields: Vec<String> = event
             .fields
             .iter()
@@ -1524,6 +1654,7 @@ pub fn page(plan: &Plan) -> String {
             let constant = names::snake(&field.name).to_uppercase();
             let label = sentence(&field.name);
             match field.ty.as_str() {
+                "String" if field.name.contains("password") => controls.push(format!(".child(form::TextField::new(&form.field(cx, {values}::{constant}), {label:?}).password())")),
                 "String" => controls.push(format!(".child(form::TextField::new(&form.field(cx, {values}::{constant}), {label:?}))")),
                 "bool" => controls.push(format!(".child(form::CheckboxField::new(&form.field(cx, {values}::{constant}), {label:?}))")),
                 _ => {}
@@ -1533,8 +1664,24 @@ pub fn page(plan: &Plan) -> String {
             form_fields_ui,
             "    let editor = div().flex().flex_col().gap_2(){}.child(SubmitButton::new(&form, {:?}));",
             controls.join(""),
-            sentence(&names::event_verb(&event.name))
+            submit_label(event)
         );
+        if server_errors.is_some() {
+            let (pattern, listen_when) = match plan.state.style {
+                StateStyle::Struct => (
+                    "Some(error) = &state.error".to_string(),
+                    "previous.error != current.error",
+                ),
+                StateStyle::Enum => (
+                    format!("{state}::Failure(error) = state"),
+                    "previous != current",
+                ),
+            };
+            let _ = writeln!(
+                form_fields_ui,
+                "    // The bloc's error, on the form's fields.\n    let errors_form = form.clone();\n    let errors = BlocListener::new(&bloc, move |state, _, cx| {{ if let {pattern} {{ errors_form.apply_server_errors(cx, &form::to_server_errors(error, &server_errors())); }} }}).listen_when(|previous, current| {listen_when});"
+            );
+        }
     }
     let lookup = if is_cubit { "cubit" } else { "bloc" };
     let _ = write!(out, "\n/// Shows `{}` and {}.\n#[component]\npub fn {page}(cx: &mut Cx) -> impl IntoElement {{\n    let bloc = cx.{lookup}::<{owner}>();\n", plan.feature.snake, if is_cubit { "calls its methods" } else { "adds its events" });
@@ -1666,7 +1813,11 @@ pub fn page(plan: &Plan) -> String {
             format!("match state {{\n{arms}}}")
         }
     };
-    let editor = if form.is_some() { ".child(editor)" } else { "" };
+    let editor = match (&form, &server_errors) {
+        (Some(_), Some(_)) => ".child(editor).child(errors)",
+        (Some(_), None) => ".child(editor)",
+        _ => "",
+    };
     let builder = if row_events.is_empty() {
         format!("|state, _, _| {{ {body} }}")
     } else {
