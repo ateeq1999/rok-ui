@@ -1,0 +1,25 @@
+{
+  "feature": "notes",
+  "events": [
+    { "name": "NotesRequested" },
+    {
+      "name": "NoteAdded",
+      "fields": [
+        { "name": "title", "type": "String" },
+        { "name": "body", "type": "String" }
+      ]
+    },
+    { "name": "NoteDeleted", "fields": [{ "name": "id", "type": "NoteId" }] }
+  ],
+  "models": [
+    {
+      "name": "Note",
+      "fields": [
+        { "name": "id", "type": "NoteId" },
+        { "name": "title", "type": "String" },
+        { "name": "body", "type": "String" }
+      ]
+    }
+  ],
+  "view": { "form": { "event": "NoteAdded" } }
+}

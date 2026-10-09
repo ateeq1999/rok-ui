@@ -38,6 +38,8 @@
 extern crate self as rok_ui;
 
 pub mod bidi;
+#[cfg(feature = "bloc")]
+pub mod bloc;
 pub mod components;
 pub mod cx;
 #[cfg(feature = "db")]
@@ -48,6 +50,8 @@ pub mod fonts;
 #[cfg(feature = "form")]
 pub mod form;
 pub mod hooks;
+#[cfg(feature = "http")]
+pub mod http;
 pub mod icon;
 pub mod keyed;
 pub mod motion;

@@ -9,6 +9,24 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- The BLoC architecture as the standard way to build apps (`docs/guide/architecture.md`):
+  the `rok-ui-bloc` crate (`Bloc`, `Cubit`, `Emitter`, concurrency modes, test helpers) and
+  `rok_ui::bloc` (feature `bloc`): `BlocProvider`, `RepositoryProvider`, `BlocBuilder`,
+  `BlocListener`, `BlocConsumer`, `BlocSelector`, `cx.bloc` / `cx.watch_bloc`.
+- `rok_ui::http` (feature `http`): `HttpClient`, `ApiError` from the `{"error": ..}`
+  envelope, `Session` with 401 expiry, `CancelToken`.
+- API errors on forms: `form::to_server_errors`, `Form::apply_server_errors`,
+  `form::use_api_form`, `Form::apply_errors`.
+- `cargo rok-ui generate` (`g`): features, blocs, cubits, repositories, providers, views and
+  HTTP APIs from flags or JSON, wired into barrels and `app.rs`; `g schema`.
+- `cargo rok-ui new --template bloc [--http]`.
+
+### Fixed
+
+- A form-level server error no longer blocks the next submit.
+
 ## [0.7.1] - 2026-10-04
 
 ### Added

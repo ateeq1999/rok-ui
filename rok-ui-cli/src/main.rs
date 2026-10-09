@@ -1,12 +1,14 @@
 //! `cargo rok-ui`: create rok-ui apps, vendor components and write route trees.
 //!
 //! ```text
-//! cargo rok-ui new <name> [--template minimal|full|db] [--rok-ui-path <path>]
+//! cargo rok-ui new <name> [--template minimal|full|db|bloc [--http]] [--rok-ui-path <path>]
 //! cargo rok-ui add <component>... [--dir src/components/ui] [--force]
 //! cargo rok-ui routes [--dir src/routes] [--out src/route_tree.rs]
+//! cargo rok-ui generate <feature|bloc|cubit|repository|provider|view|api|schema> ...
 //! ```
 
 mod add;
+mod generate;
 mod templates;
 
 use std::{
@@ -20,21 +22,40 @@ use templates::Template;
 const USAGE: &str = "cargo rok-ui: create rok-ui apps, vendor components and write route trees
 
 USAGE:
-    cargo rok-ui new <name> [--template minimal|full|db] [--rok-ui-path <path>]
+    cargo rok-ui new <name> [--template minimal|full|db|bloc [--http]] [--rok-ui-path <path>]
     cargo rok-ui add <component>... [--dir <dir>] [--force]
     cargo rok-ui routes [--dir <routes dir>] [--out <file>]
+    cargo rok-ui generate <what> <name> [flags]     (alias: g; see `cargo rok-ui g help`)
 
 COMMANDS:
     new       Create an app. Templates: minimal (one window), full (file-based routes,
-              features, queries; the default), db (full plus PostgreSQL).
+              features, queries; the default), db (full plus PostgreSQL), bloc (the
+              BLoC architecture: data, features and thin routes, with a notes feature;
+              add --http for a notes API client, sign-in and a session guard).
     add       Copy components' source into the app (default: src/components/ui/) to change
               them, and declare them in the barrel file.
     routes    Write the route tree for src/routes to a checked-in file (default:
-              src/route_tree.rs), for `rok_ui::routes!(\"route_tree.rs\")`.";
+              src/route_tree.rs), for `rok_ui::routes!(\"route_tree.rs\")`.
+    generate  Write a BLoC feature, or part of one (bloc, cubit, repository, provider, view,
+              HTTP api), from flags and JSON, and wire it into the barrels and src/app.rs.";
+
+/// Flags that take no value.
+const SWITCHES: &[&str] = &[
+    "force",
+    "dry-run",
+    "view",
+    "no-view",
+    "no-tests",
+    "no-wire",
+    "skip-expire",
+    "server-errors",
+    "http",
+];
 
 /// Options shared by the commands: positional arguments and `--name value` flags.
-struct Arguments {
-    positional: Vec<String>,
+pub struct Arguments {
+    /// Arguments that are not flags, in order.
+    pub positional: Vec<String>,
     flags: Vec<(String, Option<String>)>,
 }
 
@@ -44,14 +65,21 @@ impl Arguments {
         let mut flags = Vec::new();
         let mut arguments = arguments.peekable();
         while let Some(argument) = arguments.next() {
+            // `-j` is `--json`.
+            let argument = if argument == "-j" {
+                "--json".to_string()
+            } else {
+                argument
+            };
             if let Some(name) = argument.strip_prefix("--") {
                 let value = match name.split_once('=') {
                     Some((name, value)) => {
                         flags.push((name.to_string(), Some(value.to_string())));
                         continue;
                     }
-                    None if name == "force" => None,
-                    None => arguments.next_if(|next| !next.starts_with("--")),
+                    None if SWITCHES.contains(&name) => None,
+                    // A value may be `-` (standard input), but not another flag.
+                    None => arguments.next_if(|next| !next.starts_with("--") && next != "-j"),
                 };
                 flags.push((name.to_string(), value));
             } else {
@@ -61,11 +89,24 @@ impl Arguments {
         Self { positional, flags }
     }
 
-    fn flag(&self, name: &str) -> Option<&str> {
+    /// The last value of a flag.
+    #[must_use]
+    pub fn flag(&self, name: &str) -> Option<&str> {
         self.flags
             .iter()
+            .rev()
             .find(|(flag, _)| flag == name)
             .and_then(|(_, value)| value.as_deref())
+    }
+
+    /// Every value of a repeatable flag.
+    #[must_use]
+    pub fn flags(&self, name: &str) -> Vec<&str> {
+        self.flags
+            .iter()
+            .filter(|(flag, _)| flag == name)
+            .filter_map(|(_, value)| value.as_deref())
+            .collect()
     }
 
     fn has(&self, name: &str) -> bool {
@@ -84,6 +125,9 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     };
     let arguments = Arguments::parse(arguments.into_iter().skip(1));
+    if matches!(command.as_str(), "generate" | "g") {
+        return generate::run(&arguments);
+    }
     let result = match command.as_str() {
         "new" => new(&arguments),
         "add" => add(&arguments),
@@ -169,7 +213,7 @@ fn new(arguments: &Arguments) -> Result<(), String> {
     let name = arguments
         .positional
         .first()
-        .ok_or("usage: cargo rok-ui new <name> [--template minimal|full|db]")?;
+        .ok_or("usage: cargo rok-ui new <name> [--template minimal|full|db|bloc [--http]]")?;
     if name.is_empty()
         || !name
             .chars()
@@ -177,14 +221,28 @@ fn new(arguments: &Arguments) -> Result<(), String> {
     {
         return Err(format!("`{name}` is not a valid crate name"));
     }
-    let template_name = arguments.flag("template").unwrap_or("full");
-    let template = Template::parse(template_name)
-        .ok_or_else(|| format!("unknown template `{template_name}`; use minimal, full or db"))?;
+    let template_name = match (arguments.flag("template"), arguments.has("http")) {
+        (Some("bloc"), true) => "bloc-http",
+        (_, true) => return Err("--http goes with --template bloc".into()),
+        (template, false) => template.unwrap_or("full"),
+    };
+    let template = Template::parse(template_name).ok_or_else(|| {
+        format!("unknown template `{template_name}`; use minimal, full, db, bloc or bloc-http")
+    })?;
     let local = arguments
         .flag("rok-ui-path")
         .map(|path| fs::canonicalize(path).unwrap_or_else(|_| PathBuf::from(path)));
     let directory = PathBuf::from(arguments.flag("path").unwrap_or(name));
     create(&directory, name, template, local.as_deref())?;
+    match template {
+        Template::Bloc => generate::feature_into(&directory, templates::BLOC_FEATURE)?,
+        Template::BlocHttp => {
+            for feature in templates::BLOC_HTTP_FEATURES {
+                generate::feature_into(&directory, feature)?;
+            }
+        }
+        _ => {}
+    }
     println!(
         "Created {} ({template_name} template).",
         directory.display()

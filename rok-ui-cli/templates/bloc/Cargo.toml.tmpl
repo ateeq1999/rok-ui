@@ -1,0 +1,24 @@
+[package]
+name = "{{name}}"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+{{rok_ui}}
+gpui = "0.2.2"
+
+[dev-dependencies]
+gpui = { version = "0.2.2", features = ["test-support"] }
+
+[build-dependencies]
+{{rok_ui_build}}
+
+[lints.rust]
+missing_docs = "warn"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+# Event handlers match every event, often with the same body.
+match_same_arms = "allow"
+# GPUI is allowed in the app and denied again in each `features/<f>/bloc.rs`: see clippy.toml.
+disallowed_types = "allow"

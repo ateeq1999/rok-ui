@@ -1,0 +1,67 @@
+error: future cannot be sent between threads safely
+  --> tests/ui/bloc_holds_bloc.rs:26:56
+   |
+26 |     async fn on(&self, _event: (), _emit: &Emitter<u8>) {}
+   |                                                        ^ future returned by `on` is not `Send`
+   |
+   = help: within `Outer`, the trait `Sync` is not implemented for `*const ()`
+note: captured value is not `Send` because `&` references cannot be sent unless their referent is `Sync`
+  --> tests/ui/bloc_holds_bloc.rs:26:17
+   |
+26 |     async fn on(&self, _event: (), _emit: &Emitter<u8>) {}
+   |                 ^^^^^ has type `&Outer` which is not `Send`, because `Outer` is not `Sync`
+note: required by a bound in `Bloc::on::{anon_assoc#0}`
+  --> src/bloc.rs
+   |
+   |     ) -> impl Future<Output = ()> + Send;
+   |                                     ^^^^ required by this bound in `Bloc::on::{anon_assoc#0}`
+
+error[E0277]: `*const ()` cannot be shared between threads safely
+  --> tests/ui/bloc_holds_bloc.rs:20:15
+   |
+20 | impl Bloc for Outer {
+   |               ^^^^^ `*const ()` cannot be shared between threads safely
+   |
+   = help: within `Outer`, the trait `Sync` is not implemented for `*const ()`
+note: required because it appears within the type `PhantomData<*const ()>`
+  --> $RUST/core/src/marker.rs
+note: required because it appears within the type `BlocHandle<Inner>`
+  --> src/bloc.rs
+   |
+   | pub struct BlocHandle<B: Bloc> {
+   |            ^^^^^^^^^^
+note: required because it appears within the type `Outer`
+  --> tests/ui/bloc_holds_bloc.rs:16:8
+   |
+16 | struct Outer {
+   |        ^^^^^
+note: required by a bound in `Bloc`
+  --> src/bloc.rs
+   |
+   | pub trait Bloc: Send + Sync + 'static {
+   |                        ^^^^ required by this bound in `Bloc`
+
+error[E0277]: `*const ()` cannot be sent between threads safely
+  --> tests/ui/bloc_holds_bloc.rs:20:15
+   |
+20 | impl Bloc for Outer {
+   |               ^^^^^ `*const ()` cannot be sent between threads safely
+   |
+   = help: within `Outer`, the trait `Send` is not implemented for `*const ()`
+note: required because it appears within the type `PhantomData<*const ()>`
+  --> $RUST/core/src/marker.rs
+note: required because it appears within the type `BlocHandle<Inner>`
+  --> src/bloc.rs
+   |
+   | pub struct BlocHandle<B: Bloc> {
+   |            ^^^^^^^^^^
+note: required because it appears within the type `Outer`
+  --> tests/ui/bloc_holds_bloc.rs:16:8
+   |
+16 | struct Outer {
+   |        ^^^^^
+note: required by a bound in `Bloc`
+  --> src/bloc.rs
+   |
+   | pub trait Bloc: Send + Sync + 'static {
+   |                 ^^^^ required by this bound in `Bloc`

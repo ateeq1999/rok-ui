@@ -231,6 +231,48 @@ PostgreSQL through rok-db (a type-safe async ORM on sqlx), run on the shared run
   handles. Errors arrive as `DbError::{NotConnected, Failed, Cancelled}`.
 - Deprecated: `db::use_query` (removed in 0.8); use `query::use_query(cx, db::db_query(..))`.
 
+## Architecture (`bloc` feature)
+
+Apps are built in three layers (`docs/guide/architecture.md`): `src/data/` (models, providers,
+repositories), `src/features/<f>/bloc/` (blocs and cubits, no GPUI), `src/features/<f>/view/`
+plus thin `src/routes/`.
+
+- `impl Bloc for B { type Event; type State: Clone + PartialEq; fn initial_state;
+  async fn on(&self, event, emit: &Emitter<State>); fn concurrency(&self, &Event) ->
+  Concurrency }` (`Sequential` default, `Droppable`, `Restartable`, `Concurrent`).
+  `impl Cubit for C { type State; fn emitter(&self) -> &Emitter<State> }`.
+- `emit.emit(state)` / `emit.update(|s| ..)` (equal states are dropped), `emit.spawn(fut)`.
+- Provide: `RepositoryProvider::from(Repositories::new().with::<dyn R>(Arc::new(..)))`,
+  `BlocProvider::new().with_bloc(|scope| B::new(scope.repository::<dyn R>()))`.
+- Read: `cx.bloc::<B>()` -> `BlocHandle<B>` (`add(event)`, `state()`), `cx.watch_bloc`,
+  `cx.cubit::<C>()`, `cx.repository::<dyn R>()`.
+- Render: `BlocBuilder::new(&handle, |state, window, cx| ..).build_when(..)`,
+  `BlocSelector`, `BlocListener::new(&handle, |state, window, cx| ..).listen_when(..)`,
+  `BlocConsumer`.
+- Async repository traits return `BoxFuture<'_, Result<T, E>>`.
+- Test: `bloc::test::run(bloc, events) -> Vec<State>`, `run_settled`, `run_cubit(cubit, |c| ..)`.
+- Generate: `cargo rok-ui new app --template bloc [--http]`, `cargo rok-ui g
+  feature|bloc|cubit|repository|provider|view|api|schema` (flags over `-j` JSON over defaults;
+  exit 2 on conflicts; `docs/guide/cli.md`).
+
+## HTTP (`http` feature)
+
+- `HttpClient::builder().base_url(..).header(..).timeout(..).session(session).build()`
+  (base URL default: `ROK_API_URL`); `client.request::<T>(path, Options::get())`,
+  `request_empty`, `request_bytes`; `client.api_url(path)`; `path_segment(&id)`.
+- `Options::post().json(&body)` / `.raw_body(bytes).content_type(..)`, `.header(..)`,
+  `.query(name, value)` (skips `None` and `""`), `.skip_expire(true)`, `.cancel(&token)`.
+- `ApiError { status, code, message, details }` from `{"error": {code, message, details}}`;
+  status 0 + `network_error` when unreachable; `ApiError::cancelled()` / `is_cancelled()`.
+- `Session` (`set_token`, `clear`, `expire`, `is_expired`; `Observable`, so `BlocListener`
+  works on it); a 401 expires it unless `skip_expire`, no token was sent, or the token changed.
+  `Session::persisted(path)` stores the token in a plain JSON file.
+- Forms (`form` + `http`): `form::to_server_errors(&error, &ServerErrorOptions::new()
+  .map("emailAddress", &F::EMAIL).conflict_field(..).bad_request_field(..)
+  .unauthorized_field(..))`, `form.apply_server_errors(cx, &errors)`,
+  `form::use_api_form(cx, ApiFormOptions::new(options, |values| async { .. })
+  .on_success(..))` -> `form_error()`, `form_error_status()`, `clear_form_error(cx)`.
+
 ## Conventions
 
 - Lints: `[workspace.lints]` with clippy pedantic, `missing_docs`, `unsafe_code = "deny"`; CI
@@ -245,6 +287,6 @@ PostgreSQL through rok-db (a type-safe async ORM on sqlx), run on the shared run
 
 ## Docs
 
-- Guides: `docs/guide/{app-shells,state,router,query,forms,database}.md` (also the module
+- Guides: `docs/guide/{architecture,app-shells,state,router,query,forms,database,http,cli}.md` (also the module
   docs). Every doc example compiles (no `ignore` blocks). Upgrading: `docs/migration/0.6.md`.
 - Plan: `enhance.md`; progress: `roadmap.md`; changes: `CHANGELOG.md`.

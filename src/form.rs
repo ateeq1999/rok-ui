@@ -4,6 +4,8 @@ mod fields;
 #[cfg(feature = "form-garde")]
 mod garde;
 mod path;
+#[cfg(feature = "http")]
+mod server;
 mod state;
 mod validators;
 
@@ -24,6 +26,11 @@ pub use fields::{BoundInput, CheckboxField, FormErrors, SubmitButton, SwitchFiel
 #[cfg(feature = "form-garde")]
 pub use garde::GardeSchema;
 pub use path::{Field, FieldKey, FormValues, Path};
+#[cfg(feature = "http")]
+pub use server::{
+    to_server_errors, use_api_form, ApiForm, ApiFormOptions, ServerErrorOptions, ServerErrors,
+    SOMETHING_WENT_WRONG, TOO_MANY_ATTEMPTS,
+};
 pub use state::{use_form, ArrayFieldApi, FieldApi, FieldMeta, Form, FormOptions, FormState};
 pub use validators::{FormError, FormValidators, Schema, ValidationEvent, Validators};
 

@@ -737,6 +737,16 @@ impl<V: FormValues> Form<V> {
         set_value(&self.entity, cx, &path.into(), value);
     }
 
+    /// Show `errors` as server errors (as [`ValidationEvent::Server`]), as if a submit had
+    /// returned them. A field's error stays until the field changes; errors about the whole
+    /// form clear at the next submit.
+    pub fn apply_errors(&self, cx: &mut App, errors: FormError) {
+        self.entity.update(cx, |inner, cx| {
+            inner.apply_form_error(ValidationEvent::Server, errors);
+            cx.notify();
+        });
+    }
+
     /// Run every validator for `event` now.
     pub fn validate(&self, cx: &mut App, event: ValidationEvent) {
         let keys = self.entity.read(cx).order.clone();
@@ -837,6 +847,9 @@ pub(crate) fn submit<V: FormValues>(
     let keys = form.update(cx, |inner, _| {
         inner.attempts += 1;
         inner.is_submitted = false;
+        // A server error about the whole form ("try again later") must not block the retry;
+        // field errors stay until their field changes.
+        inner.form_errors.remove(&ValidationEvent::Server);
         for meta in inner.meta.values_mut() {
             meta.is_touched = true;
         }
