@@ -8,7 +8,8 @@ use std::{
 };
 
 use gpui::{
-    App, Entity, FocusHandle, Pixels, Point, ScrollHandle, SharedString, Subscription, Task, Window,
+    AnyWindowHandle, App, Entity, FocusHandle, Pixels, Point, ScrollHandle, SharedString,
+    Subscription, Task, Window,
 };
 
 use super::{
@@ -140,6 +141,8 @@ pub(crate) struct FormInner<V> {
     on_submit: Option<SubmitHandler<V>>,
     is_submitting: bool,
     is_submitted: bool,
+    /// A submit waiting for async validators to finish.
+    waiting_submit: Option<WaitingSubmit>,
     attempts: u32,
     async_runs: HashMap<(SharedString, ValidationEvent), (u64, Task<()>)>,
     async_generation: u64,
@@ -154,6 +157,12 @@ pub(crate) struct FormInner<V> {
     revision: u64,
     #[cfg(feature = "persist")]
     draft: Option<DraftState>,
+}
+
+/// A submit that runs once the async validators finish.
+struct WaitingSubmit {
+    /// The window it came from, to focus the first invalid field in.
+    window: Option<AnyWindowHandle>,
 }
 
 /// A field's position in its scroll container's content (unscrolled, window coordinates),
@@ -229,21 +238,16 @@ impl<V: FormValues> FormInner<V> {
         if !field.events.contains(&event) {
             return None;
         }
-        let error = (field.sync)(event, &self.values);
-        let failed = error.is_some();
-        let meta = self.meta_mut(key);
-        match error {
-            Some(error) => {
-                meta.error_map.insert(event, error);
-            }
-            None => {
-                meta.error_map.remove(&event);
-            }
-        }
-        if failed {
+        if let Some(error) = (field.sync)(event, &self.values) {
+            // The value is invalid already: an async check of it no longer matters.
             self.async_runs.remove(&(key.clone(), event));
+            let still_validating = self.async_runs.keys().any(|(other, _)| other == key);
+            let meta = self.meta_mut(key);
+            meta.error_map.insert(event, error);
+            meta.is_validating = still_validating;
             return None;
         }
+        self.meta_mut(key).error_map.remove(&event);
         (field.asynchronous)(event, &self.values)
     }
 
@@ -329,12 +333,37 @@ fn start_async<V: FormValues>(
                 }
                 cx.notify();
             });
+            settle_submit(&entity, cx);
         })
         .ok();
     });
     form.update(cx, |inner, _| {
         inner.async_runs.insert((key, event), (generation, task));
     });
+}
+
+/// Finish a submit that waited for async validators, once none is running.
+fn settle_submit<V: FormValues>(form: &Entity<FormInner<V>>, cx: &mut App) {
+    let waiting = form.update(cx, |inner, _| {
+        if inner.is_validating() {
+            None
+        } else {
+            inner.waiting_submit.take()
+        }
+    });
+    let Some(WaitingSubmit { window }) = waiting else {
+        return;
+    };
+    let finished = window.is_some_and(|window| {
+        let form = form.clone();
+        window
+            .update(cx, |_, window, cx| finish_submit(&form, Some(window), cx))
+            .is_ok()
+    });
+    // No window, or it closed while the validators ran.
+    if !finished {
+        finish_submit(form, None, cx);
+    }
 }
 
 /// Validate `keys` for `event`, starting async validators where the sync ones pass.
@@ -360,6 +389,7 @@ fn validate_keys<V: FormValues>(
         start_async(form, cx, key, event, job);
     }
     form.update(cx, |_, cx| cx.notify());
+    settle_submit(form, cx);
 }
 
 /// What a form starts from and how it validates and submits.
@@ -483,7 +513,7 @@ impl<V: FormValues> FormOptions<V> {
 pub struct FormState {
     /// Every validator passes and the form is not submitting.
     pub can_submit: bool,
-    /// The submit handler is running.
+    /// Submitting: waiting for async validators, or the submit handler is running.
     pub is_submitting: bool,
     /// The last submit went through.
     pub is_submitted: bool,
@@ -559,6 +589,7 @@ pub fn use_form<V: FormValues>(cx: &mut Cx, options: FormOptions<V>) -> Form<V> 
             on_submit: None,
             is_submitting: false,
             is_submitted: false,
+            waiting_submit: None,
             attempts: 0,
             async_runs: HashMap::new(),
             async_generation: 0,
@@ -764,6 +795,9 @@ impl<V: FormValues> Form<V> {
             inner.meta.clear();
             inner.form_errors.clear();
             inner.async_runs.clear();
+            if inner.waiting_submit.take().is_some() {
+                inner.is_submitting = false;
+            }
             inner.attempts = 0;
             inner.is_submitted = false;
             cx.notify();
@@ -781,12 +815,15 @@ impl<V: FormValues> Form<V> {
                 }
             }
             inner.meta.insert(path.key().clone(), FieldMeta::default());
+            inner.async_runs.retain(|(key, _), _| key != path.key());
             cx.notify();
         });
+        settle_submit(&self.entity, cx);
     }
 
-    /// Validate everything and, if it is valid, run the submit handler. On failure the first
-    /// invalid bound field gets focus. Enter in a bound single-line input submits too.
+    /// Validate everything and, if it is valid, run the submit handler. Async validators are
+    /// waited for (the form is submitting meanwhile). On failure the first invalid bound field
+    /// gets focus. Enter in a bound single-line input submits too.
     pub fn submit(&self, window: &mut Window, cx: &mut App) {
         submit(&self.entity, Some(window), cx);
     }
@@ -864,8 +901,28 @@ pub(crate) fn submit<V: FormValues>(
     ] {
         validate_keys(form, cx, &keys, event);
     }
+    if form.read(cx).is_validating() {
+        // Submit once the async validators are done (`settle_submit`).
+        let handle = window.as_ref().map(|window| window.window_handle());
+        form.update(cx, |inner, cx| {
+            inner.is_submitting = true;
+            inner.waiting_submit = Some(WaitingSubmit { window: handle });
+            cx.notify();
+        });
+        return;
+    }
+    finish_submit(form, window, cx);
+}
+
+/// With every validator done: run the submit handler if the form is valid, else focus (and
+/// scroll to) the first invalid field.
+fn finish_submit<V: FormValues>(
+    form: &Entity<FormInner<V>>,
+    window: Option<&mut Window>,
+    cx: &mut App,
+) {
     let inner = form.read(cx);
-    if !inner.is_valid() || inner.is_validating() {
+    if !inner.is_valid() {
         let first_invalid = inner
             .order
             .iter()
@@ -877,6 +934,10 @@ pub(crate) fn submit<V: FormValues>(
         if let (Some(handle), Some(position)) = (&inner.scroll, position) {
             scroll_to_field(handle, position);
         }
+        form.update(cx, |inner, cx| {
+            inner.is_submitting = false;
+            cx.notify();
+        });
         if let Some(window) = window {
             if let Some(focus) = focus {
                 window.focus(&focus);
@@ -887,6 +948,7 @@ pub(crate) fn submit<V: FormValues>(
     }
     let Some(handler) = inner.on_submit.clone() else {
         form.update(cx, |inner, cx| {
+            inner.is_submitting = false;
             inner.is_submitted = true;
             cx.notify();
         });

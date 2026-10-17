@@ -130,9 +130,10 @@ fn SignUpForm(cx: &mut Cx) -> impl IntoElement {
 - **Schemas.** `FormValidators::schema(..)` validates with anything implementing `Schema`.
   With the `form-garde` feature, `GardeSchema` uses the values' `garde::Validate` derive, so
   one set of rules covers the form and the procedure that receives it.
-- **Submit.** Submitting runs every validator. If anything is invalid, the first invalid bound
-  field gets focus; otherwise the submit handler runs, and the `FormError` it returns shows on
-  its fields as `ValidationEvent::Server` errors.
+- **Submit.** Submitting runs every validator and waits for the async ones (the form is
+  `is_submitting` meanwhile). If anything is invalid, the first invalid bound field gets
+  focus; otherwise the submit handler runs, and the `FormError` it returns shows on its fields
+  as `ValidationEvent::Server` errors.
 - **Long forms.** Give the form the handle of the scroll area it sits in, and a failed submit
   also scrolls the first invalid field to the top: keep a `ScrollHandle` in your view, pass it
   to `ScrollArea::track_scroll(&handle)` and to `FormOptions::scroll_handle(handle.clone())`.
