@@ -213,10 +213,7 @@ impl InputState {
 
     pub(super) fn submit(&mut self, _: &Submit, window: &mut Window, cx: &mut Context<Self>) {
         if self.multiline && !window.modifiers().secondary() {
-            self.replace_text_in_range(
-                None, "
-", window, cx,
-            );
+            self.replace_text_in_range(None, "\n", window, cx);
         } else {
             cx.emit(InputEvent::Submitted(self.content.clone()));
         }
@@ -224,11 +221,7 @@ impl InputState {
 
     pub(super) fn paste(&mut self, _: &Paste, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
-            let text = if self.multiline {
-                text.replace("\r\n", "\n")
-            } else {
-                text.replace('\n', " ")
-            };
+            let text = pasted_text(&text, self.multiline);
             self.replace_text_in_range(None, &text, window, cx);
         }
     }
@@ -480,16 +473,7 @@ impl InputState {
     }
 
     pub(super) fn offset_from_utf16(&self, utf16_offset: usize) -> usize {
-        let mut utf8_offset = 0;
-        let mut utf16_count = 0;
-        for character in self.content.chars() {
-            if utf16_count >= utf16_offset {
-                break;
-            }
-            utf16_count += character.len_utf16();
-            utf8_offset += character.len_utf8();
-        }
-        utf8_offset
+        utf8_offset(&self.content, utf16_offset)
     }
 
     pub(super) fn offset_to_utf16(&self, utf8_offset: usize) -> usize {
@@ -527,6 +511,31 @@ impl InputState {
             .find_map(|(index, _)| (index > offset).then_some(index))
             .unwrap_or(self.content.len())
     }
+}
+
+/// Clipboard text as a field takes it: `\n` line breaks (from `\r\n` or `\r` too), or spaces in
+/// a single-line field.
+fn pasted_text(text: &str, multiline: bool) -> String {
+    let text = text.replace("\r\n", "\n").replace('\r', "\n");
+    if multiline {
+        text
+    } else {
+        text.replace('\n', " ")
+    }
+}
+
+/// The UTF-8 offset in `text` of UTF-16 offset `utf16_offset` (the platform's unit).
+pub(super) fn utf8_offset(text: &str, utf16_offset: usize) -> usize {
+    let mut utf8_offset = 0;
+    let mut utf16_count = 0;
+    for character in text.chars() {
+        if utf16_count >= utf16_offset {
+            break;
+        }
+        utf16_count += character.len_utf16();
+        utf8_offset += character.len_utf8();
+    }
+    utf8_offset
 }
 
 #[cfg(test)]
@@ -614,6 +623,48 @@ mod tests {
             );
             assert_eq!(state.multiline_row_left(px(1.)), short.x);
         });
+    }
+
+    struct EmptyView;
+
+    impl Render for EmptyView {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            gpui::div()
+        }
+    }
+
+    #[gpui::test]
+    fn composing_text_keeps_the_selection_inside_it(cx: &mut gpui::TestAppContext) {
+        let state = cx.new(|cx| InputState::new(cx).with_text("hi "));
+        let (_view, window) = cx.add_window_view(|_, _| EmptyView);
+        window.update(|window, cx| {
+            state.update(cx, |state, cx| {
+                // The IME shows "nihon" while the user types, the caret at its end...
+                state.replace_and_mark_text_in_range(None, "nihon", Some(5..5), window, cx);
+                assert_eq!(state.marked_range, Some(3..8));
+                assert_eq!(state.selected_range, 8..8);
+                // ...then replaces it with the converted text, caret after the first character.
+                state.replace_and_mark_text_in_range(
+                    None,
+                    "\u{65e5}\u{672c}",
+                    Some(1..1),
+                    window,
+                    cx,
+                );
+                assert_eq!(state.text().as_ref(), "hi \u{65e5}\u{672c}");
+                assert_eq!(state.marked_range, Some(3..9));
+                assert_eq!(state.selected_range, 6..6);
+                state.replace_text_in_range(None, "\u{65e5}\u{672c}", window, cx);
+                assert_eq!(state.text().as_ref(), "hi \u{65e5}\u{672c}");
+                assert_eq!(state.selected_range, 9..9);
+            });
+        });
+    }
+
+    #[test]
+    fn pasted_line_breaks_fit_the_field() {
+        assert_eq!(pasted_text("a\r\nb\nc\rd", false), "a b c d");
+        assert_eq!(pasted_text("a\r\nb\nc\rd", true), "a\nb\nc\nd");
     }
 
     #[gpui::test]

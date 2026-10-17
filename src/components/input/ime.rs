@@ -4,7 +4,7 @@ use std::ops::Range;
 
 use gpui::{point, Bounds, Context, EntityInputHandler, Pixels, Point, UTF16Selection, Window};
 
-use super::{InputEvent, InputState};
+use super::{state::utf8_offset, InputEvent, InputState};
 
 impl EntityInputHandler for InputState {
     fn text_for_range(
@@ -86,13 +86,14 @@ impl EntityInputHandler for InputState {
                 .into();
         self.marked_range =
             (!new_text.is_empty()).then(|| range.start..range.start + new_text.len());
-        self.selected_range = new_selected_utf16_range
-            .as_ref()
-            .map(|utf16_range| self.range_from_utf16(utf16_range))
-            .map_or_else(
-                || range.start + new_text.len()..range.start + new_text.len(),
-                |new_range| new_range.start + range.start..new_range.end + range.end,
-            );
+        // The new selection is relative to `new_text`.
+        self.selected_range = new_selected_utf16_range.map_or_else(
+            || range.start + new_text.len()..range.start + new_text.len(),
+            |selected| {
+                range.start + utf8_offset(new_text, selected.start)
+                    ..range.start + utf8_offset(new_text, selected.end)
+            },
+        );
         cx.emit(InputEvent::Changed(self.content.clone()));
         cx.notify();
     }
