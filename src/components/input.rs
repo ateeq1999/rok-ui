@@ -21,7 +21,6 @@ mod state;
 mod textarea;
 
 use element::InputTextElement;
-use layout::{bidi_row_index_for_point, bidi_row_position_for_offset};
 #[doc(hidden)]
 pub use layout::{bidi_rows, needs_bidi_rows, BidiRow, DisplayLine};
 pub use state::{InputEvent, InputState};

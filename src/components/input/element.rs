@@ -216,7 +216,7 @@ impl Element for InputTextElement {
 }
 
 /// `bounds` with its left edge moved right by `offset`.
-pub(super) fn shift_bounds(bounds: Bounds<Pixels>, offset: Pixels) -> Bounds<Pixels> {
+fn shift_bounds(bounds: Bounds<Pixels>, offset: Pixels) -> Bounds<Pixels> {
     Bounds::new(
         point(bounds.left() + offset, bounds.top()),
         size(bounds.size.width - offset, bounds.size.height),

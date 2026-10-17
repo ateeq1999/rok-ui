@@ -134,7 +134,7 @@ impl<V: FormValues, E: Clone + 'static> ArrayFieldApi<V, E> {
 
 /// How row indices move after a list operation.
 #[derive(Clone, Copy)]
-pub(super) enum Rekey {
+enum Rekey {
     None,
     Insert(usize),
     Remove(usize),
@@ -176,13 +176,13 @@ impl Rekey {
 }
 
 /// `list.3.email` -> `(3, ".email")` for list key `list`.
-pub(super) fn row_of<'a>(list_key: &str, key: &'a str) -> Option<(usize, &'a str)> {
+fn row_of<'a>(list_key: &str, key: &'a str) -> Option<(usize, &'a str)> {
     let rest = key.strip_prefix(list_key)?.strip_prefix('.')?;
     let end = rest.find('.').unwrap_or(rest.len());
     Some((rest[..end].parse().ok()?, &rest[end..]))
 }
 
-pub(super) fn rekey_map<T>(map: &mut HashMap<SharedString, T>, list_key: &str, rekey: Rekey) {
+fn rekey_map<T>(map: &mut HashMap<SharedString, T>, list_key: &str, rekey: Rekey) {
     let moved: Vec<(SharedString, T)> = map
         .keys()
         .filter(|key| row_of(list_key, key).is_some())
@@ -201,7 +201,7 @@ pub(super) fn rekey_map<T>(map: &mut HashMap<SharedString, T>, list_key: &str, r
     }
 }
 
-pub(super) fn form_rekey_and_set<V: FormValues, E: 'static>(
+fn form_rekey_and_set<V: FormValues, E: 'static>(
     form: &Entity<FormInner<V>>,
     cx: &mut App,
     path: &Path<V, Vec<E>>,

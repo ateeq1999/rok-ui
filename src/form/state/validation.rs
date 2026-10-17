@@ -9,10 +9,10 @@ use super::{
     Validators,
 };
 
-pub(super) type SyncRunner<V> = Rc<dyn Fn(ValidationEvent, &V) -> Option<SharedString>>;
-pub(super) type AsyncRunner<V> = Rc<dyn Fn(ValidationEvent, &V) -> Option<(Duration, AsyncJob)>>;
+type SyncRunner<V> = Rc<dyn Fn(ValidationEvent, &V) -> Option<SharedString>>;
+type AsyncRunner<V> = Rc<dyn Fn(ValidationEvent, &V) -> Option<(Duration, AsyncJob)>>;
 /// Starts an async validation: called after the debounce, so a pause runs it once.
-pub(super) type AsyncJob = Box<dyn FnOnce() -> LocalFuture<Option<SharedString>>>;
+type AsyncJob = Box<dyn FnOnce() -> LocalFuture<Option<SharedString>>>;
 
 /// One field's validators with the types erased.
 pub(super) struct ErasedField<V> {
@@ -86,7 +86,7 @@ impl<V: FormValues> FormInner<V> {
 
     /// Run `key`'s synchronous validators for `event`; returns the async job to start, if the
     /// synchronous ones passed and an async one exists.
-    pub(super) fn validate_sync(
+    fn validate_sync(
         &mut self,
         key: &SharedString,
         event: ValidationEvent,
@@ -108,7 +108,7 @@ impl<V: FormValues> FormInner<V> {
         (field.asynchronous)(event, &self.values)
     }
 
-    pub(super) fn run_form_validators(&mut self, event: ValidationEvent) {
+    fn run_form_validators(&mut self, event: ValidationEvent) {
         let errors = self
             .form_validators
             .checks
@@ -148,7 +148,7 @@ impl<V: FormValues> FormInner<V> {
 
 /// Start (or restart) an async validation; the previous run for the same field and event is
 /// dropped, so only the latest value's result counts.
-pub(super) fn start_async<V: FormValues>(
+fn start_async<V: FormValues>(
     form: &Entity<FormInner<V>>,
     cx: &mut App,
     key: SharedString,

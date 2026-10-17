@@ -1,9 +1,11 @@
 //! Shaping field text: one line, or rows that rok-ui wraps itself for right-to-left text on
-//! Windows (see [`crate::bidi`]).
+//! Windows (see [`crate::bidi`]), and positions in a multi-line field's rows.
 
 use std::ops::Range;
 
 use gpui::{point, px, App, Pixels, Point, ShapedLine, SharedString, TextRun, Window};
+
+use super::InputState;
 
 /// One visual row of a multi-line field that rok-ui lays out itself (right-to-left
 /// text on Windows, see [`crate::bidi`]).
@@ -79,7 +81,7 @@ pub fn bidi_rows(
 }
 
 /// Where content `offset` is drawn, relative to the text's top-left.
-pub(super) fn bidi_row_position_for_offset(
+fn bidi_row_position_for_offset(
     rows: &[BidiRow],
     offset: usize,
     line_height: Pixels,
@@ -100,11 +102,7 @@ pub(super) fn bidi_row_position_for_offset(
 }
 
 /// The content offset nearest to `local` (relative to the text's top-left).
-pub(super) fn bidi_row_index_for_point(
-    rows: &[BidiRow],
-    local: Point<Pixels>,
-    line_height: Pixels,
-) -> usize {
+fn bidi_row_index_for_point(rows: &[BidiRow], local: Point<Pixels>, line_height: Pixels) -> usize {
     if rows.is_empty() {
         return 0;
     }
@@ -164,7 +162,7 @@ impl DisplayLine {
 
     /// The left and right edges of each logical character, with whether its run
     /// reads right to left.
-    pub(super) fn edges(&self) -> impl Iterator<Item = (&crate::bidi::VisualChar, Pixels, Pixels)> {
+    fn edges(&self) -> impl Iterator<Item = (&crate::bidi::VisualChar, Pixels, Pixels)> {
         self.bidi.iter().flat_map(move |bidi| {
             bidi.chars.iter().map(move |character| {
                 let left = self.line.x_for_index(character.visual.start);
@@ -257,6 +255,111 @@ impl DisplayLine {
         cx: &mut App,
     ) {
         self.line.paint(origin, line_height, window, cx).ok();
+    }
+}
+
+/// Positions in a multi-line field, from the rows of its last paint.
+impl InputState {
+    /// Content offset nearest to `local` (relative to the text's top-left) in a
+    /// multi-line field, using the wrapped lines from the last paint.
+    pub(super) fn multiline_index_for_point(&self, local: Point<Pixels>) -> usize {
+        if let Some(rows) = self.last_bidi_rows.as_ref() {
+            return bidi_row_index_for_point(rows, local, self.last_line_height)
+                .min(self.content.len());
+        }
+        let line_height = self.last_line_height;
+        let mut paragraph_start = 0;
+        let mut line_top = px(0.);
+        let line_count = self.last_wrapped_lines.len();
+        for (index, line) in self.last_wrapped_lines.iter().enumerate() {
+            let line_bottom = line_top + line.size(line_height).height;
+            if local.y < line_bottom || index + 1 == line_count {
+                let y_in_line = (local.y - line_top)
+                    .max(px(0.))
+                    .min(line_bottom - line_top - px(1.));
+                // Undo this row's RTL alignment shift before hit testing.
+                let shift = self.row_offset(index, y_in_line);
+                let index_in_line = line
+                    .closest_index_for_position(
+                        point((local.x - shift).max(px(0.)), y_in_line),
+                        line_height,
+                    )
+                    .unwrap_or_else(|index| index);
+                return (paragraph_start + index_in_line).min(self.content.len());
+            }
+            paragraph_start += line.len() + 1;
+            line_top = line_bottom;
+        }
+        self.content.len()
+    }
+
+    /// Where `offset` is drawn in a multi-line field, relative to the text's top-left.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn multiline_position_for_offset(&self, offset: usize) -> Option<Point<Pixels>> {
+        if let Some(rows) = self.last_bidi_rows.as_ref() {
+            return bidi_row_position_for_offset(rows, offset, self.last_line_height);
+        }
+        let line_height = self.last_line_height;
+        let mut paragraph_start = 0;
+        let mut line_top = px(0.);
+        for (index, line) in self.last_wrapped_lines.iter().enumerate() {
+            if offset <= paragraph_start + line.len() {
+                return line
+                    .position_for_index(offset - paragraph_start, line_height)
+                    .map(|position| {
+                        let shift = self.row_offset(index, position.y);
+                        point(position.x + shift, position.y + line_top)
+                    });
+            }
+            paragraph_start += line.len() + 1;
+            line_top += line.size(line_height).height;
+        }
+        None
+    }
+
+    /// Left edge of the text on the visual row at `y` (relative to the text's top).
+    /// Zero in LTR; the right-alignment shift in RTL.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn multiline_row_left(&self, y: Pixels) -> Pixels {
+        if let Some(rows) = self.last_bidi_rows.as_ref() {
+            let row = (y / self.last_line_height).floor().max(0.) as usize;
+            return rows.get(row).map_or(px(0.), |row| row.left);
+        }
+        let line_height = self.last_line_height;
+        let mut line_top = px(0.);
+        for (index, line) in self.last_wrapped_lines.iter().enumerate() {
+            let height = line.size(line_height).height;
+            if y < line_top + height {
+                return self.row_offset(index, y - line_top);
+            }
+            line_top += height;
+        }
+        px(0.)
+    }
+
+    /// How far visual row `y` (within paragraph `paragraph`) is shifted right by
+    /// RTL alignment. Zero in LTR.
+    fn row_offset(&self, paragraph: usize, y: Pixels) -> Pixels {
+        let row = (y / self.last_line_height).floor().max(0.) as usize;
+        self.last_row_offsets
+            .get(paragraph)
+            .and_then(|rows| rows.get(row))
+            .copied()
+            .unwrap_or(px(0.))
+    }
+
+    /// Offset one visual row above (`rows = -1`) or below (`rows = 1`) the cursor.
+    pub(super) fn vertical_target(&self, rows: f32) -> usize {
+        let Some(position) = self.multiline_position_for_offset(self.cursor_offset()) else {
+            return self.cursor_offset();
+        };
+        let target_y = position.y + self.last_line_height * (rows + 0.5);
+        if target_y < px(0.) {
+            return 0;
+        }
+        self.multiline_index_for_point(point(position.x, target_y))
     }
 }
 
