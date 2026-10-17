@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use gpui::SharedString;
 
-use super::{decode, normalize, Location};
+use super::{decode_path, normalize, Location};
 
 /// One segment of a route pattern.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -54,7 +54,7 @@ impl Pattern {
             match segment {
                 Segment::Wildcard(name) => {
                     let rest = parts.get(index..).unwrap_or_default().join("/");
-                    params.insert(name.clone(), decode(&rest).into());
+                    params.insert(name.clone(), decode_path(&rest).into());
                     return Some((params, score * 3 + 1));
                 }
                 Segment::Static(text) => {
@@ -65,7 +65,7 @@ impl Pattern {
                 }
                 Segment::Param(name) => {
                     let part = parts.get(index)?;
-                    params.insert(name.clone(), decode(part).into());
+                    params.insert(name.clone(), decode_path(part).into());
                     score = score * 3 + 2;
                 }
             }
@@ -117,5 +117,20 @@ impl RouteMatch {
     #[must_use]
     pub fn location(&self) -> &Location {
         &self.location
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_plus_in_a_path_segment_is_a_plus() {
+        let (params, _) = Pattern::parse("/tags/:tag").matches("/tags/c++").unwrap();
+        assert_eq!(params["tag"].as_ref(), "c++");
+        let (params, _) = Pattern::parse("/files/*path")
+            .matches("/files/a+b/c%20d")
+            .unwrap();
+        assert_eq!(params["path"].as_ref(), "a+b/c d");
     }
 }

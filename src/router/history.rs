@@ -111,14 +111,9 @@ pub fn navigate(path: impl Into<SharedString>, cx: &mut App) {
 /// Go to `path`, replacing the current history entry.
 pub fn replace(path: impl Into<SharedString>, cx: &mut App) {
     let path = normalize(path.into());
-    if blocker::intercept(blocker::PendingNavigation::Replace(path.clone()), cx) {
-        return;
+    if !blocker::intercept(blocker::PendingNavigation::Replace(path.clone()), cx) {
+        replace_unblocked(path, cx);
     }
-    let history = history(cx);
-    let index = history.index;
-    history.entries[index] = path;
-    history.scroll.retain(|(entry, _), _| *entry != index);
-    changed(cx);
 }
 
 /// Renders its child with [`CURRENT_WINDOW`] set, so components inside a router read their

@@ -56,7 +56,7 @@ use loading::cancel_stale_loads;
 pub use loading::{load_state, use_pending, LoadState};
 pub use loading::{preload, Loader};
 use loading::{preload_once_visible, run_loader_once};
-use location::decode;
+use location::decode_path;
 pub use location::Location;
 use pattern::Pattern;
 pub use pattern::RouteMatch;
@@ -394,15 +394,34 @@ impl Router {
     fn redirect_for(&self, location: &Location) -> Option<SharedString> {
         self.redirects.iter().find_map(|(pattern, to)| {
             let (params, _) = pattern.matches(location.path())?;
-            let mut target = to.to_string();
-            for (name, value) in &params {
-                target = target
-                    .replace(&format!(":{name}"), value)
-                    .replace(&format!("*{name}"), value);
-            }
-            Some(target.into())
+            Some(fill_params(to, &params).into())
         })
     }
+}
+
+/// `to` with each `:name` and `*name` segment of its path replaced by that parameter's value,
+/// encoded again. Segments naming no parameter, and the query, are kept as written.
+fn fill_params(to: &str, params: &HashMap<SharedString, SharedString>) -> String {
+    let (path, rest) = to.split_at(to.find(['?', '#']).unwrap_or(to.len()));
+    let segments: Vec<String> = path
+        .split('/')
+        .map(|segment| {
+            let param = segment
+                .strip_prefix(':')
+                .map(|name| (name, false))
+                .or_else(|| segment.strip_prefix('*').map(|name| (name, true)));
+            match param.and_then(|(name, wildcard)| Some((params.get(name)?, wildcard))) {
+                Some((value, false)) => typed::encode(value),
+                Some((value, true)) => value
+                    .split('/')
+                    .map(typed::encode)
+                    .collect::<Vec<_>>()
+                    .join("/"),
+                None => segment.to_string(),
+            }
+        })
+        .collect();
+    segments.join("/") + rest
 }
 
 impl Default for Router {
@@ -595,6 +614,24 @@ mod tests {
             Some("/users/5")
         );
         assert_eq!(normalize("users/".into()).as_ref(), "/users");
+
+        // Each parameter fills its own segment, encoded again.
+        let router = Router::new().redirect("/old/:id/:identity", "/new/:identity/:id");
+        assert_eq!(
+            router
+                .redirect_for(&Location::parse("/old/1/a%20b"))
+                .as_ref()
+                .map(std::convert::AsRef::as_ref),
+            Some("/new/a%20b/1")
+        );
+        let router = Router::new().redirect("/docs/*rest", "/manual/*rest?from=docs");
+        assert_eq!(
+            router
+                .redirect_for(&Location::parse("/docs/a/b"))
+                .as_ref()
+                .map(std::convert::AsRef::as_ref),
+            Some("/manual/a/b?from=docs")
+        );
         assert_eq!(normalize("/".into()).as_ref(), "/");
     }
 }

@@ -83,24 +83,56 @@ impl std::fmt::Display for Location {
 
 /// Decode `%XX` escapes and `+` (as a space) in a query component.
 pub(super) fn decode(component: &str) -> String {
+    percent_decode(component, true)
+}
+
+/// Decode `%XX` escapes in a path segment. A `+` stays a `+`: only queries use it for a space.
+pub(super) fn decode_path(component: &str) -> String {
+    percent_decode(component, false)
+}
+
+fn percent_decode(component: &str, plus_is_space: bool) -> String {
     let bytes = component.as_bytes();
     let mut decoded = Vec::with_capacity(bytes.len());
     let mut index = 0;
     while index < bytes.len() {
-        match bytes[index] {
-            b'+' => decoded.push(b' '),
-            b'%' if index + 2 < bytes.len() => {
-                match u8::from_str_radix(&component[index + 1..index + 3], 16) {
-                    Ok(byte) => {
-                        decoded.push(byte);
-                        index += 2;
-                    }
-                    Err(_) => decoded.push(b'%'),
-                }
+        let escaped = match bytes.get(index + 1..index + 3) {
+            Some(&[high, low]) if bytes[index] == b'%' => hex_value(high)
+                .zip(hex_value(low))
+                .map(|(high, low)| high << 4 | low),
+            _ => None,
+        };
+        match (escaped, bytes[index]) {
+            (Some(byte), _) => {
+                decoded.push(byte);
+                index += 2;
             }
-            byte => decoded.push(byte),
+            (None, b'+') if plus_is_space => decoded.push(b' '),
+            (None, byte) => decoded.push(byte),
         }
         index += 1;
     }
     String::from_utf8_lossy(&decoded).into_owned()
+}
+
+fn hex_value(digit: u8) -> Option<u8> {
+    char::from(digit)
+        .to_digit(16)
+        .and_then(|value| u8::try_from(value).ok())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_percent_before_a_multibyte_character_is_kept() {
+        // `%a` then `é`: the two bytes after `%` are not a whole escape.
+        assert_eq!(decode("%a\u{e9}"), "%a\u{e9}");
+        assert_eq!(decode("%\u{e9}x"), "%\u{e9}x");
+        assert_eq!(
+            Location::parse("/s?q=%a\u{e9}").query("q"),
+            Some("%a\u{e9}")
+        );
+    }
 }
