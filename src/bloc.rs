@@ -3,132 +3,21 @@
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
-    collections::HashMap,
     rc::Rc,
     sync::Arc,
 };
 
 use futures::{channel::mpsc, StreamExt as _};
-use gpui::{
-    div, prelude::*, AnyElement, App, Bounds, ElementId, GlobalElementId, InspectorElementId,
-    LayoutId, Pixels, Task, Window,
-};
+use gpui::{prelude::*, AnyElement, App, ElementId, Task, Window};
 pub use rok_ui_bloc::{
-    test, Bloc, BlocHandle, BoxFuture, Concurrency, Cubit, CubitHandle, Emitter, Observable,
-    Subscription,
+    bloc_test, clear_observer, set_observer, test, Bloc, BlocHandle, BlocObserver, BoxFuture,
+    Concurrency, Cubit, CubitHandle, Emitter, LogObserver, Observable, Subscription,
 };
 
-use crate::hooks::use_keyed_state;
-
-// ---------------------------------------------------------------------------
-// Scopes: what providers make available to the elements below them.
-
-/// Values one provider makes available, by type.
-type Frame = HashMap<TypeId, Rc<dyn Any>>;
-
-thread_local! {
-    /// The providers around the element being laid out, innermost last.
-    static SCOPES: RefCell<Vec<Rc<Frame>>> = const { RefCell::new(Vec::new()) };
-}
-
-/// Run `body` with `frame` as the innermost scope.
-fn within<R>(frame: &Rc<Frame>, body: impl FnOnce() -> R) -> R {
-    SCOPES.with(|scopes| scopes.borrow_mut().push(frame.clone()));
-    let result = body();
-    SCOPES.with(|scopes| scopes.borrow_mut().pop());
-    result
-}
-
-/// The innermost provided value of type `T`.
-fn find<T: Clone + 'static>() -> Option<T> {
-    SCOPES.with(|scopes| {
-        scopes
-            .borrow()
-            .iter()
-            .rev()
-            .find_map(|frame| frame.get(&TypeId::of::<T>()))
-            .and_then(|value| value.downcast_ref::<T>().cloned())
-    })
-}
-
-/// Renders its child with a provider's values in scope while it lays out and paints.
-struct ScopeElement {
-    frame: Rc<Frame>,
-    child: AnyElement,
-}
-
-impl IntoElement for ScopeElement {
-    type Element = Self;
-
-    fn into_element(self) -> Self::Element {
-        self
-    }
-}
-
-impl Element for ScopeElement {
-    type RequestLayoutState = ();
-    type PrepaintState = ();
-
-    fn id(&self) -> Option<ElementId> {
-        None
-    }
-
-    fn source_location(&self) -> Option<&'static core::panic::Location<'static>> {
-        None
-    }
-
-    fn request_layout(
-        &mut self,
-        _id: Option<&GlobalElementId>,
-        _inspector_id: Option<&InspectorElementId>,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> (LayoutId, Self::RequestLayoutState) {
-        let child = &mut self.child;
-        (within(&self.frame, || child.request_layout(window, cx)), ())
-    }
-
-    fn prepaint(
-        &mut self,
-        _id: Option<&GlobalElementId>,
-        _inspector_id: Option<&InspectorElementId>,
-        _bounds: Bounds<Pixels>,
-        _request_layout: &mut Self::RequestLayoutState,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> Self::PrepaintState {
-        let child = &mut self.child;
-        within(&self.frame, || child.prepaint(window, cx));
-    }
-
-    fn paint(
-        &mut self,
-        _id: Option<&GlobalElementId>,
-        _inspector_id: Option<&InspectorElementId>,
-        _bounds: Bounds<Pixels>,
-        _request_layout: &mut Self::RequestLayoutState,
-        _prepaint: &mut Self::PrepaintState,
-        window: &mut Window,
-        cx: &mut App,
-    ) {
-        let child = &mut self.child;
-        within(&self.frame, || child.paint(window, cx));
-    }
-}
-
-/// One child as is, or several in a column.
-fn single(mut children: Vec<AnyElement>) -> AnyElement {
-    if children.len() == 1 {
-        children.remove(0)
-    } else {
-        div()
-            .flex()
-            .flex_col()
-            .size_full()
-            .children(children)
-            .into_any_element()
-    }
-}
+use crate::{
+    hooks::use_keyed_state,
+    scope::{find, single, Frame, ScopeElement},
+};
 
 // ---------------------------------------------------------------------------
 // Lookups.
@@ -634,7 +523,7 @@ impl<O: Observable> RenderOnce for BlocBuilder<O> {
 ///
 /// ```no_run
 /// # use rok_ui::{prelude::*, bloc::{Bloc, BlocSelector, Emitter}};
-/// # #[derive(Clone, PartialEq)] struct NotesState { notes: Vec<String> }
+/// # #[derive(Clone, Debug, PartialEq)] struct NotesState { notes: Vec<String> }
 /// # struct NotesBloc;
 /// # impl Bloc for NotesBloc {
 /// #     type Event = ();
@@ -701,7 +590,7 @@ struct Listening<S> {
 ///
 /// ```no_run
 /// # use rok_ui::{prelude::*, bloc::{Bloc, BlocListener, Emitter}};
-/// # #[derive(Clone, PartialEq)] enum AuthState { SignedIn, SignedOut }
+/// # #[derive(Clone, Debug, PartialEq)] enum AuthState { SignedIn, SignedOut }
 /// # struct AuthBloc;
 /// # impl Bloc for AuthBloc {
 /// #     type Event = ();
@@ -709,7 +598,7 @@ struct Listening<S> {
 /// #     fn initial_state(&self) -> AuthState { AuthState::SignedOut }
 /// #     async fn on(&self, _: (), _: &Emitter<AuthState>) {}
 /// # }
-/// # enum CartEvent { CartCleared }
+/// # #[derive(Debug)] enum CartEvent { CartCleared }
 /// # struct CartBloc;
 /// # impl Bloc for CartBloc {
 /// #     type Event = CartEvent;
@@ -831,7 +720,7 @@ impl<O: Observable> RenderOnce for BlocListener<O> {
 ///
 /// ```no_run
 /// # use rok_ui::{prelude::*, bloc::{Bloc, BlocConsumer, Emitter}};
-/// # #[derive(Clone, PartialEq)] enum SaveState { Idle, Saved }
+/// # #[derive(Clone, Debug, PartialEq)] enum SaveState { Idle, Saved }
 /// # struct SaveBloc;
 /// # impl Bloc for SaveBloc {
 /// #     type Event = ();

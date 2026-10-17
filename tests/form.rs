@@ -162,6 +162,82 @@ fn a_debounced_async_validator_runs_once_per_pause(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+fn a_form_with_an_async_validator_submits_once_it_passes(cx: &mut TestAppContext) {
+    let submitted = Rc::new(Cell::new(0));
+    let count = submitted.clone();
+    let (slot, window) = open(cx, move || {
+        let count = count.clone();
+        FormOptions::new(SignUp::default())
+            .field(
+                SignUp::NAME,
+                Validators::new().on_change_async_debounce(
+                    Duration::from_millis(300),
+                    |name: String| async move { (name == "taken").then_some("That name is taken") },
+                ),
+            )
+            .on_submit(move |_, _| {
+                count.set(count.get() + 1);
+                gpui::Task::ready(Ok(()))
+            })
+    });
+    let name = field(window, &slot, SignUp::NAME);
+    window.update(|_, cx| name.handle_change(cx, "ada".into()));
+    window.executor().advance_clock(Duration::from_millis(300));
+    window.run_until_parked();
+    assert!(field(window, &slot, SignUp::NAME).meta().is_valid());
+
+    // Submitting runs the async validator again and submits when it passes.
+    window.update(|window, cx| form(&slot).submit(window, cx));
+    assert!(form(&slot).state().is_submitting);
+    window.executor().advance_clock(Duration::from_millis(300));
+    window.run_until_parked();
+    assert_eq!(submitted.get(), 1);
+    assert!(form(&slot).state().is_submitted);
+
+    // When it fails, nothing is submitted.
+    window.update(|_, cx| name.handle_change(cx, "taken".into()));
+    window.update(|window, cx| form(&slot).submit(window, cx));
+    window.executor().advance_clock(Duration::from_millis(300));
+    window.run_until_parked();
+    assert_eq!(submitted.get(), 1);
+    assert!(!form(&slot).state().is_submitting);
+    assert_eq!(
+        field(window, &slot, SignUp::NAME).errors(),
+        ["That name is taken"]
+    );
+}
+
+#[gpui::test]
+fn a_value_that_fails_its_sync_check_stops_validating(cx: &mut TestAppContext) {
+    let (slot, window) = open(cx, || {
+        FormOptions::new(SignUp::default()).field(
+            SignUp::NAME,
+            Validators::new()
+                .on_change(|name: &String| name.is_empty().then_some("Required"))
+                .on_change_async_debounce(Duration::from_millis(300), |_: String| async {
+                    None::<&str>
+                }),
+        )
+    });
+    let name = field(window, &slot, SignUp::NAME);
+    window.update(|_, cx| name.handle_change(cx, "a".into()));
+    assert!(field(window, &slot, SignUp::NAME).meta().is_validating);
+    // Cleared before the async check ran: that run is dropped.
+    window.update(|_, cx| name.handle_change(cx, String::new()));
+    window.executor().advance_clock(Duration::from_millis(300));
+    window.run_until_parked();
+    let name = field(window, &slot, SignUp::NAME);
+    assert_eq!(name.errors(), ["Required"]);
+    assert!(!name.meta().is_validating);
+    assert!(!form(&slot).state().is_validating);
+
+    // Resetting a field drops its running check, so its result cannot land on the fresh field.
+    window.update(|_, cx| name.handle_change(cx, "a".into()));
+    window.update(|_, cx| form(&slot).reset_field(cx, SignUp::NAME));
+    assert!(!form(&slot).state().is_validating);
+}
+
+#[gpui::test]
 fn list_operations_keep_each_rows_state(cx: &mut TestAppContext) {
     let (slot, window) = open(cx, || FormOptions::new(SignUp::default()));
     window.update(|_, cx| {

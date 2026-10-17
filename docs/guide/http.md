@@ -145,6 +145,51 @@ The token lives in memory. `Session::persisted(path)` keeps it in a JSON file ac
 the file is plain text, readable by anyone who can read the user's files, so prefer
 short-lived tokens. OS keychain storage is not available yet.
 
+## Retries, logging and token refresh
+
+The client builder adds behavior around every request:
+
+```rust,no_run
+use std::time::Duration;
+
+use rok_ui::http::{HttpClient, Options, Retry, Session};
+
+#[derive(serde::Deserialize)]
+struct TokenDto {
+    token: String,
+}
+
+let session = Session::new();
+let client = HttpClient::builder()
+    .session(session)
+    // GET, HEAD, PUT and DELETE get up to 3 more tries when the server cannot be reached or
+    // answers 502, 503 or 504. A POST is never repeated.
+    .retry(Retry::idempotent(3).backoff(Duration::from_millis(200)))
+    // Every attempt: method, URL, status, time taken, attempt number.
+    .on_response(|info| println!("{info}"))
+    // A 401 on the session's token: get a new one and retry once, instead of signing out.
+    .refresh_token(|client| async move {
+        let fresh: TokenDto = client
+            .request("/sessions/refresh", Options::post().skip_expire(true))
+            .await?;
+        Ok(fresh.token)
+    })
+    .build();
+# let _ = client;
+```
+
+`log_requests()` prints each attempt to standard error. With `refresh_token`, several
+requests failing at once share one refresh; the session expires only when the refresh
+itself fails.
+
+## Testing against a mock server
+
+With the `http-testing` feature (in `[dev-dependencies]`), `http::testing::MockServer`
+serves canned replies on localhost: `server.on(Method::Get, "/notes").reply_json(200, &notes)`,
+one-shot replies with `.once(503, "")`, delays with `.delay(..)`, and the requests it got
+from `server.requests()`. Point an `HttpClient` at `server.url()` and test providers and
+repositories without the network.
+
 ## Errors on forms
 
 With the `form` feature, `form::to_server_errors` sorts an `ApiError` for a form: 422 details

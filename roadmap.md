@@ -56,7 +56,7 @@ What exists now, by crate:
 
 | Item | Status | Notes |
 |---|---|---|
-| C.1 `Cx` | Partial | `rok_ui::Cx` (window and app, derefs to `App`, `get` / `try_get` / `use_state`); `#[component]` accepts `cx: &mut Cx`. Scoped values (`cx.with`, `cx.keyed`) are not implemented; `Keyed` (G.2) covers stable identity. |
+| C.1 `Cx` | Done | `rok_ui::Cx` (window and app, derefs to `App`, `get` / `try_get` / `use_state`); `#[component]` accepts `cx: &mut Cx`. Scoped values: `context::Provide` + `cx.context::<T>()` (pushed during layout and paint, so they reach child components); `cx.keyed(key).use_state(..)`. |
 | Shared runtime | Done | `rok_ui::runtime` (feature `runtime`); `db` and `query` use it. |
 | C.2 Query cache | Done | `QueryOptions`, `query_key!`, shared in-flight fetches, stale and gc times, retries with backoff, `enabled`, initial / placeholder / previous data, refetch interval, refetch on window focus, prefix invalidation, the imperative API, `queries(cx)`, and `use_query_select` (TanStack's `select`, derived once per data change). |
 | C.2 `db::use_query` migration | Done | `db::db_query` / `db_mutation`; the 0.5 hook is deprecated and `db::invalidate` forwards. |
@@ -68,7 +68,7 @@ What exists now, by crate:
 | C.5 `#[memoize]` | Done | App scope with `memo::invalidate`, `scope = navigation` (cleared by the router on every navigation) and `ttl_ms`. No per-frame scope: memoized functions are async, so their results arrive after the frame. |
 | C.6 Signals | Done | Unchanged foundation (`rok_ui::state`). |
 | C.7 Stores | Done | `#[derive(Store)]` (a signal per field); `persist` feature: `persisted_store` with versioned JSON, migrations, debounced atomic writes. |
-| C.8 Devtools | Partial | `devtools` feature: an overlay (Ctrl-Shift-D) with the router history, the query cache and recent mutation runs (`query::mutations`, `MutationOptions::key`). Forms and the signal graph are not shown yet. |
+| C.8 Devtools | Partial | `devtools` feature: an overlay (Ctrl-Shift-D) with the router history, the query cache, recent mutation runs (`query::mutations`, `MutationOptions::key`) and live forms (status, submits, errors; `form::live_forms`). The signal graph is not shown yet. |
 
 ## Part D: forms
 
@@ -186,11 +186,22 @@ that use it. Design: `docs/design/http.md`.
 | M.5 Token storage | Partial | In memory, or `Session::persisted(path)` (a plain JSON file; the tradeoff is documented). OS keychain storage: not started. |
 | M.6 Helpers | Not started | `copy_to_clipboard`, `save_bytes`, `describe_user_agent`; multipart uploads. |
 
+## Part N: 0.9 (from `docs/proposals/next-features.md`)
+
+| Item | Status | Notes |
+|---|---|---|
+| N.1 Debounce and throttle | Done | `Concurrency::debounce` / `throttle`, per event variant. Generator support (`"concurrency": "debounce:300ms"`): not started. |
+| N.2 `BlocObserver` | Done | `set_observer`, `LogObserver`; panicking handlers are reported and the bloc keeps running. Events and states are `Debug` (breaking; `docs/migration/0.9.md`). |
+| N.3 HTTP middleware | Done | `retry(Retry::idempotent(n))`, `on_response`, `log_requests`, `refresh_token` (shared refresh for concurrent 401s). |
+| N.4 Testing kit | Done | `http::testing::MockServer` (feature `http-testing`), `bloc_test!`. View snapshots: not started. |
+| N.5 Scoped context | Done | See C.1. |
+| N.6 Devtools forms | Done | See C.8. |
+
 ## Still open
 
 - The workspace split (F.2, decision K.2) and remote procedures (C.4, decision K.6).
-- `#[shard]` (C.3); scoped `Cx` values (C.1).
-- Devtools: forms and the signal graph.
+- `#[shard]` (C.3).
+- Devtools: the signal graph.
 - 1.0: an API review against the component contract and Part B conventions, and
   `cargo public-api` checks in CI.
 

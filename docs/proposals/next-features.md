@@ -1,6 +1,8 @@
 # Proposal: what to build after BLoC and HTTP
 
-Status: proposal, for discussion. Nothing here is implemented.
+Status: items 1, 2, 6 and 14 (except view snapshots) and the two roadmap items in the 0.9
+batch (scoped context, the devtools forms panel) are implemented; see Part N of
+`roadmap.md`. The rest is a proposal, for discussion.
 
 rok-ui now has a standard app architecture (BLoC), a generator that writes features in it,
 and an HTTP client whose errors reach forms. This proposal lists what would make that stack

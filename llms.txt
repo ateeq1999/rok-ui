@@ -231,6 +231,12 @@ PostgreSQL through rok-db (a type-safe async ORM on sqlx), run on the shared run
   handles. Errors arrive as `DbError::{NotConnected, Failed, Cancelled}`.
 - Deprecated: `db::use_query` (removed in 0.8); use `query::use_query(cx, db::db_query(..))`.
 
+## Context
+
+- `context::Provide::new().value(v).child(..)` makes `v` available below; read it with
+  `cx.context::<T>()` (or `cx.expect_context::<T>()`). Innermost provider wins.
+- `cx.keyed(("row", id)).use_state(|| ..)`: state that follows a key across reorders.
+
 ## Architecture (`bloc` feature)
 
 Apps are built in three layers (`docs/guide/architecture.md`): `src/data/` (models, providers,
@@ -250,7 +256,11 @@ plus thin `src/routes/`.
   `BlocSelector`, `BlocListener::new(&handle, |state, window, cx| ..).listen_when(..)`,
   `BlocConsumer`.
 - Async repository traits return `BoxFuture<'_, Result<T, E>>`.
-- Test: `bloc::test::run(bloc, events) -> Vec<State>`, `run_settled`, `run_cubit(cubit, |c| ..)`.
+- Timed modes: `Concurrency::debounce(Duration)`, `Concurrency::throttle(Duration)`.
+- Observe: `bloc::set_observer(impl BlocObserver)` (`on_create`, `on_event`, `on_change`,
+  `on_error` for panics, `on_close`); `LogObserver`. Events and states must be `Debug`.
+- Test: `bloc::test::run(bloc, events) -> Vec<State>`, `run_settled`, `run_cubit(cubit, |c| ..)`,
+  `bloc_test! { name, build: B, act: [..], expect: [..] }` (or `verify: |states| ..`).
 - Generate: `cargo rok-ui new app --template bloc [--http]`, `cargo rok-ui g
   feature|bloc|cubit|repository|provider|view|api|schema` (flags over `-j` JSON over defaults;
   exit 2 on conflicts; `docs/guide/cli.md`).
@@ -262,6 +272,10 @@ plus thin `src/routes/`.
   `request_empty`, `request_bytes`; `client.api_url(path)`; `path_segment(&id)`.
 - `Options::post().json(&body)` / `.raw_body(bytes).content_type(..)`, `.header(..)`,
   `.query(name, value)` (skips `None` and `""`), `.skip_expire(true)`, `.cancel(&token)`.
+- Builder extras: `.retry(Retry::idempotent(3))` (GET/HEAD/PUT/DELETE on network errors and
+  502-504), `.on_response(|info| ..)`, `.log_requests()`, `.refresh_token(|client| async ..)`.
+- Tests: `http::testing::MockServer::start()` (feature `http-testing`): `.on(Method::Get,
+  "/x").reply_json(200, &v)`, `.once(503, "")`, `.delay(d)`, `.requests()`, `.url()`.
 - `ApiError { status, code, message, details }` from `{"error": {code, message, details}}`;
   status 0 + `network_error` when unreachable; `ApiError::cancelled()` / `is_cancelled()`.
 - `Session` (`set_token`, `clear`, `expire`, `is_expired`; `Observable`, so `BlocListener`

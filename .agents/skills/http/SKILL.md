@@ -18,6 +18,10 @@ The guide is `docs/guide/http.md` (also the module docs); decisions are in
 - Sign-in and other calls where a 401 is an answer use `Options::skip_expire(true)`.
   Repositories own the token (`session.set_token`, `session.clear`); views watch the
   session only to navigate.
+- Resilience goes on the client builder, not in repositories: `.retry(Retry::idempotent(n))`,
+  `.refresh_token(..)` (its own call uses `skip_expire(true)`), `.log_requests()`.
+- Test providers and repositories against `http::testing::MockServer` (feature
+  `http-testing`, a dev-dependency), never the network.
 - Forms: `form::to_server_errors` + `Form::apply_server_errors` when a bloc submits;
   `form::use_api_form` when the form calls the API itself.
 - The token is in memory unless `Session::persisted(path)`; say so when it matters

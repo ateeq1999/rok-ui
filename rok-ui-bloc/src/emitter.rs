@@ -12,6 +12,7 @@ use std::{
 use tokio::{runtime::Handle, sync::Notify, task::AbortHandle};
 
 type Listener<S> = Arc<dyn Fn(&S) + Send + Sync>;
+type ChangeHook<S> = Arc<dyn Fn(&S, &S) + Send + Sync>;
 
 struct Shared<S> {
     state: Mutex<S>,
@@ -23,6 +24,8 @@ struct Shared<S> {
     /// Work in progress: running tasks plus queued sequential events.
     active: Mutex<usize>,
     idle: Notify,
+    /// The bloc's type name and the observer hook, once a handle started it.
+    observed: Mutex<Option<(&'static str, ChangeHook<S>)>>,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -78,6 +81,7 @@ impl<S: Clone + PartialEq + Send + Sync + 'static> Emitter<S> {
                 tasks: Mutex::new(HashMap::new()),
                 active: Mutex::new(0),
                 idle: Notify::new(),
+                observed: Mutex::new(None),
             }),
         }
     }
@@ -94,12 +98,18 @@ impl<S: Clone + PartialEq + Send + Sync + 'static> Emitter<S> {
         if self.is_closed() {
             return false;
         }
-        {
+        let previous = {
             let mut current = lock(&self.shared.state);
             if *current == state {
                 return false;
             }
-            current.clone_from(&state);
+            std::mem::replace(&mut *current, state.clone())
+        };
+        let hook = lock(&self.shared.observed)
+            .as_ref()
+            .map(|(_, hook)| hook.clone());
+        if let Some(hook) = hook {
+            hook(&previous, &state);
         }
         let listeners: Vec<Listener<S>> = lock(&self.shared.listeners)
             .iter()
@@ -145,7 +155,8 @@ impl<S: Clone + PartialEq + Send + Sync + 'static> Emitter<S> {
     ///
     /// Panics outside a tokio runtime when the emitter was not started by a handle.
     pub fn spawn(&self, work: impl Future<Output = ()> + Send + 'static) {
-        self.spawn_task(work);
+        let name = self.name();
+        self.spawn_task(crate::observer::guarded(name, work));
     }
 
     /// Spawn `work` as a tracked task and return its id, or `None` once closed.
@@ -226,9 +237,36 @@ impl<S: Clone + PartialEq + Send + Sync + 'static> Emitter<S> {
     }
 
     /// Close: abort every running task, ignore later emits, and drop the subscribers.
+    /// Report this emitter's changes and closing to the observer, under `name`.
+    pub(crate) fn observe(&self, name: &'static str)
+    where
+        S: std::fmt::Debug,
+    {
+        let hook: ChangeHook<S> = Arc::new(move |current: &S, next: &S| {
+            if let Some(observer) = crate::observer::current() {
+                observer.on_change(name, current, next);
+            }
+        });
+        *lock(&self.shared.observed) = Some((name, hook));
+        if let Some(observer) = crate::observer::current() {
+            observer.on_create(name);
+        }
+    }
+
+    /// The name given to [`observe`](Self::observe).
+    pub(crate) fn name(&self) -> &'static str {
+        lock(&self.shared.observed)
+            .as_ref()
+            .map_or("bloc", |(name, _)| *name)
+    }
+
     pub(crate) fn close(&self) {
         if self.shared.closed.swap(true, Ordering::SeqCst) {
             return;
+        }
+        let name = lock(&self.shared.observed).as_ref().map(|(name, _)| *name);
+        if let (Some(name), Some(observer)) = (name, crate::observer::current()) {
+            observer.on_close(name);
         }
         for (_, task) in lock(&self.shared.tasks).drain() {
             task.abort();

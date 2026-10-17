@@ -144,3 +144,89 @@ fn start<B: Bloc>(
 fn take<S>(states: &Recorded<S>) -> Vec<S> {
     std::mem::take(&mut *states.lock().unwrap_or_else(PoisonError::into_inner))
 }
+
+/// A test for a bloc: build it, add events, and compare the states it emitted (`bloc_test`).
+///
+/// ```
+/// use rok_ui_bloc::{bloc_test, Bloc, Emitter};
+///
+/// struct Counter;
+///
+/// impl Bloc for Counter {
+///     type Event = i32;
+///     type State = i32;
+///
+///     fn initial_state(&self) -> i32 {
+///         0
+///     }
+///
+///     async fn on(&self, by: i32, emit: &Emitter<i32>) {
+///         emit.update(|count| *count += by);
+///     }
+/// }
+///
+/// bloc_test! {
+///     /// Adding counts up; adding zero emits nothing.
+///     adding_counts_up,
+///     build: Counter,
+///     act: [1, 2, 0],
+///     expect: [1, 3],
+/// }
+///
+/// bloc_test! {
+///     // `settle: true` waits for each event before adding the next (for timed modes).
+///     each_event_settles,
+///     build: Counter,
+///     settle: true,
+///     act: [5],
+///     verify: |states: Vec<i32>| assert_eq!(states.last(), Some(&5)),
+/// }
+/// ```
+///
+/// It expands to a `#[test]` function named after the first argument: `expect` compares the
+/// emitted states with `assert_eq!`, `verify` gets them to check as it likes. Events are added
+/// with [`run`] (or [`run_settled`] with `settle: true`).
+#[macro_export]
+macro_rules! bloc_test {
+    (
+        $(#[$meta:meta])*
+        $name:ident,
+        build: $build:expr,
+        $(settle: $settle:expr,)?
+        act: [$($event:expr),* $(,)?],
+        expect: [$($state:expr),* $(,)?] $(,)?
+    ) => {
+        $(#[$meta])*
+        #[test]
+        fn $name() {
+            let states = $crate::bloc_test!(@run $build, [$($event),*] $(, $settle)?);
+            ::std::assert_eq!(states, ::std::vec![$($state),*]);
+        }
+    };
+    (
+        $(#[$meta:meta])*
+        $name:ident,
+        build: $build:expr,
+        $(settle: $settle:expr,)?
+        act: [$($event:expr),* $(,)?],
+        verify: $verify:expr $(,)?
+    ) => {
+        $(#[$meta])*
+        #[test]
+        fn $name() {
+            let states = $crate::bloc_test!(@run $build, [$($event),*] $(, $settle)?);
+            let verify = $verify;
+            verify(states);
+        }
+    };
+    (@run $build:expr, [$($event:expr),*]) => {
+        $crate::test::run($build, [$($event),*])
+    };
+    (@run $build:expr, [$($event:expr),*], $settle:expr) => {
+        if $settle {
+            $crate::test::run_settled($build, [$($event),*])
+        } else {
+            $crate::test::run($build, [$($event),*])
+        }
+    };
+}

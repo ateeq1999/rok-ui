@@ -157,6 +157,7 @@ pub trait NotesRepository: Send + Sync {
 }
 
 /// What happened (past tense).
+#[derive(Debug)]
 pub enum NotesEvent {
     NotesRequested,
 }
@@ -210,8 +211,11 @@ Use one when the events would only name the methods.
 | `Droppable` | Ignored while one of the same variant runs | Submits, refresh buttons |
 | `Restartable` | Cancels the running one of the same variant | Search as you type |
 | `Concurrent` | All at once | Independent reads |
+| `Debounce(delay)` | Waits `delay` after the last one of the same variant, then handles it; a newer one cancels it | Search as you type, without a call per key |
+| `Throttle(window)` | Handles one, then drops the same variant until `window` has passed | Save buttons, scroll handlers |
 
-Closing a bloc (its provider leaves the tree) cancels its running handlers.
+`Concurrency::debounce(Duration::from_millis(300))` and `Concurrency::throttle(..)` build
+the timed modes. Closing a bloc (its provider leaves the tree) cancels its running handlers.
 
 ## Providing and reading
 
@@ -222,12 +226,12 @@ the same instances. Views read a bloc with `cx.bloc::<B>()` and re-render throug
 ```rust,no_run
 # use std::sync::Arc;
 # use rok_ui::{prelude::*, bloc::{Bloc, BlocBuilder, BlocProvider, BoxFuture, Emitter, RepositoryProvider}};
-# #[derive(Clone, PartialEq)] pub struct Note { pub title: String }
+# #[derive(Clone, Debug, PartialEq)] pub struct Note { pub title: String }
 # pub trait NotesRepository: Send + Sync { fn list(&self) -> BoxFuture<'_, Vec<Note>>; }
 # struct Fixed;
 # impl NotesRepository for Fixed { fn list(&self) -> BoxFuture<'_, Vec<Note>> { Box::pin(async { Vec::new() }) } }
-# pub enum NotesEvent { NotesRequested }
-# #[derive(Clone, PartialEq)] pub enum NotesState { Initial, Loaded(Vec<Note>) }
+# #[derive(Debug)] pub enum NotesEvent { NotesRequested }
+# #[derive(Clone, Debug, PartialEq)] pub enum NotesState { Initial, Loaded(Vec<Note>) }
 # pub struct NotesBloc { repository: Arc<dyn NotesRepository> }
 # impl Bloc for NotesBloc {
 #     type Event = NotesEvent; type State = NotesState;
@@ -265,6 +269,37 @@ fn app() -> impl IntoElement {
 - `BlocProvider::new().with_bloc(..).with_cubit(..)` provides several at once
   ([`MultiBlocProvider`]), and [`Repositories`] builds a set of repositories once.
 
+## Observing every bloc
+
+A [`BlocObserver`] set once with [`set_observer`] sees every bloc and cubit in the process:
+creation, each event added, each state change, handler panics and closing. Use it for
+logging, analytics and error reporting; [`LogObserver`] prints everything to standard
+error. Events and states are `Debug` for this reason.
+
+```rust
+use std::fmt::Debug;
+
+use rok_ui::bloc::{set_observer, BlocObserver};
+
+struct Analytics;
+
+impl BlocObserver for Analytics {
+    fn on_event(&self, bloc: &'static str, event: &dyn Debug) {
+        // Send `bloc` and `event` to your analytics service.
+        let _ = (bloc, event);
+    }
+
+    fn on_error(&self, bloc: &'static str, error: &str) {
+        eprintln!("{bloc} failed: {error}");
+    }
+}
+
+set_observer(Analytics);
+# rok_ui::bloc::clear_observer();
+```
+
+A handler that panics is reported to `on_error`; the bloc keeps handling later events.
+
 ## Testing
 
 Blocs are plain Rust, so their tests need no window: events in, states out, with a fake
@@ -292,8 +327,29 @@ assert_eq!(test::run(Counter, [1, 2, 0]), [1, 3], "an equal state is not emitted
 ```
 
 [`test::run_settled`] waits for each event before adding the next, and
-[`test::run_cubit`] does the same for cubits. The generator writes one test per event in
-`tests/features/<feature>/`.
+[`test::run_cubit`] does the same for cubits. [`bloc_test!`] writes the common shape as one
+test function:
+
+```rust
+# use rok_ui::bloc::{bloc_test, Bloc, Emitter};
+# struct Counter;
+# impl Bloc for Counter {
+#     type Event = i32;
+#     type State = i32;
+#     fn initial_state(&self) -> i32 { 0 }
+#     async fn on(&self, by: i32, emit: &Emitter<i32>) { emit.update(|count| *count += by); }
+# }
+bloc_test! {
+    adding_counts_up,
+    build: Counter,
+    act: [1, 2],
+    expect: [1, 3],
+}
+```
+
+The generator writes one test per event in `tests/features/<feature>/`; repositories and
+providers that call an API are tested against `rok_ui::http::testing::MockServer` (feature
+`http-testing`).
 
 ## Workspace layout
 
