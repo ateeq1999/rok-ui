@@ -22,6 +22,8 @@ Start here:
 | Call APIs with `rok_ui::http`, API errors on forms | `.agents/skills/http/SKILL.md` |
 | Review a change for code quality | `.agents/skills/quality/SKILL.md` |
 | Cut a release | `.agents/skills/release/SKILL.md` |
+| Split source files over 600 lines | `.agents/skills/large-file-refactor/SKILL.md` |
+| Pick a flow from the engineering skills (spec, tickets, TDD, review, triage) | `.agents/skills/ask-matt/SKILL.md` |
 
 Ground rules:
 
@@ -33,3 +35,24 @@ Ground rules:
 - ASCII only in code and docs, except test data and examples that exercise other scripts.
 - On Linux, GPUI needs `libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libvulkan-dev
   libfontconfig-dev libx11-xcb-dev libxcb1-dev` to link tests.
+
+## Agent skills
+
+The engineering skills from `mattpocock/skills` (`ask-matt` routes between them) read these
+files. Where they overlap with the rok-ui skills above, the rok-ui skills win (`pr`, `commit`,
+`check`, `quality`).
+
+### Issue tracker
+
+Issues and specs live as local markdown under `.scratch/<feature>/`. See
+`docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default roles (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`,
+`wontfix`), recorded as a `Status:` line. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root, created when needed. See
+`docs/agents/domain.md`.
