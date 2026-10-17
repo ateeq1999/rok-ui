@@ -65,7 +65,7 @@ unicode-bidi = "0.3"
 ttf-parser = "0.25"
 jiff = { version = "0.2", optional = true }
 rok-ui-hooks = { version = "0.3", optional = true }
-rok-db = { version = "0.3", optional = true }
+rok-db = { version = "0.4", optional = true }
 rok-ui-bloc = { version = "0.8.0", path = "rok-ui-bloc", optional = true }
 tokio = { version = "1", features = ["rt-multi-thread", "time"], optional = true }
 futures = { version = "0.3", optional = true }
