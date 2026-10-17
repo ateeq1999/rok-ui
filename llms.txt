@@ -237,6 +237,12 @@ PostgreSQL through rok-db (a type-safe async ORM on sqlx), run on the shared run
   `cx.context::<T>()` (or `cx.expect_context::<T>()`). Innermost provider wins.
 - `cx.keyed(("row", id)).use_state(|| ..)`: state that follows a key across reorders.
 
+## Platform
+
+- `platform::copy_to_clipboard(text, cx)`; `platform::save_bytes(bytes, "report.csv", cx)`
+  opens the save dialog (in Downloads) and returns `Task<io::Result<Option<PathBuf>>>`
+  (`None` when cancelled).
+
 ## Architecture (`bloc` feature)
 
 Apps are built in three layers (`docs/guide/architecture.md`): `src/data/` (models, providers,
@@ -270,8 +276,10 @@ plus thin `src/routes/`.
 - `HttpClient::builder().base_url(..).header(..).timeout(..).session(session).build()`
   (base URL default: `ROK_API_URL`); `client.request::<T>(path, Options::get())`,
   `request_empty`, `request_bytes`; `client.api_url(path)`; `path_segment(&id)`.
-- `Options::post().json(&body)` / `.raw_body(bytes).content_type(..)`, `.header(..)`,
-  `.query(name, value)` (skips `None` and `""`), `.skip_expire(true)`, `.cancel(&token)`.
+- `Options::post().json(&body)` / `.raw_body(bytes).content_type(..)` /
+  `.multipart(Multipart::new().text(k, v).file(k, path)?.bytes(k, name, type, data))`,
+  `.header(..)`, `.query(name, value)` (skips `None` and `""`), `.skip_expire(true)`,
+  `.cancel(&token)`. `describe_user_agent(app, version)` for a `User-Agent` header.
 - Builder extras: `.retry(Retry::idempotent(3))` (GET/HEAD/PUT/DELETE on network errors and
   502-504), `.on_response(|info| ..)`, `.log_requests()`, `.refresh_token(|client| async ..)`.
 - Tests: `http::testing::MockServer::start()` (feature `http-testing`): `.on(Method::Get,

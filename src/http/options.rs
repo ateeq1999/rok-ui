@@ -44,6 +44,8 @@ pub(super) enum Body {
     Json(Result<Vec<u8>, String>),
     /// Bytes as they are, with their content type.
     Raw(Vec<u8>),
+    /// An encoded `multipart/form-data` body and its content type (which names the boundary).
+    Multipart(Vec<u8>, String),
 }
 
 /// A value for [`Options::query`]: `None` and `""` leave the parameter out.
@@ -160,11 +162,11 @@ impl Options {
         self.method
     }
 
-    /// Send `body` as JSON (`Content-Type: application/json`). A raw body set with
-    /// [`raw_body`](Self::raw_body) wins over this.
+    /// Send `body` as JSON (`Content-Type: application/json`). A raw or multipart body set with
+    /// [`raw_body`](Self::raw_body) or [`multipart`](Self::multipart) wins over this.
     #[must_use]
     pub fn json<T: Serialize + ?Sized>(mut self, body: &T) -> Self {
-        if !matches!(self.body, Some(Body::Raw(_))) {
+        if !matches!(self.body, Some(Body::Raw(_) | Body::Multipart(..))) {
             let bytes = serde_json::to_vec(body).map_err(|error| error.to_string());
             self.body = Some(Body::Json(bytes));
         }
@@ -176,6 +178,16 @@ impl Options {
     #[must_use]
     pub fn raw_body(mut self, bytes: impl Into<Vec<u8>>) -> Self {
         self.body = Some(Body::Raw(bytes.into()));
+        self
+    }
+
+    /// Send a `multipart/form-data` body (text fields and files), with its own content type
+    /// (which names the boundary). Like [`raw_body`](Self::raw_body), it wins over
+    /// [`json`](Self::json); a later `raw_body` replaces it.
+    #[must_use]
+    pub fn multipart(mut self, form: super::Multipart) -> Self {
+        let (bytes, content_type) = form.encode();
+        self.body = Some(Body::Multipart(bytes, content_type));
         self
     }
 
@@ -235,6 +247,9 @@ impl Options {
                 bytes.clone(),
                 content_type("application/octet-stream"),
             ))),
+            Some(Body::Multipart(bytes, content_type)) => {
+                Ok(Some((bytes.clone(), content_type.clone())))
+            }
             Some(Body::Json(Ok(bytes))) => {
                 Ok(Some((bytes.clone(), content_type("application/json"))))
             }
