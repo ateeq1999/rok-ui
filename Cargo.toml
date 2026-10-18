@@ -295,6 +295,10 @@ name = "bloc"
 required-features = ["bloc"]
 
 [[test]]
+name = "bloc_hydrated"
+required-features = ["bloc", "persist"]
+
+[[test]]
 name = "http"
 required-features = ["http"]
 

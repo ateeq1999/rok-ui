@@ -9,9 +9,14 @@ pub use rok_ui_bloc::{
 
 use crate::scope::find;
 
+#[cfg(feature = "persist")]
+mod hydrated;
 mod provider;
 mod repository;
 mod widgets;
+
+#[cfg(feature = "persist")]
+pub use hydrated::Hydrated;
 
 pub use provider::{BlocProvider, MultiBlocProvider};
 pub use repository::{MultiRepositoryProvider, Repositories, RepositoryProvider};

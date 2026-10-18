@@ -192,8 +192,8 @@ where
 }
 
 /// One value saved to a file on demand, debounced, and deleted when it is no longer wanted:
-/// a form draft.
-#[cfg(feature = "form")]
+/// a form draft, or a hydrated bloc's state.
+#[cfg(any(feature = "form", feature = "bloc"))]
 pub(crate) struct DraftFile {
     path: PathBuf,
     options: PersistOptions,
@@ -201,7 +201,7 @@ pub(crate) struct DraftFile {
     generation: Rc<std::cell::Cell<u64>>,
 }
 
-#[cfg(feature = "form")]
+#[cfg(any(feature = "form", feature = "bloc"))]
 impl DraftFile {
     pub(crate) fn new(cx: &App, options: PersistOptions) -> Self {
         Self {
@@ -214,6 +214,12 @@ impl DraftFile {
     /// The saved value, migrated to the current version.
     pub(crate) fn load<T: DeserializeOwned>(&self) -> Option<T> {
         load(&self.path, &self.options)
+    }
+
+    /// Where the value is saved.
+    #[cfg(feature = "bloc")]
+    pub(crate) fn path(&self) -> &Path {
+        &self.path
     }
 
     /// Write `value` once the draft has been still for the debounce time.
@@ -237,6 +243,7 @@ impl DraftFile {
     }
 
     /// Delete the draft and drop pending writes.
+    #[cfg(feature = "form")]
     pub(crate) fn clear(&self) {
         self.generation.set(self.generation.get() + 1);
         std::fs::remove_file(&self.path).ok();

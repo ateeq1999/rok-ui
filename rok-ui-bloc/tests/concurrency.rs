@@ -170,3 +170,22 @@ fn equal_states_are_not_announced() {
 fn a_bloc_cannot_hold_another_bloc() {
     trybuild::TestCases::new().compile_fail("tests/ui/*.rs");
 }
+
+#[test]
+fn a_bloc_can_start_from_a_saved_state() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let bloc = BlocHandle::start_from(
+        Log {
+            mode: Concurrency::Sequential,
+        },
+        vec!["saved"],
+        runtime.handle(),
+    );
+    assert_eq!(bloc.state(), ["saved"]);
+    bloc.add(Step {
+        label: "next",
+        delay_ms: 0,
+    });
+    runtime.block_on(bloc.idle());
+    assert_eq!(bloc.state(), ["saved", "next"]);
+}

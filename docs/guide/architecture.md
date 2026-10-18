@@ -269,6 +269,29 @@ fn app() -> impl IntoElement {
 - `BlocProvider::new().with_bloc(..).with_cubit(..)` provides several at once
   ([`MultiBlocProvider`]), and [`Repositories`] builds a set of repositories once.
 
+### State that survives a restart
+
+Settings, drafts and the last opened tab should come back after a restart. With the
+`persist` feature, implement `Hydrated` (it returns the `PersistOptions` the state is saved
+with) and provide the bloc with `with_hydrated_bloc` (or a cubit with `with_hydrated_cubit`):
+
+```text
+impl Hydrated for SettingsBloc {
+    fn persist(&self) -> PersistOptions {
+        PersistOptions::new("settings").version(2).migrate(|from, old| upgrade(from, old))
+    }
+}
+
+BlocProvider::new().with_hydrated_bloc(|_| SettingsBloc)
+```
+
+The bloc starts from the state its last run saved, and each change is written (debounced, as
+versioned JSON in the app's config directory) once the state is still. The state must be
+`Serialize` and `Deserialize`. When its shape changes, raise the version and migrate older
+files: a saved state that cannot be read is skipped with a warning, and the bloc starts from
+its initial state. Hydrate what the user chose (settings, filters, drafts), not what the API
+returned: that belongs to the repository.
+
 ## Observing every bloc
 
 A [`BlocObserver`] set once with [`set_observer`] sees every bloc and cubit in the process:

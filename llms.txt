@@ -263,6 +263,9 @@ plus thin `src/routes/`.
   `BlocConsumer`.
 - Async repository traits return `BoxFuture<'_, Result<T, E>>`.
 - Timed modes: `Concurrency::debounce(Duration)`, `Concurrency::throttle(Duration)`.
+- Hydrate (with `persist`): `impl Hydrated for B { fn persist(&self) -> PersistOptions }`, then
+  `BlocProvider::new().with_hydrated_bloc(..)` / `with_hydrated_cubit(..)`: starts from the saved
+  state, saves after changes (debounced, versioned); unreadable saves fall back to the initial state.
 - Observe: `bloc::set_observer(impl BlocObserver)` (`on_create`, `on_event`, `on_change`,
   `on_error` for panics, `on_close`); `LogObserver`. Events and states must be `Debug`.
 - Test: `bloc::test::run(bloc, events) -> Vec<State>`, `run_settled`, `run_cubit(cubit, |c| ..)`,

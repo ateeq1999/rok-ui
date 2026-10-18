@@ -25,6 +25,9 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
   from disk or memory); `http::describe_user_agent(app, version)` for a `User-Agent` header.
 - `rok_ui::platform`: `copy_to_clipboard` and `save_bytes` (the save dialog, then the file
   written off the main thread).
+- Hydrated blocs and cubits (features `bloc` and `persist`): implement `Hydrated` and provide
+  them with `with_hydrated_bloc` / `with_hydrated_cubit`; their state is saved after changes
+  and restored at the next start. `BlocHandle::start_from(bloc, state, runtime)`.
 - `cargo rok-ui new --template bloc --layout workspace`: the data layer, each feature's
   business logic (without GPUI) and the app in their own crates; `generate` writes into the
   right crate.

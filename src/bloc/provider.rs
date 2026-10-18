@@ -22,6 +22,28 @@ struct Owner {
     close: Box<dyn Fn()>,
     _subscription: Subscription,
     _refresh: Task<()>,
+    /// More work tied to the bloc's life (saving a hydrated state).
+    _also: Option<(Subscription, Task<()>)>,
+}
+
+impl Owner {
+    /// The owner of `handle`: re-renders windows on its changes, keeps `also` going, and
+    /// closes it when dropped.
+    fn new<H: Observable + Clone + 'static>(
+        handle: &H,
+        close: impl Fn(&H) + 'static,
+        also: Option<(Subscription, Task<()>)>,
+        cx: &mut App,
+    ) -> Self {
+        let (subscription, refresh) = watch(handle, cx);
+        let closing = handle.clone();
+        Self {
+            close: Box::new(move || close(&closing)),
+            _subscription: subscription,
+            _refresh: refresh,
+            _also: also,
+        }
+    }
 }
 
 impl Drop for Owner {
@@ -111,55 +133,93 @@ impl BlocProvider {
     /// Also provide the bloc `create` builds.
     #[track_caller]
     #[must_use]
-    pub fn with_bloc<B: Bloc>(mut self, create: impl FnOnce(&Scope) -> B + 'static) -> Self {
+    pub fn with_bloc<B: Bloc>(self, create: impl FnOnce(&Scope) -> B + 'static) -> Self {
         let key = entry_key::<B>(std::panic::Location::caller());
-        self.entries.push(Box::new(move |window, cx| {
-            let state = use_keyed_state(key, window, cx, || None::<(BlocHandle<B>, Owner)>);
-            let existing = state.read(cx).as_ref().map(|(handle, _)| handle.clone());
-            let handle = existing.unwrap_or_else(|| {
-                let handle = BlocHandle::start(create(&Scope(())), crate::runtime::get().handle());
-                let (subscription, refresh) = watch(&handle, cx);
-                let closing = handle.clone();
-                let owner = Owner {
-                    close: Box::new(move || closing.close()),
-                    _subscription: subscription,
-                    _refresh: refresh,
-                };
-                state.update(cx, |slot| *slot = Some((handle.clone(), owner)));
-                handle
-            });
-            (
-                TypeId::of::<BlocHandle<B>>(),
-                Rc::new(handle) as Rc<dyn Any>,
-            )
-        }));
-        self
+        self.entry(key, move |cx| {
+            let handle = BlocHandle::start(create(&Scope(())), crate::runtime::get().handle());
+            let owner = Owner::new(&handle, BlocHandle::close, None, cx);
+            (handle, owner)
+        })
     }
 
     /// Also provide the cubit `create` builds.
     #[track_caller]
     #[must_use]
-    pub fn with_cubit<C: Cubit>(mut self, create: impl FnOnce(&Scope) -> C + 'static) -> Self {
+    pub fn with_cubit<C: Cubit>(self, create: impl FnOnce(&Scope) -> C + 'static) -> Self {
         let key = entry_key::<C>(std::panic::Location::caller());
+        self.entry(key, move |cx| {
+            let handle = CubitHandle::start(create(&Scope(())), crate::runtime::get().handle());
+            let owner = Owner::new(&handle, CubitHandle::close, None, cx);
+            (handle, owner)
+        })
+    }
+
+    /// Also provide the [`Hydrated`](super::Hydrated) bloc `create` builds: it starts from the
+    /// state its last run saved (or its initial state), and saves its state after changes.
+    /// Features `bloc` and `persist`.
+    #[cfg(feature = "persist")]
+    #[track_caller]
+    #[must_use]
+    pub fn with_hydrated_bloc<B>(self, create: impl FnOnce(&Scope) -> B + 'static) -> Self
+    where
+        B: Bloc + super::Hydrated,
+        B::State: serde::Serialize + serde::de::DeserializeOwned,
+    {
+        let key = entry_key::<B>(std::panic::Location::caller());
+        self.entry(key, move |cx| {
+            let bloc = create(&Scope(()));
+            let file = crate::persist::DraftFile::new(cx, bloc.persist());
+            let runtime = crate::runtime::get().handle();
+            let handle = match super::hydrated::restore(&file, std::any::type_name::<B>()) {
+                Some(state) => BlocHandle::start_from(bloc, state, runtime),
+                None => BlocHandle::start(bloc, runtime),
+            };
+            let saving = super::hydrated::save_changes(&handle, file, cx);
+            let owner = Owner::new(&handle, BlocHandle::close, Some(saving), cx);
+            (handle, owner)
+        })
+    }
+
+    /// Also provide the [`Hydrated`](super::Hydrated) cubit `create` builds, like
+    /// [`with_hydrated_bloc`](Self::with_hydrated_bloc). Features `bloc` and `persist`.
+    #[cfg(feature = "persist")]
+    #[track_caller]
+    #[must_use]
+    pub fn with_hydrated_cubit<C>(self, create: impl FnOnce(&Scope) -> C + 'static) -> Self
+    where
+        C: Cubit + super::Hydrated,
+        C::State: serde::Serialize + serde::de::DeserializeOwned,
+    {
+        let key = entry_key::<C>(std::panic::Location::caller());
+        self.entry(key, move |cx| {
+            let cubit = create(&Scope(()));
+            let file = crate::persist::DraftFile::new(cx, cubit.persist());
+            if let Some(state) = super::hydrated::restore(&file, std::any::type_name::<C>()) {
+                // Before the cubit starts: nothing listens yet.
+                cubit.emitter().emit(state);
+            }
+            let handle = CubitHandle::start(cubit, crate::runtime::get().handle());
+            let saving = super::hydrated::save_changes(&handle, file, cx);
+            let owner = Owner::new(&handle, CubitHandle::close, Some(saving), cx);
+            (handle, owner)
+        })
+    }
+
+    /// Provide the handle `start` builds, once, kept in element state under `key`.
+    fn entry<H: Clone + 'static>(
+        mut self,
+        key: ElementId,
+        start: impl FnOnce(&mut App) -> (H, Owner) + 'static,
+    ) -> Self {
         self.entries.push(Box::new(move |window, cx| {
-            let state = use_keyed_state(key, window, cx, || None::<(CubitHandle<C>, Owner)>);
+            let state = use_keyed_state(key, window, cx, || None::<(H, Owner)>);
             let existing = state.read(cx).as_ref().map(|(handle, _)| handle.clone());
             let handle = existing.unwrap_or_else(|| {
-                let handle = CubitHandle::start(create(&Scope(())), crate::runtime::get().handle());
-                let (subscription, refresh) = watch(&handle, cx);
-                let closing = handle.clone();
-                let owner = Owner {
-                    close: Box::new(move || closing.close()),
-                    _subscription: subscription,
-                    _refresh: refresh,
-                };
+                let (handle, owner) = start(cx);
                 state.update(cx, |slot| *slot = Some((handle.clone(), owner)));
                 handle
             });
-            (
-                TypeId::of::<CubitHandle<C>>(),
-                Rc::new(handle) as Rc<dyn Any>,
-            )
+            (TypeId::of::<H>(), Rc::new(handle) as Rc<dyn Any>)
         }));
         self
     }

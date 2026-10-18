@@ -163,8 +163,16 @@ impl<B: Bloc> BlocHandle<B> {
     /// `Debounce`).
     #[must_use]
     pub fn start(bloc: B, runtime: &Handle) -> Self {
+        let initial = bloc.initial_state();
+        Self::start_from(bloc, initial, runtime)
+    }
+
+    /// [`start`](Self::start) from `state` instead of the bloc's initial state: a state saved
+    /// by an earlier run, for example.
+    #[must_use]
+    pub fn start_from(bloc: B, state: B::State, runtime: &Handle) -> Self {
         let name = std::any::type_name::<B>();
-        let emitter = Emitter::new(bloc.initial_state());
+        let emitter = Emitter::new(state);
         emitter.attach(runtime.clone());
         emitter.observe(name);
         let bloc = Arc::new(bloc);

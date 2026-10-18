@@ -198,6 +198,7 @@ that use it. Design: `docs/design/http.md`.
 | N.4 Testing kit | Done | `http::testing::MockServer` (feature `http-testing`), `bloc_test!`. View snapshots: not started. |
 | N.5 Scoped context | Done | See C.1. |
 | N.6 Devtools forms | Done | See C.8. |
+| N.7 Hydrated blocs | Done | `Hydrated` (returns the `PersistOptions`) with `BlocProvider::with_hydrated_bloc` / `with_hydrated_cubit` (features `bloc` + `persist`); `BlocHandle::start_from`. Generator support (`"hydrated": true`): not started. |
 
 ## Still open
 
