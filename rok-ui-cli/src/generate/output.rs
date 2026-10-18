@@ -362,7 +362,7 @@ pub fn plan(
         Some(layout.to_logical(path, &text))
     };
     let mut wanted: Vec<File> = files(plan, part, crate_name, options);
-    layout.check(wanted.iter().map(|file| file.path.as_str()), plan.is_http())?;
+    layout.check(wanted.iter().map(|file| file.path.as_str()))?;
     // Barrels.
     if !options.no_wire {
         let mut barrels: BTreeMap<String, String> = BTreeMap::new();
@@ -417,21 +417,21 @@ pub fn plan(
         let has_view = matches!(part, Part::View)
             || (matches!(part, Part::Feature) && options.view.unwrap_or(plan.page))
             || (matches!(part, Part::Bloc) && options.view == Some(true));
-        let mut registrations = match part {
+        let mut registrations: Vec<(String, &str, Option<String>)> = match part {
             Part::Feature | Part::Bloc => vec![
                 (
-                    "src/app.rs",
+                    "src/app.rs".into(),
                     "// rok-ui:repositories",
                     render::repository_registration(plan),
                 ),
                 (
-                    "src/app.rs",
+                    "src/app.rs".into(),
                     "// rok-ui:blocs",
                     render::bloc_registration(plan),
                 ),
             ],
             Part::Repository | Part::Api => vec![(
-                "src/app.rs",
+                "src/app.rs".into(),
                 "// rok-ui:repositories",
                 render::repository_registration(plan),
             )],
@@ -439,27 +439,28 @@ pub fn plan(
         };
         if has_view {
             registrations.push((
-                "src/routes/__root.rs",
+                "src/routes/__root.rs".into(),
                 "// rok-ui:nav",
                 Some(render::nav_link(plan)),
             ));
         }
-        for line in layout.dependency_lines(wanted.iter().map(|file| file.path.as_str())) {
-            registrations.push(("Cargo.toml", "# rok-ui:features", Some(line)));
+        let paths = wanted.iter().map(|file| file.path.as_str());
+        for (path, marker, line) in layout.dependency_lines(paths, plan.is_http()) {
+            registrations.push((path, marker, Some(line)));
         }
-        let mut edited: BTreeMap<&str, (String, String)> = BTreeMap::new();
+        let mut edited: BTreeMap<String, (String, String)> = BTreeMap::new();
         for (path, marker, line) in registrations {
             let Some(line) = line else { continue };
-            let current = match edited.get(path) {
+            let current = match edited.get(&path) {
                 Some((_, text)) => Some(text.clone()),
-                None => read(path),
+                None => read(&path),
             };
             match current
                 .as_deref()
                 .and_then(|text| insert_at_marker(text, marker, &line))
             {
                 Some(text) => {
-                    let original = edited.get(path).map_or_else(
+                    let original = edited.get(&path).map_or_else(
                         || current.clone().unwrap_or_default(),
                         |(original, _)| original.clone(),
                     );
@@ -470,24 +471,26 @@ pub fn plan(
                         .snippets
                         .push(format!("src/app.rs, {marker}\n{line}"));
                 }
-                None if path == "Cargo.toml" => {
-                    changes.snippets.push(format!(
-                        "the app crate's Cargo.toml, [dependencies]\n{line}"
-                    ));
+                None if path.ends_with("Cargo.toml") => {
+                    let physical = layout.physical(&path).unwrap_or(path);
+                    changes
+                        .snippets
+                        .push(format!("{physical}, [dependencies]\n{line}"));
                 }
                 None => {}
             }
         }
         for (path, (original, text)) in edited {
             if text != original {
-                if let Some(physical) = layout.physical(path) {
-                    let text = layout.to_physical(path, &text);
+                if let Some(physical) = layout.physical(&path) {
+                    let text = layout.to_physical(&path, &text);
                     changes.files.insert(physical, (Action::Update, text));
                 }
             }
         }
     }
-    let crate_files = layout.crate_files(wanted.iter().map(|file| file.path.as_str()));
+    let crate_files =
+        layout.crate_files(wanted.iter().map(|file| file.path.as_str()), plan.is_http());
     for (path, text) in crate_files {
         wanted.push(File {
             path,

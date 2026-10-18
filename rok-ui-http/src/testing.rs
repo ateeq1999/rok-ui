@@ -81,7 +81,7 @@ struct State {
 /// Routes match on method and path (not the query). Unknown routes answer 404.
 ///
 /// ```
-/// use rok_ui::http::{testing::MockServer, HttpClient, Method, Options};
+/// use rok_ui_http::{testing::MockServer, HttpClient, Method, Options};
 ///
 /// let server = MockServer::start();
 /// server.on(Method::Get, "/notes").reply_json(200, &serde_json::json!([{"title": "Milk"}]));
@@ -89,7 +89,7 @@ struct State {
 ///
 /// let client = HttpClient::new(server.url());
 /// let notes: serde_json::Value =
-///     rok_ui::runtime::block_on(client.request("/notes", Options::get())).unwrap();
+///     rok_ui_http::runtime::block_on(client.request("/notes", Options::get())).unwrap();
 /// assert_eq!(notes[0]["title"], "Milk");
 /// assert_eq!(server.requests()[0].path, "/notes");
 /// ```

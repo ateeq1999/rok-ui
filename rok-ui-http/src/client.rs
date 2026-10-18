@@ -87,7 +87,7 @@ impl HttpClientBuilder {
     /// ```
     /// use std::time::Duration;
     ///
-    /// use rok_ui::http::{HttpClient, Retry};
+    /// use rok_ui_http::{HttpClient, Retry};
     ///
     /// let client = HttpClient::builder()
     ///     .retry(Retry::idempotent(3).backoff(Duration::from_millis(250)))
@@ -123,7 +123,7 @@ impl HttpClientBuilder {
     /// triggers another refresh.
     ///
     /// ```no_run
-    /// use rok_ui::http::{HttpClient, Options, Session};
+    /// use rok_ui_http::{HttpClient, Options, Session};
     ///
     /// #[derive(serde::Deserialize)]
     /// struct TokenDto {

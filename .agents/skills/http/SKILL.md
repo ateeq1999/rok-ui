@@ -29,9 +29,11 @@ The guide is `docs/guide/http.md` (also the module docs); decisions are in
 
 ## Working on rok-ui itself
 
-- `src/http/`: `client.rs` (requests, headers, the 401 rule), `error.rs` (envelope parsing
-  and fallbacks), `options.rs`, `session.rs`, `cancel.rs`. `src/form/server.rs` is the forms
-  bridge (features `form` + `http`).
+- The client is the `rok-ui-http` crate (no GPUI, so an app's data crate can use it alone):
+  `client.rs` (requests, headers, the 401 rule), `error.rs` (envelope parsing and fallbacks),
+  `options.rs`, `session.rs`, `cancel.rs`, `runtime.rs` (the shared tokio runtime; rok-ui's
+  `runtime` re-exports it with `http`). `src/http.rs` re-exports it item by item: add new
+  public items there too. `src/form/server.rs` is the forms bridge (features `form` + `http`).
 - Tests use the mock server in `tests/http.rs` (tokio `TcpListener`, never the network) and
   `tests/http_form.rs` for forms. Add a case there for any change to request or error
   handling.

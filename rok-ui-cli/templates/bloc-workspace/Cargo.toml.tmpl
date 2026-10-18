@@ -17,8 +17,10 @@ edition = "2021"
 [workspace.dependencies]
 {{rok_ui}}
 {{rok_ui_bloc}}
+{{rok_ui_http}}
 {{rok_ui_build}}
 gpui = "0.2.2"
+serde = { version = "1", features = ["derive"] }
 {{name}}-data = { path = "crates/{{name}}-data" }
 
 [workspace.lints.rust]

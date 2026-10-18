@@ -96,7 +96,7 @@ display_query_values!(
 /// add to it:
 ///
 /// ```
-/// use rok_ui::http::Options;
+/// use rok_ui_http::Options;
 ///
 /// let options = Options::post()
 ///     .json(&serde_json::json!({ "title": "Milk" }))

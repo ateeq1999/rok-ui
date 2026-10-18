@@ -4,6 +4,10 @@
 [`HttpClient`], one error type, [`ApiError`], and the signed-in [`Session`]. In the BLoC
 architecture only providers call it (rules 10 to 15 of the architecture guide).
 
+The client lives in the `rok-ui-http` crate, which has no GPUI; `rok_ui::http` re-exports
+it. Code that should not depend on rok-ui (the data crate of an app split into crates) uses
+`rok_ui_http` directly, with the same types.
+
 ## The client
 
 Build one client in `main`, with the session, and hand it to the providers:
