@@ -27,6 +27,9 @@ cd "$work/app-bloc"
 cargo clippy --quiet --all-targets -- -D warnings
 "$cli" rok-ui g feature tasks -j @"$root/rok-ui-cli/fixtures/tasks.json"
 "$cli" rok-ui g bloc Counter --event Incremented --event Reset --status initial,success,failure --view
+"$cli" rok-ui g bloc Search --feature search --concurrency debounce:300ms \
+  -j '{"events": [{"name": "QueryChanged", "fields": [{"name": "query", "type": "String"}]},
+                  {"name": "ResultsSaved", "concurrency": "throttle:1s"}]}'
 # Generating again changes nothing.
 "$cli" rok-ui g feature notes -j @"$root/rok-ui-cli/fixtures/notes.json" | grep -v unchanged && exit 1
 cargo clippy --quiet --all-targets -- -D warnings

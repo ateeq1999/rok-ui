@@ -33,7 +33,7 @@ standard input), or both. **Flags win over JSON, and JSON wins over defaults.**
 | `--feature <name>` | The feature, for `bloc`, `cubit`, `repository`, `provider` |
 | `--event <Name[:field:Type,...]>` | An event (repeatable; replaces the JSON's events) |
 | `--kind <bloc\|cubit>` | |
-| `--concurrency <sequential\|droppable\|restartable\|concurrent>` | The bloc's default |
+| `--concurrency <sequential\|droppable\|restartable\|concurrent\|debounce:300ms\|throttle:1s>` | The bloc's default; durations take `ms` or `s` |
 | `--state-style <struct\|enum>` | A struct with a status (default), or an enum of statuses |
 | `--status <a,b,c>` | Statuses (default `initial,loading,success,failure`) |
 | `--repository <Name>` | |
@@ -100,7 +100,7 @@ that you edited is a conflict: nothing is written and the exit code is `2`, unle
   "feature": "notes",
   "kind": "bloc",                       // or "cubit"
   "name": "Notes",                      // NotesBloc; default: the feature
-  "concurrency": "sequential",
+  "concurrency": "sequential",          // or "debounce:300ms", "throttle:1s"
   "events": [
     { "name": "NoteAdded", "fields": [{ "name": "title", "type": "String" }],
       "calls": "add", "concurrency": "droppable" }

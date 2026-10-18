@@ -219,7 +219,11 @@ pub(super) fn apply_flags(
         spec.kind = Some(parse_choice::<Kind>("kind", kind)?);
     }
     if let Some(concurrency) = arguments.flag("concurrency") {
-        spec.concurrency = Some(parse_choice::<ConcurrencyKind>("concurrency", concurrency)?);
+        spec.concurrency = Some(
+            concurrency
+                .parse::<ConcurrencyKind>()
+                .map_err(|error| format!("--concurrency: {error}"))?,
+        );
     }
     let events = arguments.flags("event");
     if !events.is_empty() {

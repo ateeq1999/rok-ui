@@ -192,7 +192,7 @@ that use it. Design: `docs/design/http.md`.
 
 | Item | Status | Notes |
 |---|---|---|
-| N.1 Debounce and throttle | Done | `Concurrency::debounce` / `throttle`, per event variant. Generator support (`"concurrency": "debounce:300ms"`): not started. |
+| N.1 Debounce and throttle | Done | `Concurrency::debounce` / `throttle`, per event variant. Generator support: `"concurrency": "debounce:300ms"` or `"throttle:1s"`, per bloc or event. |
 | N.2 `BlocObserver` | Done | `set_observer`, `LogObserver`; panicking handlers are reported and the bloc keeps running. Events and states are `Debug` (breaking; `docs/migration/0.9.md`). |
 | N.3 HTTP middleware | Done | `retry(Retry::idempotent(n))`, `on_response`, `log_requests`, `refresh_token` (shared refresh for concurrent 401s). |
 | N.4 Testing kit | Done | `http::testing::MockServer` (feature `http-testing`), `bloc_test!`. View snapshots: not started. |

@@ -40,7 +40,7 @@ FLAGS (flags win over JSON, JSON over defaults):
     --feature <name>                   the feature, for bloc/cubit/repository/provider
     --event <Name[:field:Type,...]>    an event (repeatable; replaces the JSON's events)
     --kind <bloc|cubit>
-    --concurrency <sequential|droppable|restartable|concurrent>
+    --concurrency <sequential|droppable|restartable|concurrent|debounce:300ms|throttle:1s>
     --state-style <struct|enum>
     --status <a,b,c>                   statuses (default: initial,loading,success,failure)
     --repository <Name>
@@ -421,6 +421,64 @@ mod tests {
         assert_eq!(spec.events.len(), 1);
         assert_eq!(spec.events[0].name, "NoteAdded");
         assert_eq!(spec.events[0].fields[1].ty, "Vec<String>");
+    }
+
+    #[test]
+    fn timed_concurrency_parses_and_renders() {
+        use std::time::Duration;
+
+        use super::spec::ConcurrencyKind;
+
+        assert_eq!(
+            "debounce:300ms".parse(),
+            Ok(ConcurrencyKind::Debounce(Duration::from_millis(300)))
+        );
+        assert_eq!(
+            "throttle:2s".parse(),
+            Ok(ConcurrencyKind::Throttle(Duration::from_secs(2)))
+        );
+        assert_eq!("droppable".parse(), Ok(ConcurrencyKind::Droppable));
+        for invalid in [
+            "debounce",
+            "debounce:",
+            "debounce:300",
+            "debounce:0ms",
+            "throttle:1m",
+            "droppable:1s",
+            "eager",
+        ] {
+            assert!(invalid.parse::<ConcurrencyKind>().is_err(), "{invalid}");
+        }
+        let bad = from_json(
+            r#"{"feature": "search", "events": [{"name": "QueryChanged", "concurrency": "debounce:soon"}]}"#,
+        )
+        .unwrap_err();
+        assert!(
+            bad.contains("events[0].concurrency") && bad.contains("debounce:<n>ms"),
+            "{bad}"
+        );
+
+        let root = skeleton("timed");
+        let changes = generate(
+            &root,
+            r#"{"feature": "search", "concurrency": "debounce:300ms", "events": [
+                {"name": "QueryChanged", "fields": [{"name": "query", "type": "String"}]},
+                {"name": "ResultsSaved", "concurrency": "throttle:1s"},
+                {"name": "SearchCleared", "concurrency": "sequential"}
+            ]}"#,
+            Part::Feature,
+            Options::default(),
+        );
+        let (_, bloc) = &changes.files["src/features/search/bloc/search_bloc.rs"];
+        for expected in [
+            "use std::time::Duration;",
+            "SearchEvent::QueryChanged { .. } => Concurrency::debounce(Duration::from_millis(300)),",
+            "SearchEvent::ResultsSaved => Concurrency::throttle(Duration::from_secs(1)),",
+            "SearchEvent::SearchCleared => Concurrency::Sequential,",
+        ] {
+            assert!(bloc.contains(expected), "{expected}\n{bloc}");
+        }
+        fs::remove_dir_all(&root).ok();
     }
 
     #[test]

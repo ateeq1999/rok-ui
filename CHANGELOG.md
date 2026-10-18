@@ -25,6 +25,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
   from disk or memory); `http::describe_user_agent(app, version)` for a `User-Agent` header.
 - `rok_ui::platform`: `copy_to_clipboard` and `save_bytes` (the save dialog, then the file
   written off the main thread).
+- `cargo rok-ui generate`: `"concurrency": "debounce:300ms"` and `"throttle:1s"`, for the
+  bloc or one event (and `--concurrency debounce:300ms`).
 
 ### Changed
 

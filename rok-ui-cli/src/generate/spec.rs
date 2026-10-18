@@ -3,9 +3,12 @@
 //! Every struct rejects unknown keys, so a typo is an error that names the key. The JSON
 //! Schema printed by `cargo rok-ui g schema` is derived from these types.
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
+use std::str::FromStr;
+use std::time::Duration;
 
-use schemars::JsonSchema;
+use schemars::{json_schema, JsonSchema, Schema, SchemaGenerator};
 use serde::Deserialize;
 
 /// A feature, or part of one: business logic, data layer, view and tests.
@@ -54,9 +57,10 @@ pub enum Kind {
     Cubit,
 }
 
-/// `rok_ui::bloc::Concurrency`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+/// `rok_ui::bloc::Concurrency`: `sequential`, `droppable`, `restartable`, `concurrent`,
+/// `debounce:300ms` or `throttle:1s`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(try_from = "String")]
 pub enum ConcurrencyKind {
     /// One at a time, in order.
     #[default]
@@ -67,6 +71,74 @@ pub enum ConcurrencyKind {
     Restartable,
     /// All at once.
     Concurrent,
+    /// Handle the last of a burst, after this quiet period.
+    Debounce(Duration),
+    /// Handle one, then drop the same event for this window.
+    Throttle(Duration),
+}
+
+impl FromStr for ConcurrencyKind {
+    type Err = String;
+
+    fn from_str(text: &str) -> Result<Self, String> {
+        let timed = |kind: &str, amount: &str| {
+            let invalid =
+                || format!("`{text}`: use `{kind}:<n>ms` or `{kind}:<n>s` (`{kind}:300ms`)");
+            let (digits, unit): (&str, fn(u64) -> Duration) =
+                if let Some(digits) = amount.strip_suffix("ms") {
+                    (digits, Duration::from_millis)
+                } else if let Some(digits) = amount.strip_suffix('s') {
+                    (digits, Duration::from_secs)
+                } else {
+                    return Err(invalid());
+                };
+            match digits.parse::<u64>() {
+                Ok(0) => Err(format!("`{text}`: the duration must be more than zero")),
+                Ok(count) => Ok(unit(count)),
+                Err(_) => Err(invalid()),
+            }
+        };
+        match text.split_once(':') {
+            None => match text {
+                "sequential" => Ok(Self::Sequential),
+                "droppable" => Ok(Self::Droppable),
+                "restartable" => Ok(Self::Restartable),
+                "concurrent" => Ok(Self::Concurrent),
+                _ => Err(format!(
+                    "`{text}` is not sequential, droppable, restartable, concurrent, \
+                     debounce:<duration> or throttle:<duration>"
+                )),
+            },
+            Some(("debounce", amount)) => timed("debounce", amount).map(Self::Debounce),
+            Some(("throttle", amount)) => timed("throttle", amount).map(Self::Throttle),
+            Some(_) => Err(format!(
+                "`{text}`: only debounce and throttle take a duration (`debounce:300ms`)"
+            )),
+        }
+    }
+}
+
+impl TryFrom<String> for ConcurrencyKind {
+    type Error = String;
+
+    fn try_from(text: String) -> Result<Self, String> {
+        text.parse()
+    }
+}
+
+impl JsonSchema for ConcurrencyKind {
+    fn schema_name() -> Cow<'static, str> {
+        "ConcurrencyKind".into()
+    }
+
+    fn json_schema(_: &mut SchemaGenerator) -> Schema {
+        json_schema!({
+            "type": "string",
+            "description": "`sequential`, `droppable`, `restartable`, `concurrent`, \
+                `debounce:300ms` or `throttle:1s`.",
+            "pattern": "^(sequential|droppable|restartable|concurrent|(debounce|throttle):[1-9][0-9]*(ms|s))$"
+        })
+    }
 }
 
 /// An event.

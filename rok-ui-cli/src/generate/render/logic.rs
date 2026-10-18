@@ -1,6 +1,7 @@
 //! The business logic: events, state, and the bloc or cubit that handles them.
 
 use std::fmt::Write as _;
+use std::time::Duration;
 
 use super::{default_of, header, import_types, rust_type, sentence, struct_fields, Imports};
 use crate::generate::{
@@ -356,12 +357,27 @@ pub(super) fn handler(plan: &Plan, event: &Event, repository: &str) -> String {
     out
 }
 
-fn concurrency_variant(kind: ConcurrencyKind) -> &'static str {
+/// The `Concurrency` expression for `kind`, adding the imports it needs.
+fn concurrency_expr(kind: ConcurrencyKind, imports: &mut Imports) -> String {
+    let duration = |duration: Duration, imports: &mut Imports| {
+        imports.add("std::time::Duration");
+        if duration.subsec_millis() == 0 {
+            format!("Duration::from_secs({})", duration.as_secs())
+        } else {
+            format!("Duration::from_millis({})", duration.as_millis())
+        }
+    };
     match kind {
-        ConcurrencyKind::Sequential => "Sequential",
-        ConcurrencyKind::Droppable => "Droppable",
-        ConcurrencyKind::Restartable => "Restartable",
-        ConcurrencyKind::Concurrent => "Concurrent",
+        ConcurrencyKind::Sequential => "Concurrency::Sequential".into(),
+        ConcurrencyKind::Droppable => "Concurrency::Droppable".into(),
+        ConcurrencyKind::Restartable => "Concurrency::Restartable".into(),
+        ConcurrencyKind::Concurrent => "Concurrency::Concurrent".into(),
+        ConcurrencyKind::Debounce(delay) => {
+            format!("Concurrency::debounce({})", duration(delay, imports))
+        }
+        ConcurrencyKind::Throttle(window) => {
+            format!("Concurrency::throttle({})", duration(window, imports))
+        }
     }
 }
 
@@ -411,6 +427,24 @@ pub fn bloc(plan: &Plan) -> String {
     if custom_concurrency {
         imports.add("rok_ui::bloc::Concurrency");
     }
+    let mut arms = String::new();
+    if custom_concurrency {
+        for event in &plan.events {
+            let kind = event.concurrency.unwrap_or(plan.concurrency);
+            let pattern = if event.fields.is_empty() {
+                String::new()
+            } else {
+                " { .. }".into()
+            };
+            let _ = writeln!(
+                arms,
+                "{event_type}::{}{pattern} => {},",
+                event.name,
+                concurrency_expr(kind, &mut imports),
+                event_type = event_name(plan)
+            );
+        }
+    }
     let mut out = header(&format!(
         "`{name}`: the business logic of `{}`.",
         plan.feature.snake
@@ -423,22 +457,6 @@ pub fn bloc(plan: &Plan) -> String {
         repository.names.pascal
     );
     if custom_concurrency {
-        let mut arms = String::new();
-        for event in &plan.events {
-            let kind = event.concurrency.unwrap_or(plan.concurrency);
-            let pattern = if event.fields.is_empty() {
-                String::new()
-            } else {
-                " { .. }".into()
-            };
-            let _ = writeln!(
-                arms,
-                "{event_type}::{}{pattern} => Concurrency::{},",
-                event.name,
-                concurrency_variant(kind),
-                event_type = event_name(plan)
-            );
-        }
         let _ = write!(out, "\n    fn concurrency(&self, event: &{event}) -> Concurrency {{\n        match event {{\n{arms}        }}\n    }}\n");
     }
     let _ = write!(out, "\n    async fn on(&self, event: {event}, emit: &Emitter<{state}>) {{\n        match event {{\n");
