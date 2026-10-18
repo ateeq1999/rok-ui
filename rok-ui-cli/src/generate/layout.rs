@@ -152,19 +152,18 @@ impl Layout {
         };
         let ident = &workspace.ident;
         match place(path) {
-            Place::Data(_) => text
-                .replace("crate::data::", "crate::")
-                .replace("rok_ui::bloc::", "rok_ui_bloc::"),
-            Place::Feature { .. } => text
-                .replace("crate::data::", &format!("{ident}_data::"))
-                .replace("rok_ui::bloc::", "rok_ui_bloc::"),
-            Place::FeatureTest { feature, .. } => text
-                .replace(
-                    &format!("{ident}::features::{feature}::bloc::"),
-                    &format!("{ident}_{feature}::"),
-                )
-                .replace(&format!("{ident}::data::"), &format!("{ident}_data::"))
-                .replace("rok_ui::bloc::", "rok_ui_bloc::"),
+            Place::Data(_) => without_gpui(&text.replace("crate::data::", "crate::")),
+            Place::Feature { .. } => {
+                without_gpui(&text.replace("crate::data::", &format!("{ident}_data::")))
+            }
+            Place::FeatureTest { feature, .. } => without_gpui(
+                &text
+                    .replace(
+                        &format!("{ident}::features::{feature}::bloc::"),
+                        &format!("{ident}_{feature}::"),
+                    )
+                    .replace(&format!("{ident}::data::"), &format!("{ident}_data::")),
+            ),
             Place::App => workspace.alias(path, text, false),
             Place::Dropped | Place::Workspace => text.to_string(),
         }
@@ -198,10 +197,12 @@ impl Layout {
     }
 
     /// The manifest and `clippy.toml` of each feature crate `paths` write into, as
-    /// workspace paths with their text.
+    /// workspace paths with their text. Over HTTP, the crate also depends on rok-ui-http
+    /// (its states hold `ApiError`s).
     pub fn crate_files<'a>(
         &self,
         paths: impl IntoIterator<Item = &'a str>,
+        is_http: bool,
     ) -> Vec<(String, String)> {
         let Self::Workspace(workspace) = self else {
             return Vec::new();
@@ -209,10 +210,15 @@ impl Layout {
         let mut out = Vec::new();
         for feature in Self::features(paths) {
             let directory = workspace.feature_dir(feature);
+            let http = if is_http {
+                "rok-ui-http.workspace = true\n"
+            } else {
+                ""
+            };
             out.push((
                 format!("{directory}/Cargo.toml"),
                 format!(
-                    "[package]\nname = \"{}\"\nversion.workspace = true\nedition.workspace = true\npublish = false\n\n# The business logic of `{feature}`: no GPUI, by construction.\n[dependencies]\n{}-data.workspace = true\nrok-ui-bloc.workspace = true\n\n[lints]\nworkspace = true\n",
+                    "[package]\nname = \"{}\"\nversion.workspace = true\nedition.workspace = true\npublish = false\n\n# The business logic of `{feature}`: no GPUI, by construction.\n[dependencies]\n{}-data.workspace = true\nrok-ui-bloc.workspace = true\n{http}\n[lints]\nworkspace = true\n",
                     workspace.feature_package(feature),
                     workspace.package
                 ),
@@ -225,36 +231,45 @@ impl Layout {
         out
     }
 
-    /// The dependency lines the app crate's `Cargo.toml` gets for the feature crates
-    /// `paths` write into, at the `# rok-ui:features` marker.
-    pub fn dependency_lines<'a>(&self, paths: impl IntoIterator<Item = &'a str>) -> Vec<String> {
-        let Self::Workspace(workspace) = self else {
-            return Vec::new();
-        };
-        Self::features(paths)
-            .into_iter()
-            .map(|feature| {
-                let package = workspace.feature_package(feature);
-                format!("{package} = {{ path = \"../{package}\" }}")
-            })
-            .collect()
-    }
-
-    /// Why the plan cannot be written in this layout, if it cannot.
-    pub fn check<'a>(
+    /// The dependency lines manifests get, as (path, marker, line): the app crate's
+    /// `Cargo.toml` names the feature crates `paths` write into (at `# rok-ui:features`), and
+    /// over HTTP the data crate's gets rok-ui-http and serde (at `# rok-ui:dependencies`).
+    pub fn dependency_lines<'a>(
         &self,
         paths: impl IntoIterator<Item = &'a str>,
         is_http: bool,
-    ) -> Result<(), String> {
+    ) -> Vec<(String, &'static str, String)> {
+        let Self::Workspace(workspace) = self else {
+            return Vec::new();
+        };
+        let paths: Vec<&str> = paths.into_iter().collect();
+        let mut out: Vec<(String, &'static str, String)> = Self::features(paths.iter().copied())
+            .into_iter()
+            .map(|feature| {
+                let package = workspace.feature_package(feature);
+                (
+                    "Cargo.toml".to_string(),
+                    "# rok-ui:features",
+                    format!("{package} = {{ path = \"../{package}\" }}"),
+                )
+            })
+            .collect();
+        let writes_data = paths
+            .iter()
+            .any(|path| matches!(place(path), Place::Data(_)));
+        if is_http && writes_data {
+            let manifest = format!("crates/{}-data/Cargo.toml", workspace.package);
+            for line in ["rok-ui-http.workspace = true", "serde.workspace = true"] {
+                out.push((manifest.clone(), "# rok-ui:dependencies", line.to_string()));
+            }
+        }
+        out
+    }
+
+    /// Why the plan cannot be written in this layout, if it cannot.
+    pub fn check<'a>(&self, paths: impl IntoIterator<Item = &'a str>) -> Result<(), String> {
         if *self == Self::Single {
             return Ok(());
-        }
-        if is_http {
-            return Err(
-                "the workspace layout does not generate HTTP providers yet: their \
-                        errors (`ApiError`) would put rok-ui in the feature crates"
-                    .into(),
-            );
         }
         if Self::features(paths).contains(&"data") {
             return Err("a feature called `data` would clash with the data crate".into());
@@ -297,6 +312,12 @@ impl Workspace {
         };
         replace_line(text, from, to).unwrap_or_else(|| text.to_string())
     }
+}
+
+/// `text` using the GPUI-free crates rok-ui re-exports (`rok_ui::bloc`, `rok_ui::http`).
+fn without_gpui(text: &str) -> String {
+    text.replace("rok_ui::bloc::", "rok_ui_bloc::")
+        .replace("rok_ui::http::", "rok_ui_http::")
 }
 
 /// `src/features/<f>.rs`: the feature's barrel, which declares its `bloc`.
@@ -381,9 +402,9 @@ mod tests {
         assert_eq!(
             layout.to_physical(
                 "src/data/repositories/notes_repository.rs",
-                "use crate::data::models::note::Note;\nuse rok_ui::bloc::BoxFuture;\n"
+                "use crate::data::models::note::Note;\nuse rok_ui::bloc::BoxFuture;\nuse rok_ui::http::ApiError;\n"
             ),
-            "use crate::models::note::Note;\nuse rok_ui_bloc::BoxFuture;\n"
+            "use crate::models::note::Note;\nuse rok_ui_bloc::BoxFuture;\nuse rok_ui_http::ApiError;\n"
         );
         assert_eq!(
             layout.to_physical(
@@ -428,22 +449,44 @@ mod tests {
             "src/features/notes/bloc/notes_state.rs",
             "src/data/models/note.rs",
         ];
-        let files = layout.crate_files(paths);
+        let files = layout.crate_files(paths, false);
         assert_eq!(files.len(), 2);
         assert_eq!(files[0].0, "crates/my-app-notes/Cargo.toml");
         assert!(files[0].1.contains("name = \"my-app-notes\""));
         assert!(files[0].1.contains("my-app-data.workspace = true"));
         assert!(!files[0].1.contains("rok-ui."));
+        assert!(!files[0].1.contains("rok-ui-http"));
+        assert!(layout.crate_files(paths, true)[0]
+            .1
+            .contains("rok-ui-http.workspace = true"));
+        let line = |path: &str, marker: &'static str, line: &str| {
+            (path.to_string(), marker, line.to_string())
+        };
         assert_eq!(
-            layout.dependency_lines(paths),
-            ["my-app-notes = { path = \"../my-app-notes\" }"]
+            layout.dependency_lines(paths, false),
+            [line(
+                "Cargo.toml",
+                "# rok-ui:features",
+                "my-app-notes = { path = \"../my-app-notes\" }"
+            )]
         );
-        assert_eq!(Layout::Single.crate_files(paths).len(), 0);
-        assert!(layout.check(paths, true).is_err());
+        let data = "crates/my-app-data/Cargo.toml";
+        assert_eq!(
+            layout.dependency_lines(paths, true)[1..],
+            [
+                line(
+                    data,
+                    "# rok-ui:dependencies",
+                    "rok-ui-http.workspace = true"
+                ),
+                line(data, "# rok-ui:dependencies", "serde.workspace = true"),
+            ]
+        );
+        assert_eq!(Layout::Single.crate_files(paths, true).len(), 0);
         assert!(layout
-            .check(["src/features/data/bloc/data_bloc.rs"], false)
+            .check(["src/features/data/bloc/data_bloc.rs"])
             .is_err());
-        assert!(layout.check(paths, false).is_ok());
+        assert!(layout.check(paths).is_ok());
     }
 
     #[test]

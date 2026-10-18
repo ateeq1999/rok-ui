@@ -4,9 +4,11 @@ version.workspace = true
 edition.workspace = true
 publish = false
 
-# Repositories return `rok_ui_bloc::BoxFuture`s; no GPUI here.
+# Repositories return `rok_ui_bloc::BoxFuture`s; no GPUI here. HTTP providers add
+# rok-ui-http (the client, without GPUI) and serde at the marker.
 [dependencies]
 rok-ui-bloc.workspace = true
+# rok-ui:dependencies
 
 [lints]
 workspace = true

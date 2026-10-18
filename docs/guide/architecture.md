@@ -380,15 +380,15 @@ A large app can split the layers into crates, so the compiler enforces rules 1 a
 feature's business logic cannot use GPUI when GPUI is not one of its dependencies.
 
 ```text
-cargo rok-ui new my-app --template bloc --layout workspace
+cargo rok-ui new my-app --template bloc --layout workspace          # add --http for an API
 ```
 
 The mapping is fixed, so code moves without changes:
 
 | Folder | Crate | Depends on |
 |---|---|---|
-| `src/data/` | `crates/<app>-data` | `rok-ui-bloc` (repositories return its `BoxFuture`) |
-| `src/features/<f>/bloc/` | `crates/<app>-<f>` | `<app>-data`, `rok-ui-bloc` (not `rok-ui`: no GPUI by construction) |
+| `src/data/` | `crates/<app>-data` | `rok-ui-bloc` (repositories return its `BoxFuture`); over HTTP, `rok-ui-http` and `serde` |
+| `src/features/<f>/bloc/` | `crates/<app>-<f>` | `<app>-data`, `rok-ui-bloc`, over HTTP `rok-ui-http` (not `rok-ui`: no GPUI by construction) |
 | `tests/features/<f>/` | `crates/<app>-<f>/tests/` | the same, so bloc tests build without GPUI |
 | `src/features/<f>/view/`, `src/routes/`, `src/app.rs` | `crates/<app>` | everything above, `rok-ui` |
 
@@ -396,11 +396,12 @@ The app crate keeps the single-crate paths: its `lib.rs` has `pub use <app>_data
 and each `features/<f>.rs` has `pub use <app>_<f> as bloc;`, so views, routes and `app.rs`
 still say `crate::data::..` and `crate::features::<f>::bloc::..`. Inside the moved crates,
 `crate::data::` becomes `crate::` (data) or `<app>_data::` (features), and `rok_ui::bloc::`
-becomes `rok_ui_bloc::`.
+and `rok_ui::http::` become `rok_ui_bloc::` and `rok_ui_http::`: the GPUI-free crates
+rok-ui re-exports, so the types are the same on both sides.
 
 `rok-ui.toml` at the workspace root says `layout = "workspace"` and names the app crate, and
 `cargo rok-ui generate` (run at the root) writes each file into its crate: a new feature gets
 its crate (`Cargo.toml`, and a `clippy.toml` that keeps blocs from holding blocs) and a line
-at the `# rok-ui:features` marker in the app crate's `Cargo.toml`. HTTP providers (`g api`,
-`--http`) are single-crate only for now: their `ApiError` would bring rok-ui into the feature
-crates.
+at the `# rok-ui:features` marker in the app crate's `Cargo.toml`. The first HTTP provider
+(`g api`) adds `rok-ui-http` and `serde` to the data crate at its `# rok-ui:dependencies`
+marker.

@@ -4,7 +4,7 @@ Install it with `cargo install rok-ui-cli`; it runs as `cargo rok-ui`.
 
 | Command | Does |
 |---|---|
-| `new <name> [--template minimal\|full\|db\|bloc [--http\|--layout workspace]]` | Create an app. `bloc` is the BLoC architecture with a generated notes feature; `--http` adds an API client, sign-in and a session guard; `--layout workspace` puts the data layer, each feature's business logic and the app in their own crates (see the architecture guide). |
+| `new <name> [--template minimal\|full\|db\|bloc [--http] [--layout workspace]]` | Create an app. `bloc` is the BLoC architecture with a generated notes feature; `--http` adds an API client, sign-in and a session guard; `--layout workspace` puts the data layer, each feature's business logic and the app in their own crates (see the architecture guide). |
 | `generate` (`g`) | Write a feature, or part of one, and wire it in (below). |
 | `add <component>...` | Copy components' source into the app to change them. |
 | `routes` | Write the route tree for `src/routes` to a checked-in file. |

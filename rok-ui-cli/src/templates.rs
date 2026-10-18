@@ -1,8 +1,8 @@
 //! Project templates for `cargo rok-ui new`.
 
 /// A file of a template: its path in the new project (which may hold `{{name}}`) and its
-/// text, with `{{name}}`, `{{crate_name}}`, `{{rok_ui}}`, `{{rok_ui_bloc}}` and
-/// `{{rok_ui_build}}` placeholders.
+/// text, with `{{name}}`, `{{crate_name}}`, `{{rok_ui}}`, `{{rok_ui_bloc}}`,
+/// `{{rok_ui_http}}` and `{{rok_ui_build}}` placeholders.
 pub struct TemplateFile {
     pub path: &'static str,
     pub text: &'static str,
@@ -135,6 +135,42 @@ const BLOC_WORKSPACE: &[TemplateFile] = &[
     ),
 ];
 
+const BLOC_HTTP_WORKSPACE: &[TemplateFile] = &[
+    file!("Cargo.toml", "bloc-workspace/Cargo.toml.tmpl"),
+    file!("rok-ui.toml", "bloc-workspace/rok-ui.toml"),
+    file!(
+        "crates/{{name}}-data/Cargo.toml",
+        "bloc-workspace/data/Cargo.toml.tmpl"
+    ),
+    file!("crates/{{name}}-data/src/lib.rs", "bloc/src/data.rs"),
+    file!(
+        "crates/{{name}}/Cargo.toml",
+        "bloc-workspace/app/Cargo.toml.tmpl"
+    ),
+    file!("crates/{{name}}/build.rs", "bloc/build.rs"),
+    file!("crates/{{name}}/src/main.rs", "bloc-http/src/main.rs"),
+    file!("crates/{{name}}/src/lib.rs", "bloc-workspace/app/lib.rs"),
+    file!("crates/{{name}}/src/app.rs", "bloc-http/src/app.rs"),
+    file!("crates/{{name}}/src/features.rs", "bloc/src/features.rs"),
+    file!("crates/{{name}}/src/shared.rs", "bloc/src/shared.rs"),
+    file!(
+        "crates/{{name}}/src/shared/widgets.rs",
+        "bloc-http/src/shared/widgets.rs"
+    ),
+    file!(
+        "crates/{{name}}/src/routes/__root.rs",
+        "bloc-http/src/routes/__root.rs"
+    ),
+    file!(
+        "crates/{{name}}/src/routes/__not_found.rs",
+        "bloc/src/routes/__not_found.rs"
+    ),
+    file!(
+        "crates/{{name}}/src/routes/index.rs",
+        "bloc/src/routes/index.rs"
+    ),
+];
+
 /// The feature the `bloc` template generates into a new app.
 pub const BLOC_FEATURE: &str = include_str!("../fixtures/notes.json");
 
@@ -162,6 +198,8 @@ pub enum Template {
     /// `Bloc` split into crates: data, one per feature's business logic (no GPUI), and the
     /// app.
     BlocWorkspace,
+    /// `BlocHttp` split into crates, like `BlocWorkspace`; the data crate uses rok-ui-http.
+    BlocHttpWorkspace,
 }
 
 impl Template {
@@ -174,6 +212,7 @@ impl Template {
             "bloc" => Some(Self::Bloc),
             "bloc-http" => Some(Self::BlocHttp),
             "bloc-workspace" => Some(Self::BlocWorkspace),
+            "bloc-http-workspace" => Some(Self::BlocHttpWorkspace),
             _ => None,
         }
     }
@@ -185,7 +224,9 @@ impl Template {
             Self::Full => &["router", "query"],
             Self::Db => &["router", "query", "db"],
             Self::Bloc | Self::BlocWorkspace => &["router", "bloc", "form", "typography", "empty"],
-            Self::BlocHttp => &["router", "bloc", "http", "form", "typography", "empty"],
+            Self::BlocHttp | Self::BlocHttpWorkspace => {
+                &["router", "bloc", "http", "form", "typography", "empty"]
+            }
         }
     }
 
@@ -203,6 +244,7 @@ impl Template {
             Self::Bloc => BLOC.iter().collect(),
             Self::BlocHttp => BLOC_HTTP.iter().collect(),
             Self::BlocWorkspace => BLOC_WORKSPACE.iter().collect(),
+            Self::BlocHttpWorkspace => BLOC_HTTP_WORKSPACE.iter().collect(),
         }
     }
 }

@@ -270,12 +270,14 @@ plus thin `src/routes/`.
   `on_error` for panics, `on_close`); `LogObserver`. Events and states must be `Debug`.
 - Test: `bloc::test::run(bloc, events) -> Vec<State>`, `run_settled`, `run_cubit(cubit, |c| ..)`,
   `bloc_test! { name, build: B, act: [..], expect: [..] }` (or `verify: |states| ..`).
-- Generate: `cargo rok-ui new app --template bloc [--http|--layout workspace]`, `cargo rok-ui g
+- Generate: `cargo rok-ui new app --template bloc [--http] [--layout workspace]`, `cargo rok-ui g
   feature|bloc|cubit|repository|provider|view|api|schema` (flags over `-j` JSON over defaults;
   exit 2 on conflicts; `docs/guide/cli.md`).
 
 ## HTTP (`http` feature)
 
+- The client is the GPUI-free `rok-ui-http` crate; `rok_ui::http` re-exports it (same types).
+  Use `rok_ui_http` directly where GPUI must not reach (a workspace app's data crate).
 - `HttpClient::builder().base_url(..).header(..).timeout(..).session(session).build()`
   (base URL default: `ROK_API_URL`); `client.request::<T>(path, Options::get())`,
   `request_empty`, `request_bytes`; `client.api_url(path)`; `path_segment(&id)`.

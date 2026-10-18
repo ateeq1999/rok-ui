@@ -25,6 +25,7 @@ fn skeleton_of(template: Template, name: &str) -> PathBuf {
             .replace("{{crate_name}}", "demo_app")
             .replace("{{rok_ui}}", "rok-ui = \"*\"")
             .replace("{{rok_ui_bloc}}", "rok-ui-bloc = \"*\"")
+            .replace("{{rok_ui_http}}", "rok-ui-http = \"*\"")
             .replace("{{rok_ui_build}}", "rok-ui-build = \"*\"");
         fs::write(path, text).unwrap();
     }
@@ -213,6 +214,22 @@ fn the_workspace_layout_puts_each_layer_in_its_crate() {
         .map(|(path, _)| path)
         .collect();
     assert!(changed.is_empty(), "changed on the second run: {changed:?}");
+    // An HTTP data layer adds rok-ui-http and serde to the data crate, and its paths use
+    // rok-ui-http.
+    let api = plan(BLOC_HTTP_FEATURES[0]);
+    output::write(&root, &api).unwrap();
+    let manifest = read("crates/demo-app-data/Cargo.toml");
+    assert!(
+        manifest.contains(
+            "rok-ui-http.workspace = true\nserde.workspace = true\n# rok-ui:dependencies"
+        ),
+        "{manifest}"
+    );
+    let provider = read("crates/demo-app-data/src/providers/notes_api.rs");
+    assert!(
+        provider.contains("rok_ui_http::") && !provider.contains("rok_ui::"),
+        "{provider}"
+    );
     fs::remove_dir_all(&root).ok();
 }
 

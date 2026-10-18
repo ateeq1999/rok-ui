@@ -15,15 +15,21 @@ release-plz (`.github/workflows/release-plz.yml`, `release-plz.toml`) runs on ev
    Conventional Commits and adds a `CHANGELOG.md` section. Merging it publishes (step 1).
 
 To release by hand instead: bump `[workspace.package] version` and the internal dependency
-pins (`Cargo.toml`, `macros/`, `rok-ui-cli/`), move `[Unreleased]` in `CHANGELOG.md` to a
-dated section, update the install snippets, run `cargo publish --dry-run --workspace
---exclude rok-ui-example-file-routes`, and merge.
+pins (`Cargo.toml`, `macros/`, `rok-ui-cli/`, `rok-ui-http/`), move `[Unreleased]` in
+`CHANGELOG.md` to a dated section, update the install snippets, run `cargo publish --dry-run
+--workspace --exclude rok-ui-example-file-routes`, and merge.
 
 `semver_check` is off (cargo-semver-checks cannot build the old docs on the runner), so mark
 breaking changes in commits with `!` or a `BREAKING CHANGE:` footer.
 
 Publish order follows the dependency graph (release-plz works it out): `rok-ui-grammar` and
-`rok-ui-bloc`, then `rok-ui-macros` and `rok-ui-build`, then `rok-ui`, then `rok-ui-cli`.
+`rok-ui-bloc`, then `rok-ui-macros`, `rok-ui-build` and `rok-ui-http`, then `rok-ui`, then
+`rok-ui-cli`. A new crate needs a `[[package]]` entry in `release-plz.toml`
+(`changelog_update = false`, `git_release_enable = false`).
+
+The `release-pr` job needs "Allow GitHub Actions to create and approve pull requests"
+(Settings, Actions, General); without it the job fails with a 403 and leaves a
+`release-plz-*` branch behind. The `release` job does not need it.
 
 Before merging a release PR:
 

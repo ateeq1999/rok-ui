@@ -9,6 +9,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-18
+
 ### Added
 
 - Blocs: `Concurrency::debounce(delay)` and `Concurrency::throttle(window)`;
@@ -28,9 +30,11 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - Hydrated blocs and cubits (features `bloc` and `persist`): implement `Hydrated` and provide
   them with `with_hydrated_bloc` / `with_hydrated_cubit`; their state is saved after changes
   and restored at the next start. `BlocHandle::start_from(bloc, state, runtime)`.
-- `cargo rok-ui new --template bloc --layout workspace`: the data layer, each feature's
-  business logic (without GPUI) and the app in their own crates; `generate` writes into the
-  right crate.
+- `cargo rok-ui new --template bloc [--http] --layout workspace`: the data layer, each
+  feature's business logic (without GPUI) and the app in their own crates; `generate` writes
+  into the right crate.
+- The `rok-ui-http` crate: the HTTP client without GPUI. `rok_ui::http` re-exports it
+  unchanged; with `http`, `rok_ui::runtime` is its runtime, so an app still starts one.
 - `cargo rok-ui generate`: `"concurrency": "debounce:300ms"` and `"throttle:1s"`, for the
   bloc or one event (and `--concurrency debounce:300ms`).
 
@@ -360,7 +364,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - Light and dark themes with the Rok and Neutral presets.
 - Keyboard focus navigation and text inputs with IME, selection and clipboard support.
 
-[Unreleased]: https://github.com/ateeq1999/rok-ui/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/ateeq1999/rok-ui/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/ateeq1999/rok-ui/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/ateeq1999/rok-ui/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/ateeq1999/rok-ui/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/ateeq1999/rok-ui/compare/v0.6.0...v0.7.0
