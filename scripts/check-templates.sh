@@ -53,9 +53,6 @@ cd "$work/app-workspace"
   -j '{"events": [{"name": "QueryChanged", "fields": [{"name": "query", "type": "String"}]}]}'
 # Generating again changes nothing.
 "$cli" rok-ui g feature notes -j @"$root/rok-ui-cli/fixtures/notes.json" | grep -v unchanged && exit 1
-# An HTTP data layer in a workspace that started without one.
-"$cli" rok-ui g api todos --dto "TodoDto:id:TodoId,title:String,done:bool" \
-  --endpoint "list_todos:GET:/todos:Vec<TodoDto>"
 cargo tree --quiet -p app-workspace-notes -e normal | grep -q 'gpui v' && { echo "GPUI reached a feature crate"; exit 1; }
 cargo clippy --quiet --workspace --all-targets -- -D warnings
 cargo test --quiet --workspace
@@ -65,6 +62,9 @@ echo "== bloc-http template as a workspace"
 cp "$root/Cargo.lock" "$work/app-http-workspace/"
 cd "$work/app-http-workspace"
 "$cli" rok-ui g feature notes -j @"$root/rok-ui-cli/fixtures/notes_http.json" | grep -v unchanged && exit 1
+# Another API, from flags only, into the data crate.
+"$cli" rok-ui g api todos --dto "TodoDto:id:TodoId,title:String,done:bool" \
+  --endpoint "list_todos:GET:/todos:Vec<TodoDto>"
 for crate in app-http-workspace-data app-http-workspace-notes app-http-workspace-auth; do
   cargo tree --quiet -p "$crate" -e normal | grep -q 'gpui v' && { echo "GPUI reached $crate"; exit 1; }
 done
