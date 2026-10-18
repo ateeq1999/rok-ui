@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use rok_ui::http::{ApiError, CancelToken, HttpClient, Options, Retry, Session};
+use rok_ui::http::{ApiError, CancelToken, HttpClient, Multipart, Options, Retry, Session};
 use serde::Deserialize;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -224,6 +224,55 @@ fn bodies_are_json_or_raw() {
     assert_eq!(received[1].body, b"\x00\x01");
     assert_eq!(received[2].header("content-type"), Some("image/png"));
     assert_eq!(received[2].body, b"png");
+}
+
+#[test]
+fn multipart_bodies_carry_text_and_files() {
+    let (url, received_requests) = serve(|_| Reply::json(204, ""));
+    let client = HttpClient::new(url);
+    let form = Multipart::new().text("title", "Holiday").bytes(
+        "photo",
+        "beach.png",
+        "image/png",
+        b"\x89PNG".to_vec(),
+    );
+    block_on(client.request_empty("/upload", Options::post().multipart(form))).unwrap();
+    let received = received_requests.lock().unwrap();
+    let content_type = received[0].header("content-type").unwrap();
+    let boundary = content_type
+        .strip_prefix("multipart/form-data; boundary=")
+        .expect("a multipart content type");
+    let expected = format!(
+        "--{boundary}\r\n\
+         Content-Disposition: form-data; name=\"title\"\r\n\r\n\
+         Holiday\r\n\
+         --{boundary}\r\n\
+         Content-Disposition: form-data; name=\"photo\"; filename=\"beach.png\"\r\n\
+         Content-Type: image/png\r\n\r\n\
+         \u{89}PNG\r\n\
+         --{boundary}--\r\n"
+    );
+    let mut expected = expected.into_bytes();
+    // `\u{89}` above is two bytes in UTF-8; the file holds the single byte 0x89.
+    let at = expected
+        .windows(2)
+        .position(|pair| pair == [0xC2, 0x89])
+        .unwrap();
+    expected.splice(at..at + 2, [0x89]);
+    assert_eq!(received[0].body, expected);
+    drop(received);
+
+    // A multipart body keeps its own content type and wins over JSON, like a raw body.
+    let options = Options::post()
+        .multipart(Multipart::new().text("a", "b"))
+        .json(&1)
+        .content_type("text/plain");
+    block_on(client.request_empty("/upload", options)).unwrap();
+    let received = received_requests.lock().unwrap();
+    assert!(received[1]
+        .header("content-type")
+        .unwrap()
+        .starts_with("multipart/form-data; boundary="));
 }
 
 #[test]

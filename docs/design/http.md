@@ -62,6 +62,10 @@ mock-server crate and never the network.
 ## Differences from the request
 
 - `Session` is not a `Store` (see above).
-- Multipart uploads, websockets and OAuth flows beyond `api_url` are out of scope.
-- The `copy_to_clipboard` / `save_bytes` / `describe_user_agent` helpers are left for a
-  follow-up (the request allows it); they are listed in the roadmap.
+- Websockets and OAuth flows beyond `api_url` are out of scope.
+- Multipart bodies are encoded by rok-ui (`http::Multipart`), not by reqwest's `multipart`
+  feature: `Options` are cloned for each retry and reqwest's form is not, and encoding to
+  bytes up front reuses the raw-body path with no new dependency. Files are read when the
+  form is built, so very large uploads are better sent as a raw body.
+- `describe_user_agent` lives in `http`; `copy_to_clipboard` and `save_bytes` are app
+  helpers in `rok_ui::platform`, outside the `http` feature.

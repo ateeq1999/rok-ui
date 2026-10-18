@@ -27,6 +27,21 @@ Every request sends `Accept: application/json`, the client's headers, then
 `Authorization: Bearer <token>` while the session has a token, then the request's own headers,
 which win.
 
+Name the app in a `User-Agent` header so server logs show which build sent a request:
+`describe_user_agent(app, version)` gives `notes/1.2.0 (linux; x86_64) rok-ui/0.9.0`.
+
+```rust,no_run
+use rok_ui::http::{describe_user_agent, HttpClient};
+
+let client = HttpClient::builder()
+    .header(
+        "User-Agent",
+        describe_user_agent(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")),
+    )
+    .build();
+# let _ = client;
+```
+
 ## Requests
 
 ```rust,no_run
@@ -71,6 +86,9 @@ async fn calls(client: &HttpClient) -> Result<(), ApiError> {
 - An empty body (or a 204) decodes as `null`: fine for `()` and `Option<T>` (`None`); for any
   other `T` it is an `ApiError` with code `empty_response`.
 - A raw body wins over a JSON one; its content type defaults to `application/octet-stream`.
+- Uploads with form fields use `Options::multipart(Multipart::new().text(..).file(..)?)`
+  (or `.bytes(name, file_name, content_type, data)` for data in memory). The body is encoded
+  when the options are built, so a retried request sends it again.
 - Requests are `async` and run on the shared runtime. Called from outside a tokio runtime (a
   GPUI task), they move onto it, so any executor can await them.
 

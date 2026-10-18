@@ -21,6 +21,10 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
   a subtree; `cx.keyed(key).use_state(..)` for per-row state.
 - Devtools: a Forms section listing live forms with their status and errors;
   `form::live_forms`.
+- HTTP: multipart uploads with `http::Multipart` and `Options::multipart` (text fields, files
+  from disk or memory); `http::describe_user_agent(app, version)` for a `User-Agent` header.
+- `rok_ui::platform`: `copy_to_clipboard` and `save_bytes` (the save dialog, then the file
+  written off the main thread).
 
 ### Changed
 
@@ -34,6 +38,16 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - Forms with text fields were never freed after their page closed (a reference cycle
   between the form and its inputs' subscriptions).
 - The Release workflow's config and the generator's snapshot tests on Windows.
+- Forms with an async validator can submit: submitting waits for the async validators
+  (the form is `is_submitting` meanwhile) instead of giving up while one runs. A field whose
+  sync check failed while an async one was pending no longer stays `is_validating`, and
+  `reset_field` drops the field's running async checks.
+- Router: a `%` before a multibyte character in a query no longer panics; a `+` in a path
+  parameter stays a `+` (only queries use it for a space); redirects fill each `:name` and
+  `*name` segment whole and encode the value (`:id` no longer rewrites `:identity`).
+- Text input: replacing an IME composition keeps the caret inside the new text (it could land
+  past the end and panic); pasted `\r\n` and `\r` line breaks become `\n`, or spaces in a
+  single-line input.
 
 ## [0.8.0] - 2026-10-09
 

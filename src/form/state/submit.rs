@@ -12,7 +12,7 @@ pub(super) struct WaitingSubmit {
 }
 
 /// Scroll `handle` so the field at `position` is at the top of the visible area.
-pub(super) fn scroll_to_field(handle: &ScrollHandle, position: Point<Pixels>) {
+fn scroll_to_field(handle: &ScrollHandle, position: Point<Pixels>) {
     let top = handle.bounds().origin.y - position.y;
     let lowest = -handle.max_offset().height;
     let offset = handle.offset();
@@ -84,7 +84,7 @@ pub(crate) fn submit<V: FormValues>(
 
 /// With every validator done: run the submit handler if the form is valid, else focus (and
 /// scroll to) the first invalid field.
-pub(super) fn finish_submit<V: FormValues>(
+fn finish_submit<V: FormValues>(
     form: &Entity<FormInner<V>>,
     window: Option<&mut Window>,
     cx: &mut App,

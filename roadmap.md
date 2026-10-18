@@ -7,7 +7,7 @@ Status: **Done** (implemented and tested), **Partial** (usable, with the gaps li
 **Not started**, **Deferred** (waiting on a decision in enhance.md Part K, or set aside, with
 the reason).
 
-Last updated: 2026-10-03.
+Last updated: 2026-10-17.
 
 ## Summary
 
@@ -19,7 +19,7 @@ function is deprecated), so it can ship as one release or be split as Part I pro
 |---|---|---|
 | 0.6 | Foundation: lints, docs, CI, releases, agent docs, macro split | Done, except the workspace split (decision K.2) |
 | 0.7 | Data: `Cx`, queries, mutations, procedures, Suspense | Done, except `#[shard]` and remote procedures |
-| 0.8 | Router v2 | Done, except scroll restoration, transitions and pending-UI timing |
+| 0.8 | Router v2 | Done |
 | 0.9 | Forms | Done (the app form hook is replaced by bound field components) |
 | 0.10 | Ecosystem: CLI, templates, stores, devtools, props, keys | Done |
 | 0.11 | Remote procedures, remove the legacy router | Deferred (K.6; no legacy router to remove, see K.4) |
@@ -50,7 +50,9 @@ What exists now, by crate:
 | H.4 CI | Done | Pedantic clippy job, `cargo hack --each-feature`, `cargo udeps`, nightly docs, PostgreSQL service for `tests/db.rs`, `--locked`, a templates job (`scripts/check-templates.sh`), and `cargo deny` (`deny.toml`). |
 | H.4 Semantic PR titles | Done | `.github/workflows/semantic-pr.yml`. |
 | H.4 release-plz | Done | `release-plz.toml` (publish order: grammar, macros and build, rok-ui, cli), `cliff.toml`, `.github/workflows/release-plz.yml`. Needs the `CARGO_REGISTRY_TOKEN` secret. |
-| H.5 Agent setup | Done | `AGENTS.md`, `CLAUDE.md`, `.agents/skills/{check,commit,pr,prose,style,macro,component,route,db,quality,release}`, `.claude -> .agents`. |
+| H.5 Agent setup | Done | `AGENTS.md`, `CLAUDE.md`, `.agents/skills/{check,commit,pr,prose,style,macro,component,route,db,quality,release,large-file-refactor}`, `.claude -> .agents`. |
+| H.5 Engineering skills | Done | The engineering skills from `mattpocock/skills` (`ask-matt` routes between them), configured for a local `.scratch/` tracker; see `docs/agents/`. |
+| H.6 File size | Done | Every `.rs` file is at most 600 lines: large modules are split by responsibility (`large-file-refactor` skill). Left as is: `resolve()` in `rok-ui-cli` is one 515-line function, splitting it is a design change. |
 
 ## Part C: reactive state and data
 
@@ -184,7 +186,7 @@ that use it. Design: `docs/design/http.md`.
 | M.3 Generator | Done | `g api` (and `kind: http` providers): endpoints with path parameters (typed with `{id:NoteId}`), query (with wire renames), JSON or raw bodies, `()` / `bytes` / DTO responses, `skip_expire`; DTOs with `serde` renames and untagged unions (`variants`); models inferred from DTOs; repositories that convert DTOs (`From` impls, envelope fields) and sign in / out through the session; repository methods derived from endpoints when none are given; forms with `server_errors`; `--dto` and `--endpoint` flags. Fixtures `notes_http.json` and `auth.json` with snapshot tests; JSON errors name the path. |
 | M.4 Template | Done | `new --template bloc --http` (`bloc-http`): `Session` and `HttpClient` in `main`, `app.rs` passing the client to providers, a `SessionGuard` that sends an expired session to `/auth`, generated `notes` (API) and `auth` features. CI builds it under clippy pedantic plus a flags-only `g api`. |
 | M.5 Token storage | Partial | In memory, or `Session::persisted(path)` (a plain JSON file; the tradeoff is documented). OS keychain storage: not started. |
-| M.6 Helpers | Not started | `copy_to_clipboard`, `save_bytes`, `describe_user_agent`; multipart uploads. |
+| M.6 Helpers | Done | `platform::copy_to_clipboard`, `platform::save_bytes` (save dialog, written off the main thread), `http::describe_user_agent`; multipart uploads with `http::Multipart` and `Options::multipart` (encoded by rok-ui so retries resend them; no reqwest `multipart` feature). Download progress: not started. |
 
 ## Part N: 0.9 (from `docs/proposals/next-features.md`)
 
