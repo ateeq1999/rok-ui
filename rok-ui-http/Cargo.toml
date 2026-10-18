@@ -1,0 +1,32 @@
+[package]
+name = "rok-ui-http"
+description = "The HTTP client behind rok_ui::http: JSON APIs, API errors, sessions, retries and uploads, without GPUI."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+repository = "https://github.com/ateeq1999/rok-ui"
+documentation = "https://docs.rs/rok-ui-http"
+keywords = ["http", "api", "client", "gpui"]
+categories = ["web-programming::http-client", "gui"]
+
+[lints]
+workspace = true
+
+[features]
+# `testing::MockServer`: a mock API server on localhost, for app tests.
+testing = ["tokio/net", "tokio/io-util"]
+
+[dependencies]
+rok-ui-bloc = { version = "0.8.0", path = "../rok-ui-bloc" }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
+futures = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+bytes = "1"
+# rustls with the ring provider and the OS trust store, as GPUI already builds them.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-native-roots"] }
+
+[package.metadata.docs.rs]
+all-features = true

@@ -15,7 +15,7 @@ use std::{
 /// [`Options::multipart`](super::Options::multipart):
 ///
 /// ```
-/// use rok_ui::http::{Multipart, Options};
+/// use rok_ui_http::{Multipart, Options};
 ///
 /// let form = Multipart::new()
 ///     .text("title", "Holiday")

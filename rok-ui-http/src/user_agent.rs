@@ -4,7 +4,7 @@
 /// log it, and it tells them which build sent a request. Pass it to the client:
 ///
 /// ```
-/// use rok_ui::http::{describe_user_agent, HttpClient};
+/// use rok_ui_http::{describe_user_agent, HttpClient};
 ///
 /// let client = HttpClient::builder()
 ///     .header(

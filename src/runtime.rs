@@ -10,8 +10,15 @@
 //! assert_eq!(answer, 42);
 //! ```
 
+// With `http`, the runtime is rok-ui-http's, so the data layer (which may use rok-ui-http
+// alone) and the UI share one.
+#[cfg(feature = "http")]
+pub use rok_ui_http::runtime::{block_on, get, spawn};
+
+#[cfg(not(feature = "http"))]
 use std::{future::Future, sync::OnceLock};
 
+#[cfg(not(feature = "http"))]
 /// The runtime, started with two worker threads on first use.
 ///
 /// # Panics
@@ -29,6 +36,7 @@ pub fn get() -> &'static tokio::runtime::Runtime {
     })
 }
 
+#[cfg(not(feature = "http"))]
 /// Run `future` on the shared runtime. The handle resolves on any executor,
 /// including GPUI's.
 pub fn spawn<F>(future: F) -> tokio::task::JoinHandle<F::Output>
@@ -39,6 +47,7 @@ where
     get().spawn(future)
 }
 
+#[cfg(not(feature = "http"))]
 /// Block the current thread on `future`. For tests and startup code only; never
 /// call it from a component or an event handler.
 pub fn block_on<F: Future>(future: F) -> F::Output {

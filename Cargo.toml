@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "macros", "rok-ui-grammar", "rok-ui-build", "rok-ui-bloc", "rok-ui-cli", "examples/file_routes"]
+members = [".", "macros", "rok-ui-grammar", "rok-ui-build", "rok-ui-bloc", "rok-ui-http", "rok-ui-cli", "examples/file_routes"]
 resolver = "2"
 
 [workspace.lints.rust]
@@ -72,9 +72,8 @@ futures = { version = "0.3", optional = true }
 garde = { version = "0.23", optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
-# `http`: rustls with the ring provider and the OS trust store, as GPUI already builds them.
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-native-roots"], optional = true }
-bytes = { version = "1", optional = true }
+# `http`: the client, without GPUI, so an app's data crate can use it alone.
+rok-ui-http = { version = "0.8.0", path = "rok-ui-http", optional = true }
 
 # Reads which Arabic letter forms installed fonts have (the same crate GPUI uses).
 [target.'cfg(windows)'.dependencies]
@@ -127,9 +126,9 @@ state = ["dep:rok-ui-hooks"]
 # The BLoC architecture (`rok_ui::bloc`): blocs, cubits, providers, builders and listeners.
 bloc = ["runtime", "dep:rok-ui-bloc", "dep:futures"]
 # A JSON API client (`rok_ui::http`): `HttpClient`, `ApiError`, `Session`, on the shared runtime.
-http = ["runtime", "dep:reqwest", "dep:bytes", "dep:serde", "dep:serde_json", "dep:futures", "dep:rok-ui-bloc"]
+http = ["runtime", "dep:rok-ui-http", "dep:serde", "dep:serde_json", "dep:futures", "dep:rok-ui-bloc"]
 # `rok_ui::http::testing::MockServer`, a mock API server for tests.
-http-testing = ["http", "tokio/net", "tokio/io-util"]
+http-testing = ["http", "rok-ui-http/testing"]
 # Queries, mutations, procedures, Suspense (`rok_ui::query`), on the shared runtime.
 query = ["runtime", "dep:futures"]
 # Headless, type-safe forms (`rok_ui::form`) with bound fields. Part of the `forms` group.
