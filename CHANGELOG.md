@@ -15,7 +15,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 - Blocs: `Concurrency::debounce(delay)` and `Concurrency::throttle(window)`;
   `set_observer` with a `BlocObserver` that sees every bloc's creation, events, changes,
-  panics and closing (`LogObserver` prints them); `bloc_test!` for one-block bloc tests.
+  panics and closing (`LogObserver` prints them); `bloc_test!`, which writes a whole bloc
+  test (build, events, expected states) as one macro call.
 - HTTP: `HttpClientBuilder::retry(Retry::idempotent(n))`, `on_response` and `log_requests`,
   and `refresh_token` (a 401 refreshes the token once and retries instead of signing out).
 - `http::testing::MockServer` (feature `http-testing`): a mock API server for app tests.
@@ -33,8 +34,10 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - `cargo rok-ui new --template bloc [--http] --layout workspace`: the data layer, each
   feature's business logic (without GPUI) and the app in their own crates; `generate` writes
   into the right crate.
-- The `rok-ui-http` crate: the HTTP client without GPUI. `rok_ui::http` re-exports it
-  unchanged; with `http`, `rok_ui::runtime` is its runtime, so an app still starts one.
+- The `rok-ui-http` crate: the HTTP client without GPUI, for code that runs outside the UI
+  (a feature's business logic, a CLI). `rok_ui::http` re-exports it unchanged; with the
+  `http` feature, `rok_ui::runtime` is `rok_ui_http::runtime`, so an app still has one
+  shared runtime.
 - `cargo rok-ui generate`: `"concurrency": "debounce:300ms"` and `"throttle:1s"`, for the
   bloc or one event (and `--concurrency debounce:300ms`).
 
@@ -42,6 +45,9 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 
 - **Breaking:** `Bloc::Event`, `Bloc::State` and `Cubit::State` must implement `Debug`. See
   `docs/migration/0.9.md`.
+- **Breaking:** `Concurrency` has two new variants, `Debounce(Duration)` and
+  `Throttle(Duration)`, so a `match` on it needs arms for them. Code that only constructs
+  `Concurrency` values is unaffected.
 - A bloc handler that panics is reported to the observer and the bloc keeps running (before,
   the bloc's event queue stopped).
 
@@ -50,6 +56,8 @@ minor release (`0.2` → `0.3`) may contain breaking changes.
 - Forms with text fields were never freed after their page closed (a reference cycle
   between the form and its inputs' subscriptions).
 - The Release workflow's config and the generator's snapshot tests on Windows.
+- `cargo rok-ui new --rok-ui-path` on Windows wrote a `\\?\` path that Cargo could not read,
+  so the new app did not build.
 - Forms with an async validator can submit: submitting waits for the async validators
   (the form is `is_submitting` meanwhile) instead of giving up while one runs. A field whose
   sync check failed while an async one was pending no longer stays `is_validating`, and

@@ -19,7 +19,7 @@ name = "cargo-rok-ui"
 path = "src/main.rs"
 
 [dependencies]
-rok-ui-build = { version = "0.8.0", path = "../rok-ui-build" }
+rok-ui-build = { version = "0.9.0", path = "../rok-ui-build" }
 # The `generate` JSON payload: parsed with serde, described with schemars (already in the
 # dependency tree through GPUI), types validated with syn.
 schemars = "1"
@@ -27,4 +27,6 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # `-j` errors name the JSON path of the bad value.
 serde_path_to_error = "0.1"
+# Canonical paths without the Windows `\\?\` prefix, which Cargo cannot read in a manifest.
+dunce = "1"
 syn = { version = "3", features = ["full"] }

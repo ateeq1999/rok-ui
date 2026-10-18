@@ -148,6 +148,13 @@ fn main() -> ExitCode {
     }
 }
 
+/// The absolute path of a local rok-ui checkout, for `path` dependencies. On Windows it has no
+/// verbatim `\\?\` prefix (which `fs::canonicalize` adds): Cargo rejects such paths in a
+/// manifest.
+fn local_rok_ui_path(path: &str) -> PathBuf {
+    dunce::canonicalize(path).unwrap_or_else(|_| PathBuf::from(path))
+}
+
 /// The dependency lines for rok-ui, rok-ui-bloc, rok-ui-http and rok-ui-build.
 fn dependencies(template: Template, local: Option<&Path>) -> [String; 4] {
     let features = template.features();
@@ -244,9 +251,7 @@ fn new(arguments: &Arguments) -> Result<(), String> {
     let template = Template::parse(template_name).ok_or_else(|| {
         format!("unknown template `{template_name}`; use minimal, full, db, bloc or bloc-http")
     })?;
-    let local = arguments
-        .flag("rok-ui-path")
-        .map(|path| fs::canonicalize(path).unwrap_or_else(|_| PathBuf::from(path)));
+    let local = arguments.flag("rok-ui-path").map(local_rok_ui_path);
     let directory = PathBuf::from(arguments.flag("path").unwrap_or(name));
     create(&directory, name, template, local.as_deref())?;
     match template {
@@ -325,6 +330,19 @@ fn routes(arguments: &Arguments) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn local_paths_are_written_in_a_form_cargo_reads() {
+        // `fs::canonicalize` returns `\\?\D:\...` on Windows, which Cargo rejects in a
+        // manifest. The path written for `--rok-ui-path` must be a plain absolute path.
+        let local = local_rok_ui_path(".");
+        assert!(local.is_absolute());
+        let [rok_ui, ..] = dependencies(Template::Minimal, Some(&local));
+        assert!(
+            !rok_ui.contains("?/") && !rok_ui.contains(r"\\?\"),
+            "{rok_ui}"
+        );
+    }
 
     #[test]
     fn arguments_parse_flags_and_positionals() {
