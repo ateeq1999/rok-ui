@@ -1,7 +1,8 @@
 //! Project templates for `cargo rok-ui new`.
 
-/// A file of a template: its path in the new project and its text, with `{{name}}`,
-/// `{{crate_name}}`, `{{rok_ui}}` and `{{rok_ui_build}}` placeholders.
+/// A file of a template: its path in the new project (which may hold `{{name}}`) and its
+/// text, with `{{name}}`, `{{crate_name}}`, `{{rok_ui}}`, `{{rok_ui_bloc}}` and
+/// `{{rok_ui_build}}` placeholders.
 pub struct TemplateFile {
     pub path: &'static str,
     pub text: &'static str,
@@ -98,6 +99,42 @@ const BLOC_HTTP: &[TemplateFile] = &[
     file!("src/routes/index.rs", "bloc/src/routes/index.rs"),
 ];
 
+const BLOC_WORKSPACE: &[TemplateFile] = &[
+    file!("Cargo.toml", "bloc-workspace/Cargo.toml.tmpl"),
+    file!("rok-ui.toml", "bloc-workspace/rok-ui.toml"),
+    file!(
+        "crates/{{name}}-data/Cargo.toml",
+        "bloc-workspace/data/Cargo.toml.tmpl"
+    ),
+    file!("crates/{{name}}-data/src/lib.rs", "bloc/src/data.rs"),
+    file!(
+        "crates/{{name}}/Cargo.toml",
+        "bloc-workspace/app/Cargo.toml.tmpl"
+    ),
+    file!("crates/{{name}}/build.rs", "bloc/build.rs"),
+    file!("crates/{{name}}/src/main.rs", "bloc/src/main.rs"),
+    file!("crates/{{name}}/src/lib.rs", "bloc-workspace/app/lib.rs"),
+    file!("crates/{{name}}/src/app.rs", "bloc/src/app.rs"),
+    file!("crates/{{name}}/src/features.rs", "bloc/src/features.rs"),
+    file!("crates/{{name}}/src/shared.rs", "bloc/src/shared.rs"),
+    file!(
+        "crates/{{name}}/src/shared/widgets.rs",
+        "bloc/src/shared/widgets.rs"
+    ),
+    file!(
+        "crates/{{name}}/src/routes/__root.rs",
+        "bloc/src/routes/__root.rs"
+    ),
+    file!(
+        "crates/{{name}}/src/routes/__not_found.rs",
+        "bloc/src/routes/__not_found.rs"
+    ),
+    file!(
+        "crates/{{name}}/src/routes/index.rs",
+        "bloc/src/routes/index.rs"
+    ),
+];
+
 /// The feature the `bloc` template generates into a new app.
 pub const BLOC_FEATURE: &str = include_str!("../fixtures/notes.json");
 
@@ -122,6 +159,9 @@ pub enum Template {
     /// `Bloc` over an HTTP API: a `Session` and an `HttpClient` in `main`, a session guard,
     /// and generated `notes` and `auth` features.
     BlocHttp,
+    /// `Bloc` split into crates: data, one per feature's business logic (no GPUI), and the
+    /// app.
+    BlocWorkspace,
 }
 
 impl Template {
@@ -133,6 +173,7 @@ impl Template {
             "db" => Some(Self::Db),
             "bloc" => Some(Self::Bloc),
             "bloc-http" => Some(Self::BlocHttp),
+            "bloc-workspace" => Some(Self::BlocWorkspace),
             _ => None,
         }
     }
@@ -143,7 +184,7 @@ impl Template {
             Self::Minimal => &[],
             Self::Full => &["router", "query"],
             Self::Db => &["router", "query", "db"],
-            Self::Bloc => &["router", "bloc", "form", "typography", "empty"],
+            Self::Bloc | Self::BlocWorkspace => &["router", "bloc", "form", "typography", "empty"],
             Self::BlocHttp => &["router", "bloc", "http", "form", "typography", "empty"],
         }
     }
@@ -161,6 +202,7 @@ impl Template {
             Self::Db => FULL_SHARED.iter().chain(DB_ONLY).collect(),
             Self::Bloc => BLOC.iter().collect(),
             Self::BlocHttp => BLOC_HTTP.iter().collect(),
+            Self::BlocWorkspace => BLOC_WORKSPACE.iter().collect(),
         }
     }
 }

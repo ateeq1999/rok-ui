@@ -16,8 +16,8 @@ This module (feature `bloc`) has the pieces: [`Bloc`], [`Cubit`], [`Emitter`],
 GPUI-free `rok-ui-bloc` crate, which this module re-exports.
 
 Start a new app in this layout with `cargo rok-ui new my-app --template bloc` (add `--http`
-for an API client and sign-in), and add features with `cargo rok-ui g feature <name>` (see
-the CLI guide, `docs/guide/cli.md`).
+for an API client and sign-in, or `--layout workspace` for a crate per layer), and add
+features with `cargo rok-ui g feature <name>` (see the CLI guide, `docs/guide/cli.md`).
 
 ## Folder structure
 
@@ -353,14 +353,31 @@ providers that call an API are tested against `rok_ui::http::testing::MockServer
 
 ## Workspace layout
 
-A large app can split the layers into crates. The mapping is fixed, so code moves without
-changes:
+A large app can split the layers into crates, so the compiler enforces rules 1 and 3: a
+feature's business logic cannot use GPUI when GPUI is not one of its dependencies.
+
+```text
+cargo rok-ui new my-app --template bloc --layout workspace
+```
+
+The mapping is fixed, so code moves without changes:
 
 | Folder | Crate | Depends on |
 |---|---|---|
-| `src/data/` | `<app>-data` | `rok-ui` (feature `http` or `db` only) |
-| `src/features/<f>/bloc/` | `<app>-<f>` | `<app>-data`, `rok-ui-bloc` (not `rok-ui`: no GPUI by construction) |
-| `src/features/<f>/view/`, `src/routes/`, `src/app.rs` | `<app>` | everything above, `rok-ui` |
+| `src/data/` | `crates/<app>-data` | `rok-ui-bloc` (repositories return its `BoxFuture`) |
+| `src/features/<f>/bloc/` | `crates/<app>-<f>` | `<app>-data`, `rok-ui-bloc` (not `rok-ui`: no GPUI by construction) |
+| `tests/features/<f>/` | `crates/<app>-<f>/tests/` | the same, so bloc tests build without GPUI |
+| `src/features/<f>/view/`, `src/routes/`, `src/app.rs` | `crates/<app>` | everything above, `rok-ui` |
 
-`cargo rok-ui new --layout workspace` is not implemented yet; split by hand following this
-table.
+The app crate keeps the single-crate paths: its `lib.rs` has `pub use <app>_data as data;`
+and each `features/<f>.rs` has `pub use <app>_<f> as bloc;`, so views, routes and `app.rs`
+still say `crate::data::..` and `crate::features::<f>::bloc::..`. Inside the moved crates,
+`crate::data::` becomes `crate::` (data) or `<app>_data::` (features), and `rok_ui::bloc::`
+becomes `rok_ui_bloc::`.
+
+`rok-ui.toml` at the workspace root says `layout = "workspace"` and names the app crate, and
+`cargo rok-ui generate` (run at the root) writes each file into its crate: a new feature gets
+its crate (`Cargo.toml`, and a `clippy.toml` that keeps blocs from holding blocs) and a line
+at the `# rok-ui:features` marker in the app crate's `Cargo.toml`. HTTP providers (`g api`,
+`--http`) are single-crate only for now: their `ApiError` would bring rok-ui into the feature
+crates.

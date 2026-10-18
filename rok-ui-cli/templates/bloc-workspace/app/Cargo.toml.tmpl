@@ -1,0 +1,21 @@
+[package]
+name = "{{name}}"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+rok-ui.workspace = true
+gpui.workspace = true
+{{name}}-data.workspace = true
+# The feature crates; `cargo rok-ui generate` adds them here.
+# rok-ui:features
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }
+
+[build-dependencies]
+rok-ui-build.workspace = true
+
+[lints]
+workspace = true

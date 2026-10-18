@@ -6,7 +6,7 @@ vendor components and write route trees.
 ```sh
 cargo install rok-ui-cli
 
-cargo rok-ui new my-app --template full     # minimal | full | db | bloc [--http]
+cargo rok-ui new my-app --template full     # minimal | full | db | bloc [--http | --layout workspace]
 cargo rok-ui g feature notes --event NotesRequested --event NoteAdded:title:String
 cargo rok-ui g api todos -j @todos.json     # HTTP provider, DTOs, repository
 cargo rok-ui add button dialog              # copy components into src/components/ui/

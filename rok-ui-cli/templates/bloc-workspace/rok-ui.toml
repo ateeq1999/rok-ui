@@ -1,0 +1,5 @@
+# Settings for `cargo rok-ui`.
+routes = "crates/{{name}}/src/routes"
+# `cargo rok-ui generate` writes into the crates below `crates/`.
+layout = "workspace"
+app = "{{name}}"

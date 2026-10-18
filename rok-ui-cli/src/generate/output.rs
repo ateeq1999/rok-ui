@@ -10,7 +10,7 @@ use std::{
     process::{Command, Stdio},
 };
 
-use super::{render, resolve::Plan, spec::Kind};
+use super::{layout::Layout, render, resolve::Plan, spec::Kind};
 
 /// What a subcommand writes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -63,7 +63,7 @@ pub enum Action {
 pub struct Changes {
     /// Path (relative to the project) to its action and new text.
     pub files: BTreeMap<String, (Action, String)>,
-    /// Lines to add to `app.rs` by hand, when it has no markers.
+    /// Lines to add by hand to files without their `// rok-ui:` marker.
     pub snippets: Vec<String>,
 }
 
@@ -339,21 +339,30 @@ fn insert_at_marker(text: &str, marker: &str, line: &str) -> Option<String> {
     Some(out)
 }
 
-/// Work out every change, reading the project at `root` and writing nothing.
+/// Work out every change, reading the project at `root` and writing nothing. Files are
+/// planned at their single-crate paths; `layout` says where they go.
 ///
 /// # Errors
 ///
-/// When rustfmt rejects generated code, or a file cannot be read.
+/// When rustfmt rejects generated code, a file cannot be read, or `layout` cannot hold the
+/// plan.
 pub fn plan(
     root: &Path,
     plan: &Plan,
     part: Part,
     crate_name: &str,
+    layout: &Layout,
     options: Options,
 ) -> Result<Changes, String> {
     let mut changes = Changes::default();
-    let read = |path: &str| fs::read_to_string(root.join(path)).ok();
+    // Reads a planned (single-crate) path from wherever the layout puts it.
+    let read = |path: &str| {
+        let physical = layout.physical(path)?;
+        let text = fs::read_to_string(root.join(physical)).ok()?;
+        Some(layout.to_logical(path, &text))
+    };
     let mut wanted: Vec<File> = files(plan, part, crate_name, options);
+    layout.check(wanted.iter().map(|file| file.path.as_str()), plan.is_http())?;
     // Barrels.
     if !options.no_wire {
         let mut barrels: BTreeMap<String, String> = BTreeMap::new();
@@ -435,6 +444,9 @@ pub fn plan(
                 Some(render::nav_link(plan)),
             ));
         }
+        for line in layout.dependency_lines(wanted.iter().map(|file| file.path.as_str())) {
+            registrations.push(("Cargo.toml", "# rok-ui:features", Some(line)));
+        }
         let mut edited: BTreeMap<&str, (String, String)> = BTreeMap::new();
         for (path, marker, line) in registrations {
             let Some(line) = line else { continue };
@@ -453,17 +465,40 @@ pub fn plan(
                     );
                     edited.insert(path, (original, text));
                 }
-                None if path == "src/app.rs" => changes.snippets.push(format!("{marker}\n{line}")),
+                None if path == "src/app.rs" => {
+                    changes
+                        .snippets
+                        .push(format!("src/app.rs, {marker}\n{line}"));
+                }
+                None if path == "Cargo.toml" => {
+                    changes.snippets.push(format!(
+                        "the app crate's Cargo.toml, [dependencies]\n{line}"
+                    ));
+                }
                 None => {}
             }
         }
         for (path, (original, text)) in edited {
             if text != original {
-                changes.files.insert(path.into(), (Action::Update, text));
+                if let Some(physical) = layout.physical(path) {
+                    let text = layout.to_physical(path, &text);
+                    changes.files.insert(physical, (Action::Update, text));
+                }
             }
         }
     }
+    let crate_files = layout.crate_files(wanted.iter().map(|file| file.path.as_str()));
+    for (path, text) in crate_files {
+        wanted.push(File {
+            path,
+            text,
+            mode: Mode::Support,
+        });
+    }
     for file in wanted {
+        let Some(physical) = layout.physical(&file.path) else {
+            continue;
+        };
         let is_barrel = file.mode == Mode::Own
             && file.text.lines().all(|line| {
                 let line = line.trim();
@@ -473,19 +508,23 @@ pub fn plan(
                     || line.starts_with("pub mod ")
                     || line.starts_with("mod ")
             });
-        let text = if is_barrel {
-            file.text
+        let text = layout.to_physical(&file.path, &file.text);
+        let is_rust = Path::new(&physical)
+            .extension()
+            .is_some_and(|extension| extension == "rs");
+        let text = if is_barrel || !is_rust {
+            text
         } else {
-            format(&file.path, &file.text)?
+            format(&physical, &text)?
         };
-        let action = match read(&file.path) {
+        let action = match fs::read_to_string(root.join(&physical)).ok() {
             None => Action::Create,
             Some(existing) if existing == text => Action::Unchanged,
             Some(_) if file.mode == Mode::Support => continue,
             Some(_) if is_barrel || options.force => Action::Update,
             Some(_) => Action::Conflict,
         };
-        changes.files.insert(file.path, (action, text));
+        changes.files.insert(physical, (action, text));
     }
     Ok(changes)
 }
@@ -504,7 +543,9 @@ pub fn write(root: &Path, changes: &Changes) -> Result<(), String> {
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent).map_err(|error| format!("{}: {error}", parent.display()))?;
         }
-        let temporary = target.with_extension("rs.rok-ui-tmp");
+        let mut temporary = target.clone().into_os_string();
+        temporary.push(".rok-ui-tmp");
+        let temporary = PathBuf::from(temporary);
         fs::write(&temporary, text).map_err(|error| format!("{path}: {error}"))?;
         fs::rename(&temporary, &target).map_err(|error| format!("{path}: {error}"))?;
     }
@@ -526,9 +567,7 @@ pub fn report(changes: &Changes, dry_run: bool) -> String {
         let _ = writeln!(out, "{verb:>12}  {path}");
     }
     if !changes.snippets.is_empty() {
-        out.push_str(
-            "\nAdd these to src/app.rs by hand (it has no `// rok-ui:` marker for them):\n",
-        );
+        out.push_str("\nAdd these by hand (their files have no `rok-ui:` marker for them):\n");
         for snippet in &changes.snippets {
             let _ = writeln!(out, "{snippet}");
         }

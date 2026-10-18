@@ -1,7 +1,7 @@
 //! `cargo rok-ui`: create rok-ui apps, vendor components and write route trees.
 //!
 //! ```text
-//! cargo rok-ui new <name> [--template minimal|full|db|bloc [--http]] [--rok-ui-path <path>]
+//! cargo rok-ui new <name> [--template minimal|full|db|bloc [--http|--layout workspace]] [--rok-ui-path <path>]
 //! cargo rok-ui add <component>... [--dir src/components/ui] [--force]
 //! cargo rok-ui routes [--dir src/routes] [--out src/route_tree.rs]
 //! cargo rok-ui generate <feature|bloc|cubit|repository|provider|view|api|schema> ...
@@ -22,7 +22,7 @@ use templates::Template;
 const USAGE: &str = "cargo rok-ui: create rok-ui apps, vendor components and write route trees
 
 USAGE:
-    cargo rok-ui new <name> [--template minimal|full|db|bloc [--http]] [--rok-ui-path <path>]
+    cargo rok-ui new <name> [--template minimal|full|db|bloc [--http|--layout workspace]] [--rok-ui-path <path>]
     cargo rok-ui add <component>... [--dir <dir>] [--force]
     cargo rok-ui routes [--dir <routes dir>] [--out <file>]
     cargo rok-ui generate <what> <name> [flags]     (alias: g; see `cargo rok-ui g help`)
@@ -31,7 +31,8 @@ COMMANDS:
     new       Create an app. Templates: minimal (one window), full (file-based routes,
               features, queries; the default), db (full plus PostgreSQL), bloc (the
               BLoC architecture: data, features and thin routes, with a notes feature;
-              add --http for a notes API client, sign-in and a session guard).
+              add --http for a notes API client, sign-in and a session guard, or
+              --layout workspace for crates: data, one per feature, and the app).
     add       Copy components' source into the app (default: src/components/ui/) to change
               them, and declare them in the barrel file.
     routes    Write the route tree for src/routes to a checked-in file (default:
@@ -147,8 +148,8 @@ fn main() -> ExitCode {
     }
 }
 
-/// The dependency lines for rok-ui and rok-ui-build.
-fn dependencies(template: Template, local: Option<&Path>) -> (String, String) {
+/// The dependency lines for rok-ui, rok-ui-bloc and rok-ui-build.
+fn dependencies(template: Template, local: Option<&Path>) -> [String; 3] {
     let features = template.features();
     let version = env!("CARGO_PKG_VERSION");
     let source = |crate_dir: &str| match local {
@@ -171,8 +172,9 @@ fn dependencies(template: Template, local: Option<&Path>) -> (String, String) {
             list.join(", ")
         )
     };
+    let bloc = format!("rok-ui-bloc = {{ {} }}", source("rok-ui-bloc"));
     let build = format!("rok-ui-build = {{ {} }}", source("rok-ui-build"));
-    (rok_ui, build)
+    [rok_ui, bloc, build]
 }
 
 /// Write `template` into `directory` for a crate called `name`.
@@ -190,7 +192,7 @@ fn create(
     {
         return Err(format!("{} exists and is not empty", directory.display()));
     }
-    let (rok_ui, rok_ui_build) = dependencies(template, local);
+    let [rok_ui, rok_ui_bloc, rok_ui_build] = dependencies(template, local);
     let crate_name = name.replace('-', "_");
     for file in template.files() {
         let text = file
@@ -198,8 +200,9 @@ fn create(
             .replace("{{name}}", name)
             .replace("{{crate_name}}", &crate_name)
             .replace("{{rok_ui}}", &rok_ui)
+            .replace("{{rok_ui_bloc}}", &rok_ui_bloc)
             .replace("{{rok_ui_build}}", &rok_ui_build);
-        let path = directory.join(file.path);
+        let path = directory.join(file.path.replace("{{name}}", name));
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).map_err(|error| error.to_string())?;
         }
@@ -213,7 +216,9 @@ fn new(arguments: &Arguments) -> Result<(), String> {
     let name = arguments
         .positional
         .first()
-        .ok_or("usage: cargo rok-ui new <name> [--template minimal|full|db|bloc [--http]]")?;
+        .ok_or(
+            "usage: cargo rok-ui new <name> [--template minimal|full|db|bloc [--http|--layout workspace]]",
+        )?;
     if name.is_empty()
         || !name
             .chars()
@@ -221,10 +226,20 @@ fn new(arguments: &Arguments) -> Result<(), String> {
     {
         return Err(format!("`{name}` is not a valid crate name"));
     }
-    let template_name = match (arguments.flag("template"), arguments.has("http")) {
-        (Some("bloc"), true) => "bloc-http",
-        (_, true) => return Err("--http goes with --template bloc".into()),
-        (template, false) => template.unwrap_or("full"),
+    let workspace = match arguments.flag("layout") {
+        None | Some("crate") => false,
+        Some("workspace") => true,
+        Some(other) => return Err(format!("unknown layout `{other}`; use crate or workspace")),
+    };
+    let template_name = match (arguments.flag("template"), arguments.has("http"), workspace) {
+        (Some("bloc"), true, true) => {
+            return Err("--layout workspace does not support --http yet".into())
+        }
+        (Some("bloc"), true, false) => "bloc-http",
+        (Some("bloc"), false, true) => "bloc-workspace",
+        (_, true, _) => return Err("--http goes with --template bloc".into()),
+        (_, false, true) => return Err("--layout workspace goes with --template bloc".into()),
+        (template, false, false) => template.unwrap_or("full"),
     };
     let template = Template::parse(template_name).ok_or_else(|| {
         format!("unknown template `{template_name}`; use minimal, full, db, bloc or bloc-http")
@@ -235,7 +250,9 @@ fn new(arguments: &Arguments) -> Result<(), String> {
     let directory = PathBuf::from(arguments.flag("path").unwrap_or(name));
     create(&directory, name, template, local.as_deref())?;
     match template {
-        Template::Bloc => generate::feature_into(&directory, templates::BLOC_FEATURE)?,
+        Template::Bloc | Template::BlocWorkspace => {
+            generate::feature_into(&directory, templates::BLOC_FEATURE)?;
+        }
         Template::BlocHttp => {
             for feature in templates::BLOC_HTTP_FEATURES {
                 generate::feature_into(&directory, feature)?;
@@ -248,7 +265,9 @@ fn new(arguments: &Arguments) -> Result<(), String> {
         directory.display()
     );
     println!("  cd {} && cargo run", directory.display());
-    if template.uses_build_script() {
+    if template == Template::BlocWorkspace {
+        println!("Routes live in crates/{name}/src/routes; its build.rs turns them into the `routes` module.");
+    } else if template.uses_build_script() {
         println!("Routes live in src/routes; build.rs turns them into the `routes` module.");
     }
     Ok(())

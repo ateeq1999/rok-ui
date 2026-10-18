@@ -1,0 +1,12 @@
+[package]
+name = "{{name}}-data"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+# Repositories return `rok_ui_bloc::BoxFuture`s; no GPUI here.
+[dependencies]
+rok-ui-bloc.workspace = true
+
+[lints]
+workspace = true

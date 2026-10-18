@@ -44,6 +44,19 @@ cargo clippy --quiet --all-targets -- -D warnings
 cargo clippy --quiet --all-targets -- -D warnings
 cargo test --quiet
 
+echo "== bloc template as a workspace: each layer a crate, feature crates without GPUI"
+(cd "$work" && "$cli" rok-ui new app-workspace --template bloc --layout workspace --rok-ui-path "$root")
+cp "$root/Cargo.lock" "$work/app-workspace/"
+cd "$work/app-workspace"
+"$cli" rok-ui g feature tasks -j @"$root/rok-ui-cli/fixtures/tasks.json"
+"$cli" rok-ui g bloc Search --feature search --concurrency debounce:300ms --view \
+  -j '{"events": [{"name": "QueryChanged", "fields": [{"name": "query", "type": "String"}]}]}'
+# Generating again changes nothing.
+"$cli" rok-ui g feature notes -j @"$root/rok-ui-cli/fixtures/notes.json" | grep -v unchanged && exit 1
+cargo tree --quiet -p app-workspace-notes -e normal | grep -q 'gpui v' && { echo "GPUI reached a feature crate"; exit 1; }
+cargo clippy --quiet --workspace --all-targets -- -D warnings
+cargo test --quiet --workspace
+
 echo "== cargo rok-ui add button"
 cd "$work/app-minimal"
 "$cli" rok-ui add button
