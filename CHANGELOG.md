@@ -5,9 +5,15 @@ version number.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the version is `0.x`, a
-minor release (`0.2` → `0.3`) may contain breaking changes.
+minor release (`0.2` to `0.3`) may contain breaking changes.
 
 ## [Unreleased]
+
+### Fixed
+
+- HTTP: when a token refresh fails, requests that were waiting for it no longer start
+  refreshes of their own (the session is expired before the next one checks it).
+- HTTP: refreshing the token no longer uses up one of the request's `Retry` attempts.
 
 ## [0.9.0] - 2026-10-18
 

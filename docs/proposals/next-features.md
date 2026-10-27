@@ -164,7 +164,8 @@ request with the new token, and expires the session only if the refresh fails. T
 rule 13 (the data layer owns the session) intact.
 
 **Size** M. **Risks:** retrying non-idempotent requests; `Retry::idempotent` only retries
-`GET`, `HEAD`, `PUT` and `DELETE`, and never after a response arrived.
+`GET`, `HEAD`, `PUT` and `DELETE`, after network errors and 502, 503 or 504 (gateway
+answers that mean the request did not run), never after any other response.
 
 ### 7. Multipart uploads; progress
 

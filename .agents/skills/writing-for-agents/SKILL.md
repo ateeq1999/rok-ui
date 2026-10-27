@@ -66,8 +66,8 @@ It anchors twice. In the body, _execution_: the agent reaches for the same behav
 
 Hunt for opportunities to refactor with leading words. A triad spelled out at three sites, a pointer spending a sentence to gesture at one idea. Each is a passage begging to collapse into a single token:
 
-- "fast, deterministic, low-overhead" → _tight_ (a _tight_ loop).
-- "a loop you believe in" → _red_, turning a fuzzy gate into a binary observable state (the loop goes _red_ on the bug, or it doesn't).
+- "fast, deterministic, low-overhead" -> _tight_ (a _tight_ loop).
+- "a loop you believe in" -> _red_, turning a fuzzy gate into a binary observable state (the loop goes _red_ on the bug, or it doesn't).
 
 You win twice: fewer tokens, and a sharper hook for the agent to hang its thinking on. Assume every document is carrying restatements that leading words retire. Go find them.
 
