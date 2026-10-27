@@ -9,6 +9,16 @@ minor release (`0.2` to `0.3`) may contain breaking changes.
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-27
+
+### Documentation
+
+- ASCII-only skill docs, the scopes we use, and the real retry rule
+
+### Fixed
+
+- **http:** Share a failed token refresh and keep retries for real failures
+
 ### Fixed
 
 - HTTP: when a token refresh fails, requests that were waiting for it no longer start
