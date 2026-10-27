@@ -378,7 +378,10 @@ impl HttpClient {
     /// Send with retries and token refresh, reporting each attempt.
     async fn send_now(&self, url: String, options: Options) -> Result<Response, ApiError> {
         let inner = &self.inner;
+        // `attempt` numbers every attempt (for the response hooks); `retries` counts only
+        // retries, so a token refresh does not use one up.
         let mut attempt = 1;
+        let mut retries = 0;
         let mut refreshed = false;
         loop {
             let started = std::time::Instant::now();
@@ -403,8 +406,9 @@ impl HttpClient {
                 Err(failure) => failure,
             };
             if let Some(retry) = &inner.retry {
-                if retry.allows(options.method, &error, attempt) {
-                    tokio::time::sleep(retry.delay(attempt)).await;
+                if retry.allows(options.method, &error, retries + 1) {
+                    retries += 1;
+                    tokio::time::sleep(retry.delay(retries)).await;
                     attempt += 1;
                     continue;
                 }
@@ -424,7 +428,8 @@ impl HttpClient {
     }
 
     /// Get a new token after `rejected` got a 401. Returns whether the session now holds a
-    /// different token to retry with.
+    /// different token to retry with. A failed refresh expires the session before the lock
+    /// is released, so requests waiting on it see no token and do not refresh again.
     async fn refresh(&self, rejected: &str) -> bool {
         let inner = &self.inner;
         let (Some(refresh), Some(session)) = (&inner.refresh, &inner.session) else {
@@ -441,12 +446,12 @@ impl HttpClient {
             None => return false,
             Some(_) => {}
         }
-        match REFRESHING.scope((), refresh(self.clone())).await {
-            Ok(token) => {
-                session.set_token(token);
-                true
-            }
-            Err(_) => false,
+        if let Ok(token) = REFRESHING.scope((), refresh(self.clone())).await {
+            session.set_token(token);
+            true
+        } else {
+            session.expire_if_current(rejected);
+            false
         }
     }
 

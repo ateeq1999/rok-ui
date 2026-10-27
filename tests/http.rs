@@ -535,3 +535,77 @@ fn a_failed_refresh_expires_the_session() {
         "the refresh failed, so the session ends"
     );
 }
+
+#[test]
+fn concurrent_401s_share_one_failed_refresh() {
+    let refreshes = Arc::new(Mutex::new(0_u32));
+    let refresh_count = refreshes.clone();
+    let (url, _) = serve(move |request| {
+        if request.target == "/sessions/refresh" {
+            *refresh_count.lock().unwrap() += 1;
+            return Reply::json(401, "").delayed(Duration::from_millis(50));
+        }
+        Reply::json(401, "")
+    });
+    let session = Session::with_token("stale");
+    let client = HttpClient::builder()
+        .base_url(url)
+        .session(session.clone())
+        .refresh_token(|client| async move {
+            client
+                .request_empty("/sessions/refresh", Options::post().skip_expire(true))
+                .await?;
+            Ok("never".to_string())
+        })
+        .build();
+    let errors: Vec<ApiError> = block_on(async {
+        let (a, b, c) = futures::join!(
+            client.request_empty("/a", Options::get()),
+            client.request_empty("/b", Options::get()),
+            client.request_empty("/c", Options::get()),
+        );
+        vec![a.unwrap_err(), b.unwrap_err(), c.unwrap_err()]
+    });
+    assert!(errors.iter().all(|error| error.status == 401));
+    assert_eq!(
+        *refreshes.lock().unwrap(),
+        1,
+        "requests waiting on a refresh that failed do not refresh again"
+    );
+    assert!(session.is_expired());
+}
+
+#[test]
+fn a_refresh_does_not_use_up_the_retries() {
+    let calls = Arc::new(Mutex::new(0_u32));
+    let counter = calls.clone();
+    let (url, _) = serve(move |request| {
+        if request.target == "/sessions/refresh" {
+            return Reply::json(200, r#"{"token": "fresh"}"#);
+        }
+        if request.header("authorization") != Some("Bearer fresh") {
+            return Reply::json(401, "");
+        }
+        let mut calls = counter.lock().unwrap();
+        *calls += 1;
+        if *calls == 1 {
+            Reply::json(503, "")
+        } else {
+            Reply::json(200, r#"{"id": 1, "title": "Fresh"}"#)
+        }
+    });
+    let client = HttpClient::builder()
+        .base_url(url)
+        .session(Session::with_token("stale"))
+        .retry(Retry::idempotent(1).backoff(Duration::from_millis(1)))
+        .refresh_token(|client| async move {
+            let fresh: TokenDto = client
+                .request("/sessions/refresh", Options::post().skip_expire(true))
+                .await?;
+            Ok(fresh.token)
+        })
+        .build();
+    // 401, refresh, then a 503 that the one retry still covers.
+    let note: Note = block_on(client.request("/note", Options::get())).unwrap();
+    assert_eq!(note.title, "Fresh");
+}
