@@ -19,7 +19,7 @@ workspace = true
 testing = ["tokio/net", "tokio/io-util"]
 
 [dependencies]
-rok-ui-bloc = { version = "0.9.1", path = "../rok-ui-bloc" }
+rok-ui-bloc = { version = "0.9.2", path = "../rok-ui-bloc" }
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
 futures = "0.3"
 serde = { version = "1", features = ["derive"] }

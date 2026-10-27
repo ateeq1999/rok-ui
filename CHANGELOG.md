@@ -9,6 +9,8 @@ minor release (`0.2` to `0.3`) may contain breaking changes.
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-10-27
+
 ## [0.9.1] - 2026-10-27
 
 ### Documentation
