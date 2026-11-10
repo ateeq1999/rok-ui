@@ -9,6 +9,12 @@ minor release (`0.2` to `0.3`) may contain breaking changes.
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-11-10
+
+### Theme
+
+- A custom theme keeps its colours across a mode switch ([#27](https://github.com/ateeq1999/rok-ui/pull/27))
+
 ### Fixed
 
 - A custom theme keeps its colours across a mode switch: `toggle_mode` and
