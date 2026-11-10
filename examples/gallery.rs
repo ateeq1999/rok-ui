@@ -221,7 +221,7 @@ impl Gallery {
         let colors = theme.colors.clone();
         let selected_preset_index = ThemePreset::ALL
             .iter()
-            .position(|preset| *preset == current_preset)
+            .position(|preset| Some(*preset) == current_preset)
             .unwrap_or(0);
 
         div()
