@@ -680,15 +680,22 @@ Tokens mirror shadcn/ui's CSS variables:
 
 ```rust
 Theme::toggle_mode(cx);                                         // light ↔ dark
+Theme::set_mode(ThemeMode::Dark, cx);                           // pick one
 Theme::change_preset(ThemePreset::Neutral, cx);                 // switch palette
 Theme::sync_with_system_appearance(window, cx);                 // follow the OS
 
-// A custom brand: start from a preset and override tokens.
-let mut theme = Theme::from_preset(ThemePreset::Neutral, ThemeMode::Light);
-theme.colors.primary = gpui::rgb(0x2F5D50).into();
+// A custom brand: a preset's pair with your tokens, in both modes.
+let mut pair = ThemePreset::Neutral.pair();
+pair.light.primary = gpui::rgb(0x2F5D50).into();
+pair.dark.primary = gpui::rgb(0x7FB8A6).into();
+let mut theme = Theme::custom("Forest", pair);
 theme.radius = px(10.);
 Theme::set_global(theme, cx);
 ```
+
+A theme holds its colours in both modes (`theme.pair`), and a mode switch takes them from
+there, so a custom theme keeps its brand in light and dark. Change a colour in the pair, not only
+in `theme.colors`, which is the current mode's copy.
 
 **Rok** (the default) uses warm stone neutrals, an ember accent (`#B4400F` light, `#EA7A45` dark)
 and 4px corners. **Neutral** is shadcn/ui's neutral palette with 8px corners. Two of its values

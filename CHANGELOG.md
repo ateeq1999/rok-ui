@@ -9,6 +9,24 @@ minor release (`0.2` to `0.3`) may contain breaking changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- A custom theme keeps its colours across a mode switch: `toggle_mode` and
+  `sync_with_system_appearance` take the colours from the theme's own pair instead of
+  rebuilding its preset, which put a custom theme back on the preset's colours.
+
+### Added
+
+- `ThemePair`, a theme's colours in both modes, and `Theme::pair`. `ThemePreset::pair()` and
+  `ThemePreset::radius()` give a preset's.
+- `Theme::custom(name, pair)` builds a theme of your own colours; `Theme::set_mode` and
+  `Theme::in_mode` switch to a mode, keeping the colours.
+
+### Changed
+
+- **Breaking:** `Theme::preset` is an `Option<ThemePreset>`, `None` for a custom theme.
+  `Theme` gains the `pair` field, so a struct literal of it needs one.
+
 ## [0.9.2] - 2026-10-27
 
 ## [0.9.1] - 2026-10-27

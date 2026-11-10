@@ -87,6 +87,27 @@ pub struct ThemeColors {
     pub overlay: Hsla,
 }
 
+/// A theme's colours in both modes: what a mode switch takes its colours
+/// from. A [`ThemePreset`] is a built-in pair ([`ThemePreset::pair`]).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ThemePair {
+    /// The colours in [`ThemeMode::Light`].
+    pub light: ThemeColors,
+    /// The colours in [`ThemeMode::Dark`].
+    pub dark: ThemeColors,
+}
+
+impl ThemePair {
+    /// The colours for `mode`.
+    #[must_use]
+    pub fn colors(&self, mode: ThemeMode) -> &ThemeColors {
+        match mode {
+            ThemeMode::Light => &self.light,
+            ThemeMode::Dark => &self.dark,
+        }
+    }
+}
+
 /// The complete theme: colors plus shape and type tokens.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Theme {
@@ -94,8 +115,11 @@ pub struct Theme {
     pub name: SharedString,
     /// Light or dark.
     pub mode: ThemeMode,
-    /// The color tokens.
+    /// The color tokens of the current mode: `pair`'s, for `mode`.
     pub colors: ThemeColors,
+    /// The colours in both modes. A mode switch takes `colors` from here,
+    /// so change a brand's colours in the pair, not only in `colors`.
+    pub pair: ThemePair,
     /// Base corner radius (shadcn's `--radius`). Components derive smaller and
     /// larger radii from it, like `rounded-md` = radius − 2px.
     pub radius: Pixels,
@@ -105,8 +129,9 @@ pub struct Theme {
     pub monospace_font_family: SharedString,
     /// Base text size (shadcn's `text-sm` is used for most controls).
     pub font_size: Pixels,
-    /// Which preset produced this theme, so mode toggles keep the brand.
-    pub preset: ThemePreset,
+    /// The preset this theme was built from; `None` for a
+    /// [`Theme::custom`] one.
+    pub preset: Option<ThemePreset>,
 }
 
 impl Global for Theme {}
@@ -116,6 +141,41 @@ impl Theme {
     #[must_use]
     pub fn from_preset(preset: ThemePreset, mode: ThemeMode) -> Self {
         presets::build_theme(preset, mode)
+    }
+
+    /// A theme of your own colours, in light mode, with the default
+    /// preset's radius and fonts. A mode switch keeps its colours.
+    ///
+    /// ```no_run
+    /// # use rok_ui::prelude::*;
+    /// # fn example(cx: &mut App) {
+    /// let mut pair = ThemePreset::Neutral.pair();
+    /// pair.light.primary = gpui::rgb(0x2F5D50).into();
+    /// pair.dark.primary = gpui::rgb(0x7FB8A6).into();
+    /// Theme::set_global(Theme::custom("Forest", pair), cx);
+    /// Theme::toggle_mode(cx); // still Forest, in dark
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn custom(name: impl Into<SharedString>, pair: ThemePair) -> Self {
+        Theme {
+            name: name.into(),
+            colors: pair.light.clone(),
+            pair,
+            preset: None,
+            ..Theme::from_preset(ThemePreset::default(), ThemeMode::Light)
+        }
+    }
+
+    /// This theme in `mode`: its colours from its pair, everything else
+    /// kept.
+    #[must_use]
+    pub fn in_mode(&self, mode: ThemeMode) -> Theme {
+        Theme {
+            mode,
+            colors: self.pair.colors(mode).clone(),
+            ..self.clone()
+        }
     }
 
     /// The theme currently installed in the app.
@@ -132,14 +192,22 @@ impl Theme {
         cx.refresh_windows();
     }
 
-    /// Switch between light and dark, keeping the current preset and fonts.
-    pub fn toggle_mode(cx: &mut App) {
-        let current = Theme::global(cx);
-        let next = current.rebuilt(current.preset, current.mode.toggled());
+    /// Switch to `mode`, keeping the theme's colours (a custom theme's too),
+    /// radius and fonts.
+    pub fn set_mode(mode: ThemeMode, cx: &mut App) {
+        let next = Theme::global(cx).in_mode(mode);
         Theme::set_global(next, cx);
     }
 
-    /// Switch preset, keeping the current mode and fonts.
+    /// Switch between light and dark, keeping the theme's colours (a
+    /// custom theme's too), radius and fonts.
+    pub fn toggle_mode(cx: &mut App) {
+        let mode = Theme::global(cx).mode.toggled();
+        Theme::set_mode(mode, cx);
+    }
+
+    /// Switch to `preset`'s colours and radius, keeping the current mode
+    /// and fonts.
     pub fn change_preset(preset: ThemePreset, cx: &mut App) {
         let current = Theme::global(cx);
         let next = current.rebuilt(preset, current.mode);
@@ -173,17 +241,10 @@ impl Theme {
         }
     }
 
-    /// Follow the operating system's light or dark appearance.
+    /// Follow the operating system's light or dark appearance, keeping the
+    /// theme's colours (a custom theme's too).
     pub fn sync_with_system_appearance(window: &Window, cx: &mut App) {
-        let mode = match window.appearance() {
-            gpui::WindowAppearance::Dark | gpui::WindowAppearance::VibrantDark => ThemeMode::Dark,
-            gpui::WindowAppearance::Light | gpui::WindowAppearance::VibrantLight => {
-                ThemeMode::Light
-            }
-        };
-        let current = Theme::global(cx);
-        let next = current.rebuilt(current.preset, mode);
-        Theme::set_global(next, cx);
+        Theme::set_mode(mode_of(window.appearance()), cx);
     }
 
     /// `rounded-sm`: radius − 4px, never below zero.
@@ -214,6 +275,14 @@ impl Theme {
 impl Default for Theme {
     fn default() -> Self {
         Theme::from_preset(ThemePreset::default(), ThemeMode::Light)
+    }
+}
+
+/// The mode a window's appearance asks for.
+fn mode_of(appearance: gpui::WindowAppearance) -> ThemeMode {
+    match appearance {
+        gpui::WindowAppearance::Dark | gpui::WindowAppearance::VibrantDark => ThemeMode::Dark,
+        gpui::WindowAppearance::Light | gpui::WindowAppearance::VibrantLight => ThemeMode::Light,
     }
 }
 

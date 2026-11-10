@@ -1,9 +1,9 @@
 //! Built-in theme presets. To rebrand, add a preset here (or build a [`Theme`]
 //! by hand and pass it to [`Theme::set_global`]).
 
-use gpui::{px, rgb, Hsla, SharedString};
+use gpui::{px, rgb, Hsla, Pixels, SharedString};
 
-use super::{Theme, ThemeColors, ThemeMode};
+use super::{Theme, ThemeColors, ThemeMode, ThemePair};
 
 /// The built-in color palettes.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -28,6 +28,31 @@ impl ThemePreset {
             ThemePreset::Rok => "Rok",
         }
     }
+
+    /// The preset's colours in both modes, to build a
+    /// [`Theme::custom`] from.
+    #[must_use]
+    pub fn pair(self) -> ThemePair {
+        match self {
+            ThemePreset::Neutral => ThemePair {
+                light: neutral_light_colors(),
+                dark: neutral_dark_colors(),
+            },
+            ThemePreset::Rok => ThemePair {
+                light: rok_light_colors(),
+                dark: rok_dark_colors(),
+            },
+        }
+    }
+
+    /// The preset's base corner radius.
+    #[must_use]
+    pub fn radius(self) -> Pixels {
+        match self {
+            ThemePreset::Neutral => px(8.),
+            ThemePreset::Rok => px(4.),
+        }
+    }
 }
 
 /// `0xRRGGBB` to [`Hsla`].
@@ -43,21 +68,17 @@ fn hex_with_alpha(value: u32, alpha: f32) -> Hsla {
 }
 
 pub(super) fn build_theme(preset: ThemePreset, mode: ThemeMode) -> Theme {
-    let (colors, radius) = match (preset, mode) {
-        (ThemePreset::Neutral, ThemeMode::Light) => (neutral_light_colors(), px(8.)),
-        (ThemePreset::Neutral, ThemeMode::Dark) => (neutral_dark_colors(), px(8.)),
-        (ThemePreset::Rok, ThemeMode::Light) => (rok_light_colors(), px(4.)),
-        (ThemePreset::Rok, ThemeMode::Dark) => (rok_dark_colors(), px(4.)),
-    };
+    let pair = preset.pair();
     Theme {
         name: SharedString::new_static(preset.label()),
         mode,
-        colors,
-        radius,
+        colors: pair.colors(mode).clone(),
+        pair,
+        radius: preset.radius(),
         font_family: ".SystemUIFont".into(),
         monospace_font_family: default_monospace_font().into(),
         font_size: px(14.),
-        preset,
+        preset: Some(preset),
     }
 }
 

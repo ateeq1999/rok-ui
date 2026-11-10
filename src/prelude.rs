@@ -30,5 +30,5 @@ pub use crate::sx::{
     ColorToken, Corners, Edges, Sx, SxAlign, SxColor, SxDirection, SxFont, SxJustify, SxLength,
     SxRadius, SxShadow, SxStyled, SxText, SxTextAlign,
 };
-pub use crate::theme::{ActiveTheme, Theme, ThemeColors, ThemeMode, ThemePreset};
+pub use crate::theme::{ActiveTheme, Theme, ThemeColors, ThemeMode, ThemePair, ThemePreset};
 pub use rok_ui_macros::{children, component, keyframes, style, styles, view};
